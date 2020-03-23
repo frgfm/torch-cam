@@ -44,7 +44,7 @@ class Tester(unittest.TestCase):
         self.assertEqual(activation_map.shape, (1, 7, 7))
 
 
-for cam_extractor in ['GradCAM', 'GradCAM++']:
+for cam_extractor in ['GradCAM', 'GradCAMpp']:
     def do_test(self, cam_extractor=cam_extractor):
         self._test_gradcam(cam_extractor)
 
