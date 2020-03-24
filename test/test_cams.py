@@ -30,14 +30,15 @@ class Tester(unittest.TestCase):
 
         return img_tensor
 
-    def test_cam(self):
+    def _test_cam(self, name):
         # Get a pretrained model
         model = resnet18(pretrained=True).eval()
         conv_layer = 'layer4'
+        input_layer = 'conv1'
         fc_layer = 'fc'
 
         # Hook the corresponding layer in the model
-        extractor = cams.CAM(model, conv_layer, fc_layer)
+        extractor = cams.__dict__[name](model, conv_layer, fc_layer if name == 'CAM' else input_layer)
 
         # Get a dog image
         img_tensor = self._get_img_tensor()
@@ -84,6 +85,13 @@ class Tester(unittest.TestCase):
 
         # Use the hooked data to compute activation map
         self._verify_cam(extractor(out, out[0].argmax().item()))
+
+
+for cam_extractor in ['CAM', 'ScoreCAM']:
+    def do_test(self, cam_extractor=cam_extractor):
+        self._test_cam(cam_extractor)
+
+    setattr(Tester, "test_" + cam_extractor.lower(), do_test)
 
 
 for cam_extractor in ['GradCAM', 'GradCAMpp']:
