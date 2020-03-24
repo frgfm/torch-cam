@@ -50,7 +50,8 @@ import matplotlib.pyplot as plt
 from torchvision.models import resnet50
 from torchvision.transforms import transforms
 from torchvision.transforms.functional import to_pil_image
-from gradcam import GradCAM, GradCAMpp, overlay_mask
+from torchcam.cams import CAM, GradCAM, GradCAMpp
+from torchcam.utils import overlay_mask
 
 
 # Pretrained imagenet model
@@ -81,7 +82,7 @@ classes = {int(key):value for (key, value)
 class_idx = 232
 
 # Use the hooked data to compute activation map
-activation_maps = gradcam.get_activation_maps(out, class_idx)
+activation_maps = gradcam(out, class_idx)
 # Convert it to PIL image
 # The indexing below means first image in batch
 heatmap = to_pil_image(activation_maps[0].cpu().numpy(), mode='F')
@@ -101,7 +102,7 @@ plt.imshow(result); plt.axis('off'); plt.title(classes.get(class_idx)); plt.tigh
 
 The project is currently under development, here are the objectives for the next releases:
 
-- [ ] Parallel CAMs: enable batch processing.
+- [x] Parallel CAMs: enable batch processing.
 - [ ] Benchmark: compare class activation map computations for different architectures.
 - [ ] Signature improvement: retrieve automatically the last convolutional layer.
 - [ ] Refine RPN: create a region proposal network using CAM.

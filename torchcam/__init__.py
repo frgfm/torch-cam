@@ -1,4 +1,4 @@
-from torchcam.gradcam import *
+from torchcam import cams
 from torchcam import utils
 
 

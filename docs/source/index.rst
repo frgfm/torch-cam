@@ -7,7 +7,7 @@ The :mod:`torchcam` package gives PyTorch users the possibility to visualize the
    :maxdepth: 1
    :caption: Package Reference
 
-   torchcam
+   cams
    utils
 
 
