@@ -9,7 +9,7 @@ import torch
 
 from .cam import _CAM
 
-__all__ = ['GradCAM', 'GradCAMpp']
+__all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp']
 
 
 class _GradCAM(_CAM):
@@ -21,12 +21,13 @@ class _GradCAM(_CAM):
     """
 
     hook_a, hook_g = None, None
+    hook_handles = []
 
     def __init__(self, model, conv_layer):
 
         super().__init__(model, conv_layer)
         # Backward hook
-        self.model._modules.get(conv_layer).register_backward_hook(self._hook_g)
+        self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
 
     def _hook_g(self, module, input, output):
         self.hook_g = output[0].data
@@ -37,7 +38,7 @@ class _GradCAM(_CAM):
             raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
 
         # Backpropagate to get the gradients on the hooked layer
-        loss = output[:, class_idx]
+        loss = output[:, class_idx].sum()
         self.model.zero_grad()
         loss.backward(retain_graph=True)
 
@@ -46,9 +47,6 @@ class _GradCAM(_CAM):
         raise NotImplementedError
 
     def __call__(self, output, class_idx, normalized=True):
-
-        # Backpropagate
-        self._backprop(output, class_idx)
 
         # Get map weight
         weights = self._get_weights(output, class_idx)
@@ -79,6 +77,8 @@ class GradCAM(_GradCAM):
 
     def _get_weights(self, output, class_idx):
 
+        # Backpropagate
+        self._backprop(output, class_idx)
         # Global average pool the gradients over spatial dimensions
         return self.hook_g.data.mean(axis=(2, 3))
 
@@ -99,6 +99,8 @@ class GradCAMpp(_GradCAM):
 
     def _get_weights(self, output, class_idx):
 
+        # Backpropagate
+        self._backprop(output, class_idx)
         # Alpha coefficient for each pixel
         grad_2 = self.hook_g.data.pow(2)
         grad_3 = self.hook_g.data.pow(3)
@@ -106,3 +108,70 @@ class GradCAMpp(_GradCAM):
 
         # Apply pixel coefficient in each weight
         return alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
+
+
+class SmoothGradCAMpp(_GradCAM):
+    """Implements a class activation map extractor as described in https://arxiv.org/pdf/1908.01224.pdf
+    with a personal correction to the paper (alpha coefficient numerator)
+
+    Args:
+        model (torch.nn.Module): input model
+        conv_layer (str): name of the last convolutional layer
+    """
+
+    hook_a, hook_g = None, None
+    hook_handles = []
+
+    def __init__(self, model, conv_layer, first_layer, num_samples=4, std=0.3):
+
+        super().__init__(model, conv_layer)
+
+        # Input hook
+        self.hook_handles.append(self.model._modules.get(first_layer).register_forward_pre_hook(self._store_input))
+        # Noise distribution
+        self.num_samples = num_samples
+        self.std = std
+        self._distrib = torch.distributions.normal.Normal(0, self.std)
+        self._observing = True
+
+    def _store_input(self, module, input):
+
+        if self._observing:
+            self._input = input[0].data.clone()
+
+    def _get_weights(self, output, class_idx):
+
+        # Disable input update
+        self._observing = False
+        # Keep initial activation
+        init_fmap = self.hook_a.data
+        # Initialize our gradient estimates
+        grad_2, grad_3 = torch.zeros_like(self.hook_a.data), torch.zeros_like(self.hook_a.data)
+        # Perform the operations N times
+        for _idx in range(self.num_samples):
+            # Add noise
+            noisy_input = self._input + self._distrib.sample(self._input.size()).to(device=self._input.device)
+            # Forward & Backward
+            out = self.model(noisy_input)
+            self.model.zero_grad()
+            self._backprop(out, class_idx)
+
+            # Sum partial derivatives
+            grad_2.add_(self.hook_g.data.pow(2))
+            grad_3.add_(self.hook_g.data.pow(3))
+
+        # Reenable input update
+        self._observing = True
+
+        # Average the gradient estimates
+        grad_2.div_(self.num_samples)
+        grad_3.div_(self.num_samples)
+
+        # Alpha coefficient for each pixel
+        alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).sum(axis=(2, 3), keepdims=True))
+
+        # Apply pixel coefficient in each weight
+        return alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(num_samples={self.num_samples}, std={self.std})"

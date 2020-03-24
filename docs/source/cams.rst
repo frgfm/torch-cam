@@ -22,3 +22,5 @@ Related to gradient-based class activation maps.
 
 
 .. autoclass:: GradCAMpp
+
+.. autoclass:: SmoothGradCAMpp

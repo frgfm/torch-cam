@@ -19,6 +19,7 @@ class _CAM(object):
     """
 
     hook_a = None
+    hook_handles = []
 
     def __init__(self, model, conv_layer):
 
@@ -26,15 +27,20 @@ class _CAM(object):
             raise ValueError(f"Unable to find submodule {conv_layer} in the model")
         self.model = model
         # Forward hook
-        self.model._modules.get(conv_layer).register_forward_hook(self._hook_a)
+        self.hook_handles.append(self.model._modules.get(conv_layer).register_forward_hook(self._hook_a))
 
     def _hook_a(self, module, input, output):
         self.hook_a = output.data
 
+    def clear_hooks(self):
+        """Clear model hooks"""
+        for handle in self.hook_handles:
+            handle.remove()
+
     @staticmethod
     def _normalize(cams):
-        cams -= cams.flatten(start_dim=1).min().view(-1, 1, 1)
-        cams /= cams.flatten(start_dim=1).max().view(-1, 1, 1)
+        cams -= cams.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1)
+        cams /= cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1)
 
         return cams
 
@@ -56,6 +62,9 @@ class _CAM(object):
 
         return batch_cams
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
 
 class CAM(_CAM):
     """Implements a class activation map extractor as described in https://arxiv.org/abs/1512.04150
@@ -66,6 +75,7 @@ class CAM(_CAM):
     """
 
     hook_a = None
+    hook_handles = []
 
     def __init__(self, model, conv_layer, fc_layer):
 
