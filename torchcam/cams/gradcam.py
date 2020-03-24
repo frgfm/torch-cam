@@ -77,7 +77,6 @@ class GradCAM(_GradCAM):
 
         super().__init__(model, conv_layer)
 
-
     def _get_weights(self, output, class_idx):
 
         # Global average pool the gradients over spatial dimensions
