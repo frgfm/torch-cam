@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.1.1a0+9021aec-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.1.1a0+d41c073-git documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.1.1a0+9021aec
+                0.1.1a0+d41c073
               </div>
             
           
@@ -167,6 +167,42 @@
 <dt id="torchcam.cams.CAM">
 <em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">CAM</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em>, <em class="sig-param">fc_layer</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#CAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.CAM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/abs/1512.04150">https://arxiv.org/abs/1512.04150</a></p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">CAM</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">CAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;fc&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="class">
+<dt id="torchcam.cams.ScoreCAM">
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">ScoreCAM</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em>, <em class="sig-param">input_layer</em>, <em class="sig-param">max_batch=32</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#ScoreCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.ScoreCAM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/abs/1910.01279">https://arxiv.org/abs/1910.01279</a></p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">ScoreCAM</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">ScoreCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -185,6 +221,17 @@
 <dt id="torchcam.cams.GradCAM">
 <em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">GradCAM</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#GradCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.GradCAM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1710.11063.pdf">https://arxiv.org/pdf/1710.11063.pdf</a></p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">GradCAM</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">GradCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -199,6 +246,17 @@
 <dt id="torchcam.cams.GradCAMpp">
 <em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">GradCAMpp</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#GradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.GradCAMpp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1710.11063.pdf">https://arxiv.org/pdf/1710.11063.pdf</a></p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">GradCAMpp</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">GradCAMpp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -214,6 +272,17 @@
 <em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">SmoothGradCAMpp</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em>, <em class="sig-param">first_layer</em>, <em class="sig-param">num_samples=4</em>, <em class="sig-param">std=0.3</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#SmoothGradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.SmoothGradCAMpp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1908.01224.pdf">https://arxiv.org/pdf/1908.01224.pdf</a>
 with a personal correction to the paper (alpha coefficient numerator)</p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">SmoothGradCAMpp</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">SmoothGradCAMpp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
