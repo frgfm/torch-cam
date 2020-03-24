@@ -11,7 +11,7 @@ import torch
 __all__ = ['GradCAM', 'GradCAMpp']
 
 
-class GradCAM(object):
+class _GradCAM(object):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1610.02391.pdf
 
     Args:
@@ -39,10 +39,8 @@ class GradCAM(object):
 
     def _compute_gradcams(self, weights, normalized=True):
 
-        # Get the feature activation map
-        fmap = self.hook_a.data
         # Perform the weighted combination to get the CAM
-        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * fmap).sum(dim=1))
+        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * self.hook_a).sum(dim=1))
 
         # Normalize the CAM
         if normalized:
@@ -60,6 +58,26 @@ class GradCAM(object):
         loss = output[:, class_idx]
         self.model.zero_grad()
         loss.backward(retain_graph=True)
+
+    def get_activation_maps(self, output, class_idx, normalized=True):
+        """Class activation map computation"""
+
+        raise NotImplementedError
+
+
+class GradCAM(_GradCAM):
+    """Implements a class activation map extractor as described in https://arxiv.org/pdf/1710.11063.pdf
+
+    Args:
+        model (torch.nn.Module): input model
+        conv_layer (str): name of the last convolutional layer
+    """
+
+    hook_a, hook_g = None, None
+
+    def __init__(self, model, conv_layer):
+
+        super().__init__(model, conv_layer)
 
     def get_activation_maps(self, output, class_idx, normalized=True):
         """Recreate class activation maps
@@ -83,7 +101,7 @@ class GradCAM(object):
         return self._compute_gradcams(weights, normalized)
 
 
-class GradCAMpp(GradCAM):
+class GradCAMpp(_GradCAM):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1710.11063.pdf
 
     Args:
