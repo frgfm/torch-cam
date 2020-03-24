@@ -95,8 +95,8 @@ jobs:
         run: |
           pip install isort
           isort --version
-          isort --diff
-          isort --check-only
+          isort -p torchcam --diff
+          isort -p torchcam --check-only
 
   docs-build:
     runs-on: ubuntu-latest
