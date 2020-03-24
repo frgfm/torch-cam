@@ -48,7 +48,7 @@ class Tester(unittest.TestCase):
             _ = model(img_tensor.unsqueeze(0))
 
         # Use the hooked data to compute activation map
-        self._verify_cam(extractor.get_activation_maps(class_idx))
+        self._verify_cam(extractor(class_idx))
 
     def _test_gradcam(self, name):
 
@@ -68,7 +68,7 @@ class Tester(unittest.TestCase):
         out = model(img_tensor.unsqueeze(0))
 
         # Use the hooked data to compute activation map
-        self._verify_cam(extractor.get_activation_maps(out, class_idx))
+        self._verify_cam(extractor(out, class_idx))
 
 
 for cam_extractor in ['GradCAM', 'GradCAMpp']:
