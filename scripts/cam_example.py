@@ -81,7 +81,8 @@ def main(args):
         axes[idx].axis('off')
         axes[idx].set_title(extractor.__class__.__name__, size=10)
 
-    plt.tight_layout(); plt.show()
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == '__main__':
