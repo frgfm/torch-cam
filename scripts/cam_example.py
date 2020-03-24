@@ -1,0 +1,98 @@
+#!usr/bin/python
+# -*- coding: utf-8 -*-
+
+"""
+CAM visualization
+"""
+
+import argparse
+from io import BytesIO
+
+import matplotlib.pyplot as plt
+import requests
+from PIL import Image
+import torch
+from torchvision import models
+from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
+
+from torchcam.cams.gradcam import _GradCAM
+from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp
+from torchcam.utils import overlay_mask
+
+VGG_CONFIG = {_vgg: dict(input_layer='features', conv_layer='features')
+              for _vgg in models.vgg.__dict__.keys()}
+
+RESNET_CONFIG = {_resnet: dict(input_layer='conv1', conv_layer='layer4', fc_layer='fc')
+                 for _resnet in models.resnet.__dict__.keys()}
+
+DENSENET_CONFIG = {_densenet: dict(input_layer='features', conv_layer='features', fc_layer='classifier')
+                   for _densenet in models.densenet.__dict__.keys()}
+
+MODEL_CONFIG = {
+    **VGG_CONFIG, **RESNET_CONFIG, **DENSENET_CONFIG,
+    'mobilenet_v2': dict(input_layer='features', conv_layer='features')
+}
+
+
+def main(args):
+
+    if args.device is None:
+        args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+    device = torch.device(args.device)
+
+    # Pretrained imagenet model
+    model = models.__dict__[args.model](pretrained=True).to(device=device)
+    conv_layer = MODEL_CONFIG[args.model]['conv_layer']
+    input_layer = MODEL_CONFIG[args.model]['input_layer']
+    fc_layer = MODEL_CONFIG[args.model]['fc_layer']
+
+    # Image
+    if args.img.startswith('http'):
+        img_path = BytesIO(requests.get(args.img).content)
+    pil_img = Image.open(img_path, mode='r').convert('RGB')
+
+    # Preprocess image
+    img_tensor = normalize(to_tensor(resize(pil_img, (224, 224))),
+                           [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
+
+    # Hook the corresponding layer in the model
+    cam_extractors = [CAM(model, conv_layer, fc_layer), GradCAM(model, conv_layer),
+                      GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer, input_layer)]
+    fig, axes = plt.subplots(1, len(cam_extractors))
+    for idx, extractor in enumerate(cam_extractors):
+        model.zero_grad()
+        out = model(img_tensor.unsqueeze(0))
+
+        # Select the class index
+        class_idx = out.squeeze(0).argmax().item() if ars.class_idx is None else args.class_idx
+
+        # Use the hooked data to compute activation map
+        if isinstance(extractor, _GradCAM):
+            activation_maps = extractor(out, class_idx)
+        else:
+            activation_maps = extractor(class_idx)
+        # Convert it to PIL image
+        # The indexing below means first image in batch
+        heatmap = to_pil_image(activation_maps[0].cpu().numpy(), mode='F')
+        # Plot the result
+        result = overlay_mask(pil_img, heatmap)
+        axes[idx].imshow(result)
+        axes[idx].axis('off')
+        axes[idx].set_title(extractor.__class__.__name__, size=10)
+
+    plt.tight_layout(); plt.show()
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Saliency Map comparison',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--model", type=str, default='resnet18', help="The name of your training")
+    parser.add_argument("--img", type=str,
+                        default='https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg',
+                        help="The image to extract CAM from")
+    parser.add_argument("--class-idx", type=int, default=None, help='Index of the class to inspect')
+    parser.add_argument("--device", type=str, default=None, help='Default device to perform computation on')
+    args = parser.parse_args()
+
+    main(args)
