@@ -63,9 +63,9 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1.0.6
         with:
-          file: ./coverage.xml # optional
-          flags: unittests # optional
-          fail_ci_if_error: true # optional (default = false)
+          file: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: true
 
   flake8-py3:
     runs-on: ubuntu-latest

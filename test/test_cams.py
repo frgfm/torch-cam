@@ -1,16 +1,16 @@
 import unittest
-import requests
 from io import BytesIO
-from PIL import Image
+
+import requests
 import torch
-from torchvision.models import resnet18, mobilenet_v2
-from torchvision.transforms.functional import resize, to_tensor, normalize
+from PIL import Image
+from torchvision.models import mobilenet_v2, resnet18
+from torchvision.transforms.functional import normalize, resize, to_tensor
 
 from torchcam import cams
 
 
 class Tester(unittest.TestCase):
-
     def _verify_cam(self, cam):
         # Simple verifications
         self.assertIsInstance(cam, torch.Tensor)

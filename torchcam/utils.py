@@ -6,8 +6,8 @@ Utils
 """
 
 import numpy as np
-from PIL import Image
 from matplotlib import cm
+from PIL import Image
 
 
 def overlay_mask(img, mask, colormap='jet', alpha=0.7):

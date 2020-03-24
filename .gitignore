@@ -130,3 +130,6 @@ dmypy.json
 
 # Package version
 torchcam/version.py
+
+# Conda distribution
+conda-dist/
