@@ -6,13 +6,14 @@ GradCAM
 """
 
 import torch
+from .cam import _CAM
 
 
 __all__ = ['GradCAM', 'GradCAMpp']
 
 
-class _GradCAM(object):
-    """Implements a class activation map extractor as described in https://arxiv.org/pdf/1610.02391.pdf
+class _GradCAM(_CAM):
+    """Implements a gradient-based class activation map extractor
 
     Args:
         model (torch.nn.Module): input model
@@ -23,31 +24,12 @@ class _GradCAM(object):
 
     def __init__(self, model, conv_layer):
 
-        if not hasattr(model, conv_layer):
-            raise ValueError(f"Unable to find submodule {conv_layer} in the model")
-        self.model = model
-        # Forward hook
-        self.model._modules.get(conv_layer).register_forward_hook(self._hook_a)
+        super().__init__(model, conv_layer)
         # Backward hook
         self.model._modules.get(conv_layer).register_backward_hook(self._hook_g)
 
-    def _hook_a(self, module, input, output):
-        self.hook_a = output.data
-
     def _hook_g(self, module, input, output):
         self.hook_g = output[0].data
-
-    def _compute_gradcams(self, weights, normalized=True):
-
-        # Perform the weighted combination to get the CAM
-        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * self.hook_a).sum(dim=1))
-
-        # Normalize the CAM
-        if normalized:
-            batch_cams -= batch_cams.flatten(start_dim=1).min().view(-1, 1, 1)
-            batch_cams /= batch_cams.flatten(start_dim=1).max().view(-1, 1, 1)
-
-        return batch_cams
 
     def _backprop(self, output, class_idx):
 
@@ -59,10 +41,26 @@ class _GradCAM(object):
         self.model.zero_grad()
         loss.backward(retain_graph=True)
 
-    def get_activation_maps(self, output, class_idx, normalized=True):
-        """Class activation map computation"""
+    def _get_weights(self, output, class_idx):
 
         raise NotImplementedError
+
+    def __call__(self, output, class_idx, normalized=True):
+
+        # Backpropagate
+        self._backprop(output, class_idx)
+
+        # Get map weight
+        weights = self._get_weights(output, class_idx)
+
+        # Perform the weighted combination to get the CAM
+        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * self.hook_a).sum(dim=1))
+
+        # Normalize the CAM
+        if normalized:
+            batch_cams = self._normalize(batch_cams)
+
+        return batch_cams
 
 
 class GradCAM(_GradCAM):
@@ -79,26 +77,11 @@ class GradCAM(_GradCAM):
 
         super().__init__(model, conv_layer)
 
-    def get_activation_maps(self, output, class_idx, normalized=True):
-        """Recreate class activation maps
 
-        Args:
-            output (torch.Tensor[N, K]): output of the hooked model
-            class_idx (int): class index for expected activation map
-            normalized (bool, optional): should the activation map be normalized
-
-        Returns:
-            torch.Tensor[N, H, W]: activation maps of the last forwarded batch at the hooked layer
-        """
-
-        # Retrieve the activation and gradients of the target layer
-        self._backprop(output, class_idx)
+    def _get_weights(self, output, class_idx):
 
         # Global average pool the gradients over spatial dimensions
-        weights = self.hook_g.data.mean(axis=(2, 3))
-
-        # Assemble the CAM
-        return self._compute_gradcams(weights, normalized)
+        return self.hook_g.data.mean(axis=(2, 3))
 
 
 class GradCAMpp(_GradCAM):
@@ -115,27 +98,12 @@ class GradCAMpp(_GradCAM):
 
         super().__init__(model, conv_layer)
 
-    def get_activation_maps(self, output, class_idx, normalized=True):
-        """Recreate class activation maps
-
-        Args:
-            output (torch.Tensor[N, K]): output of the hooked model
-            class_idx (int): class index for expected activation map
-            normalized (bool, optional): should the activation map be normalized
-
-        Returns:
-            torch.Tensor[N, H, W]: activation maps of the last forwarded batch at the hooked layer
-        """
-
-        # Retrieve the activation and gradients of the target layer
-        self._backprop(output, class_idx)
+    def _get_weights(self, output, class_idx):
 
         # Alpha coefficient for each pixel
         grad_2 = self.hook_g.data.pow(2)
         grad_3 = self.hook_g.data.pow(3)
         alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a.data).sum(axis=(2, 3), keepdims=True))
-        # Apply pixel coefficient in each weight
-        weights = alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
 
-        # Assemble the CAM
-        return self._compute_gradcams(weights, normalized)
+        # Apply pixel coefficient in each weight
+        return alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
