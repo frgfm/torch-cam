@@ -95,7 +95,7 @@ class CAM(_CAM):
 
 
 class ScoreCAM(_CAM):
-    """Implements a class activation map extractor as described in https://arxiv.org/abs/1512.04150
+    """Implements a class activation map extractor as described in https://arxiv.org/abs/1910.01279
 
     Args:
         model (torch.nn.Module): input model
