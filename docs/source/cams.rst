@@ -12,6 +12,8 @@ Related to activation-based class activation maps.
 
 .. autoclass:: CAM
 
+.. autoclass:: ScoreCAM
+
 
 Grad-CAM
 --------
