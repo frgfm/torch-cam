@@ -15,8 +15,7 @@ import torch
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
 
-from torchcam.cams.gradcam import _GradCAM
-from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp
+from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM
 from torchcam.utils import overlay_mask
 
 VGG_CONFIG = {_vgg: dict(input_layer='features', conv_layer='features')
@@ -58,7 +57,9 @@ def main(args):
 
     # Hook the corresponding layer in the model
     cam_extractors = [CAM(model, conv_layer, fc_layer), GradCAM(model, conv_layer),
-                      GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer, input_layer)]
+                      GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer, input_layer),
+                      ScoreCAM(model, conv_layer, input_layer)]
+
     fig, axes = plt.subplots(1, len(cam_extractors))
     for idx, extractor in enumerate(cam_extractors):
         model.zero_grad()
@@ -68,7 +69,7 @@ def main(args):
         class_idx = out.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
 
         # Use the hooked data to compute activation map
-        if isinstance(extractor, _GradCAM):
+        if isinstance(extractor, (GradCAM, GradCAMpp)):
             activation_map = extractor(out, class_idx)[0].cpu().numpy()
         else:
             activation_map = extractor(class_idx)[0].cpu().numpy()

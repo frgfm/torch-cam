@@ -65,9 +65,9 @@ python scripts/cam_example.py --model resnet50 --class-idx 232
 The project is currently under development, here are the objectives for the next releases:
 
 - [x] Parallel CAMs: enable batch processing.
-- [ ] Benchmark: compare class activation map computations for different architectures.
-- [ ] Signature improvement: retrieve automatically the last convolutional layer.
-- [ ] Refine RPN: create a region proposal network using CAM.
+- [x] Benchmark: compare class activation map computations for different architectures.
+- [ ] Signature improvement: retrieve automatically the specific required layer names.
+- [ ] Refined RPN: create a region proposal network using CAM.
 - [ ] Task transfer: turn a well-trained classifier into an object detector.
 
 
@@ -92,6 +92,7 @@ This project is developed and maintained by the repo owner, but the implementati
 - [Grad-CAM](https://arxiv.org/abs/1610.02391): GradCAM paper, generalizing CAM to models without global average pooling. 
 - [Grad-CAM++](https://arxiv.org/abs/1710.11063): improvement of GradCAM++ for more accurate pixel-level contribution to the activation.
 - [Smooth Grad-CAM++](https://arxiv.org/abs/1908.01224): SmoothGrad mechanism coupled with GradCAM.
+- [Score-CAM](https://arxiv.org/abs/1910.01279): score-weighting of class activation for better interpretability.
 
 
 

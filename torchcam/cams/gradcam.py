@@ -30,7 +30,8 @@ class _GradCAM(_CAM):
         self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
 
     def _hook_g(self, module, input, output):
-        self.hook_g = output[0].data
+        if self._hooks_enabled:
+            self.hook_g = output[0].data
 
     def _backprop(self, output, class_idx):
 
@@ -64,6 +65,14 @@ class _GradCAM(_CAM):
 class GradCAM(_GradCAM):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1710.11063.pdf
 
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import GradCAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = GradCAM(model, 'layer4')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(out, class_idx=100)
+
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer
@@ -85,6 +94,14 @@ class GradCAM(_GradCAM):
 
 class GradCAMpp(_GradCAM):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1710.11063.pdf
+
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import GradCAMpp
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = GradCAMpp(model, 'layer4')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(out, class_idx=100)
 
     Args:
         model (torch.nn.Module): input model
@@ -114,6 +131,14 @@ class SmoothGradCAMpp(_GradCAM):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1908.01224.pdf
     with a personal correction to the paper (alpha coefficient numerator)
 
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import SmoothGradCAMpp
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = SmoothGradCAMpp(model, 'layer4', 'conv1')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(class_idx=100)
+
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer
@@ -132,19 +157,20 @@ class SmoothGradCAMpp(_GradCAM):
         self.num_samples = num_samples
         self.std = std
         self._distrib = torch.distributions.normal.Normal(0, self.std)
-        self._observing = True
+        # Specific input hook updater
+        self._ihook_enabled = True
 
     def _store_input(self, module, input):
 
-        if self._observing:
+        if self._ihook_enabled:
             self._input = input[0].data.clone()
 
-    def _get_weights(self, output, class_idx):
+    def _get_weights(self, class_idx):
 
         # Disable input update
-        self._observing = False
+        self._ihook_enabled = False
         # Keep initial activation
-        init_fmap = self.hook_a.data
+        init_fmap = self.hook_a.data.clone()
         # Initialize our gradient estimates
         grad_2, grad_3 = torch.zeros_like(self.hook_a.data), torch.zeros_like(self.hook_a.data)
         # Perform the operations N times
@@ -161,7 +187,7 @@ class SmoothGradCAMpp(_GradCAM):
             grad_3.add_(self.hook_g.data.pow(3))
 
         # Reenable input update
-        self._observing = True
+        self._ihook_enabled = True
 
         # Average the gradient estimates
         grad_2.div_(self.num_samples)
@@ -172,6 +198,20 @@ class SmoothGradCAMpp(_GradCAM):
 
         # Apply pixel coefficient in each weight
         return alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
+
+    def __call__(self, class_idx, normalized=True):
+
+        # Get map weight
+        weights = self._get_weights(class_idx)
+
+        # Perform the weighted combination to get the CAM
+        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * self.hook_a).sum(dim=1))
+
+        # Normalize the CAM
+        if normalized:
+            batch_cams = self._normalize(batch_cams)
+
+        return batch_cams
 
     def __repr__(self):
         return f"{self.__class__.__name__}(num_samples={self.num_samples}, std={self.std})"
