@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.cam &mdash; torchcam 0.1.1a0+5881829-git documentation</title>
+  <title>torchcam.cams.cam &mdash; torchcam 0.1.1a0+9021aec-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.1a0+5881829
+                0.1.1a0+9021aec
               </div>
             
           
@@ -176,6 +176,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">hook_a</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">hook_handles</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">):</span>
 
@@ -183,15 +184,20 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find submodule </span><span class="si">{</span><span class="n">conv_layer</span><span class="si">}</span><span class="s2"> in the model&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="c1"># Forward hook</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_modules</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">conv_layer</span><span class="p">)</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_a</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_modules</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">conv_layer</span><span class="p">)</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_a</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_hook_a</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">data</span>
 
+    <span class="k">def</span> <span class="nf">clear_hooks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Clear model hooks&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">handle</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="p">:</span>
+            <span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_normalize</span><span class="p">(</span><span class="n">cams</span><span class="p">):</span>
-        <span class="n">cams</span> <span class="o">-=</span> <span class="n">cams</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">start_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="n">cams</span> <span class="o">/=</span> <span class="n">cams</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">start_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">cams</span> <span class="o">-=</span> <span class="n">cams</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">start_dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">cams</span> <span class="o">/=</span> <span class="n">cams</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">start_dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">cams</span>
 
@@ -213,6 +219,9 @@
 
         <span class="k">return</span> <span class="n">batch_cams</span>
 
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">()&quot;</span>
+
 
 <div class="viewcode-block" id="CAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.CAM">[docs]</a><span class="k">class</span> <span class="nc">CAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in https://arxiv.org/abs/1512.04150</span>
@@ -223,6 +232,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">hook_a</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">hook_handles</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">,</span> <span class="n">fc_layer</span><span class="p">):</span>
 

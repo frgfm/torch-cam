@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.1.1a0+5881829-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.1.1a0+9021aec-git documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.1.1a0+5881829
+                0.1.1a0+9021aec
               </div>
             
           
@@ -199,6 +199,21 @@
 <dt id="torchcam.cams.GradCAMpp">
 <em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">GradCAMpp</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#GradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.GradCAMpp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1710.11063.pdf">https://arxiv.org/pdf/1710.11063.pdf</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="class">
+<dt id="torchcam.cams.SmoothGradCAMpp">
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">SmoothGradCAMpp</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em>, <em class="sig-param">first_layer</em>, <em class="sig-param">num_samples=4</em>, <em class="sig-param">std=0.3</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#SmoothGradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.SmoothGradCAMpp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1908.01224.pdf">https://arxiv.org/pdf/1908.01224.pdf</a>
+with a personal correction to the paper (alpha coefficient numerator)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
