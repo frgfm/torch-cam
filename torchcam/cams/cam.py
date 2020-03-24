@@ -109,10 +109,12 @@ class ScoreCAM(_CAM):
         # Input hook
         self.hook_handles.append(self.model._modules.get(input_layer).register_forward_pre_hook(self._store_input))
         self.max_batch = max_batch
+        self.observing = True
 
     def _store_input(self, module, input):
 
-        self._input = input[0].data.clone()
+        if self.observing:
+            self._input = input[0].data.clone()
 
     def _get_weights(self, class_idx):
 
@@ -130,6 +132,8 @@ class ScoreCAM(_CAM):
         # Initialize weights
         weights = torch.zeros(masked_input.shape[0], dtype=masked_input.dtype).to(device=masked_input.device)
 
+        # Disable input hook
+        self.observing = False
         # Process by chunk (GPU RAM limitation)
         for idx in range(math.ceil(weights.shape[0] / self.max_batch)):
 
@@ -137,6 +141,9 @@ class ScoreCAM(_CAM):
             with torch.no_grad():
                 # Get the softmax probabilities of the target class
                 weights[selection_slice] = F.softmax(self.model(masked_input[selection_slice]), dim=1)[:, class_idx]
+
+        # Reenable input hook
+        self.observing = True
 
         return weights
 
