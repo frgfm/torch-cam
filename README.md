@@ -65,9 +65,9 @@ python scripts/cam_example.py --model resnet50 --class-idx 232
 The project is currently under development, here are the objectives for the next releases:
 
 - [x] Parallel CAMs: enable batch processing.
-- [ ] Benchmark: compare class activation map computations for different architectures.
-- [ ] Signature improvement: retrieve automatically the last convolutional layer.
-- [ ] Refine RPN: create a region proposal network using CAM.
+- [x] Benchmark: compare class activation map computations for different architectures.
+- [ ] Signature improvement: retrieve automatically the specific required layer names.
+- [ ] Refined RPN: create a region proposal network using CAM.
 - [ ] Task transfer: turn a well-trained classifier into an object detector.
 
 
