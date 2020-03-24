@@ -11,7 +11,6 @@ from torchcam import cams
 
 
 class Tester(unittest.TestCase):
-
     def _verify_cam(self, cam):
         # Simple verifications
         self.assertIsInstance(cam, torch.Tensor)
