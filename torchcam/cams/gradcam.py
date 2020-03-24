@@ -148,7 +148,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
-            noisy_input = self._input + self._distrib.sample(self._input.size())
+            noisy_input = self._input + self._distrib.sample(self._input.size()).to(device=self._input.device)
             # Forward & Backward
             out = self.model(noisy_input)
             self.model.zero_grad()
