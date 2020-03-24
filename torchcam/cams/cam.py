@@ -33,8 +33,8 @@ class _CAM(object):
 
     @staticmethod
     def _normalize(cams):
-        cams -= cams.flatten(start_dim=1).min().view(-1, 1, 1)
-        cams /= cams.flatten(start_dim=1).max().view(-1, 1, 1)
+        cams -= cams.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1)
+        cams /= cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1)
 
         return cams
 
