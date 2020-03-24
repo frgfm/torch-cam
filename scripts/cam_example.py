@@ -72,6 +72,8 @@ def main(args):
             activation_map = extractor(out, class_idx)[0].cpu().numpy()
         else:
             activation_map = extractor(class_idx)[0].cpu().numpy()
+        # Clean data
+        extractor.clear_hooks()
         # Convert it to PIL image
         # The indexing below means first image in batch
         heatmap = to_pil_image(activation_map, mode='F')
