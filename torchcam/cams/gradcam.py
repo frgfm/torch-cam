@@ -37,7 +37,7 @@ class _GradCAM(_CAM):
             raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
 
         # Backpropagate to get the gradients on the hooked layer
-        loss = output[:, class_idx]
+        loss = output[:, class_idx].sum()
         self.model.zero_grad()
         loss.backward(retain_graph=True)
 
@@ -139,12 +139,12 @@ class SmoothGradCAMpp(_GradCAM):
 
     def _get_weights(self, output, class_idx):
 
+        # Disable input update
+        self._observing = False
         # Keep initial activation
         init_fmap = self.hook_a.data
         # Initialize our gradient estimates
         grad_2, grad_3 = torch.zeros_like(self.hook_a.data), torch.zeros_like(self.hook_a.data)
-        # Disable input update
-        self._observing = False
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
