@@ -36,6 +36,12 @@ You can install the package using [pypi](https://pypi.org/project/torch-cam/) as
 pip install torchcam
 ```
 
+or using [conda](https://anaconda.org/frgfm/torchcam):
+
+```shell
+conda install -c frgfm torchcam
+```
+
 
 
 ## Usage
