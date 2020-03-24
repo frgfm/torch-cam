@@ -5,6 +5,8 @@
 
 Simple way to leverage the class-specific activation of convolutional layers in PyTorch.
 
+![gradcam_sample](static/images/cam_example.png)
+
 
 
 ## Table of Contents
