@@ -65,23 +65,26 @@ def main(args):
         out = model(img_tensor.unsqueeze(0))
 
         # Select the class index
-        class_idx = out.squeeze(0).argmax().item() if ars.class_idx is None else args.class_idx
+        class_idx = out.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
 
         # Use the hooked data to compute activation map
         if isinstance(extractor, _GradCAM):
-            activation_maps = extractor(out, class_idx)
+            activation_map = extractor(out, class_idx)[0].cpu().numpy()
         else:
-            activation_maps = extractor(class_idx)
+            activation_map = extractor(class_idx)[0].cpu().numpy()
         # Convert it to PIL image
         # The indexing below means first image in batch
-        heatmap = to_pil_image(activation_maps[0].cpu().numpy(), mode='F')
+        heatmap = to_pil_image(activation_map, mode='F')
         # Plot the result
         result = overlay_mask(pil_img, heatmap)
+
         axes[idx].imshow(result)
         axes[idx].axis('off')
         axes[idx].set_title(extractor.__class__.__name__, size=10)
 
     plt.tight_layout()
+    if args.savefig:
+        plt.savefig(args.savefig, dpi=200, transparent=True, bbox_inches='tight', pad_inches=0)
     plt.show()
 
 
@@ -94,6 +97,7 @@ if __name__ == '__main__':
                         help="The image to extract CAM from")
     parser.add_argument("--class-idx", type=int, default=None, help='Index of the class to inspect')
     parser.add_argument("--device", type=str, default=None, help='Default device to perform computation on')
+    parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
     args = parser.parse_args()
 
     main(args)
