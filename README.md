@@ -82,7 +82,7 @@ classes = {int(key):value for (key, value)
 class_idx = 232
 
 # Use the hooked data to compute activation map
-activation_maps = gradcam.get_activation_maps(out, class_idx)
+activation_maps = gradcam(out, class_idx)
 # Convert it to PIL image
 # The indexing below means first image in batch
 heatmap = to_pil_image(activation_maps[0].cpu().numpy(), mode='F')
