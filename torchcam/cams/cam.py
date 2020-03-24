@@ -19,6 +19,7 @@ class _CAM(object):
     """
 
     hook_a = None
+    hook_handles = []
 
     def __init__(self, model, conv_layer):
 
@@ -26,10 +27,15 @@ class _CAM(object):
             raise ValueError(f"Unable to find submodule {conv_layer} in the model")
         self.model = model
         # Forward hook
-        self.model._modules.get(conv_layer).register_forward_hook(self._hook_a)
+        self.hook_handles.append(self.model._modules.get(conv_layer).register_forward_hook(self._hook_a))
 
     def _hook_a(self, module, input, output):
         self.hook_a = output.data
+
+    def clear_hooks(self):
+        """Clear model hooks"""
+        for handle in self.hook_handles:
+            handle.remove()
 
     @staticmethod
     def _normalize(cams):
@@ -69,6 +75,7 @@ class CAM(_CAM):
     """
 
     hook_a = None
+    hook_handles = []
 
     def __init__(self, model, conv_layer, fc_layer):
 

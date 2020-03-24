@@ -21,12 +21,13 @@ class _GradCAM(_CAM):
     """
 
     hook_a, hook_g = None, None
+    hook_handles = []
 
     def __init__(self, model, conv_layer):
 
         super().__init__(model, conv_layer)
         # Backward hook
-        self.model._modules.get(conv_layer).register_backward_hook(self._hook_g)
+        self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
 
     def _hook_g(self, module, input, output):
         self.hook_g = output[0].data
@@ -119,13 +120,14 @@ class SmoothGradCAMpp(_GradCAM):
     """
 
     hook_a, hook_g = None, None
+    hook_handles = []
 
     def __init__(self, model, conv_layer, first_layer, num_samples=4, std=0.3):
 
         super().__init__(model, conv_layer)
 
         # Input hook
-        self.model._modules.get(first_layer).register_forward_pre_hook(self._store_input)
+        self.hook_handles.append(self.model._modules.get(first_layer).register_forward_pre_hook(self._store_input))
         # Noise distribution
         self.num_samples = num_samples
         self.std = std
