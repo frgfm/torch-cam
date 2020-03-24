@@ -66,7 +66,7 @@ class Tester(unittest.TestCase):
         # Use the hooked data to compute activation map
         self._verify_cam(extractor(out, out[0].argmax().item()))
 
-    def test_smooth_gradcampp(self, name):
+    def test_smooth_gradcampp(self):
 
         # Get a pretrained model
         model = mobilenet_v2(pretrained=True)
