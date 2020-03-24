@@ -35,8 +35,6 @@ class Tester(unittest.TestCase):
         model = resnet18(pretrained=True).eval()
         conv_layer = 'layer4'
         fc_layer = 'fc'
-        # Border collie index in ImageNet
-        class_idx = 232
 
         # Hook the corresponding layer in the model
         extractor = cams.CAM(model, conv_layer, fc_layer)
@@ -45,18 +43,16 @@ class Tester(unittest.TestCase):
         img_tensor = self._get_img_tensor()
         # Forward it
         with torch.no_grad():
-            _ = model(img_tensor.unsqueeze(0))
+            out = model(img_tensor.unsqueeze(0))
 
         # Use the hooked data to compute activation map
-        self._verify_cam(extractor(class_idx))
+        self._verify_cam(extractor(out[0].argmax().item()))
 
     def _test_gradcam(self, name):
 
         # Get a pretrained model
         model = mobilenet_v2(pretrained=True)
         conv_layer = 'features'
-        # Border collie index in ImageNet
-        class_idx = 232
 
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
@@ -68,7 +64,26 @@ class Tester(unittest.TestCase):
         out = model(img_tensor.unsqueeze(0))
 
         # Use the hooked data to compute activation map
-        self._verify_cam(extractor(out, class_idx))
+        self._verify_cam(extractor(out, out[0].argmax().item()))
+
+    def test_smooth_gradcampp(self, name):
+
+        # Get a pretrained model
+        model = mobilenet_v2(pretrained=True)
+        conv_layer = 'features'
+        first_layer = 'features'
+
+        # Hook the corresponding layer in the model
+        extractor = cams.SmoothGradCAMpp(model, conv_layer, first_layer)
+
+        # Get a dog image
+        img_tensor = self._get_img_tensor()
+
+        # Forward an image
+        out = model(img_tensor.unsqueeze(0))
+
+        # Use the hooked data to compute activation map
+        self._verify_cam(extractor(out, out[0].argmax().item()))
 
 
 for cam_extractor in ['GradCAM', 'GradCAMpp']:
