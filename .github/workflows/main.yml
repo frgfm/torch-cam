@@ -94,7 +94,8 @@ jobs:
       - name: Check import order with isort
         run: |
           pip install isort
-          isort  --check-only
+          isort --version
+          isort --check-only
 
   docs-build:
     runs-on: ubuntu-latest
