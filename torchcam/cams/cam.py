@@ -56,6 +56,9 @@ class _CAM(object):
 
         return batch_cams
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+
 
 class CAM(_CAM):
     """Implements a class activation map extractor as described in https://arxiv.org/abs/1512.04150
