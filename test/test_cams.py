@@ -84,7 +84,7 @@ class Tester(unittest.TestCase):
         out = model(img_tensor.unsqueeze(0))
 
         # Use the hooked data to compute activation map
-        self._verify_cam(extractor(out, out[0].argmax().item()))
+        self._verify_cam(extractor(out[0].argmax().item()))
 
 
 for cam_extractor in ['CAM', 'ScoreCAM']:
