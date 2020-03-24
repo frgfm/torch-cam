@@ -6,8 +6,8 @@ GradCAM
 """
 
 import torch
-from .cam import _CAM
 
+from .cam import _CAM
 
 __all__ = ['GradCAM', 'GradCAMpp']
 

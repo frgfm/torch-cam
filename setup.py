@@ -7,8 +7,8 @@ Package installation setup
 
 import os
 import subprocess
-from setuptools import setup, find_packages
 
+from setuptools import find_packages, setup
 
 version = '0.1.0a0'
 sha = 'Unknown'

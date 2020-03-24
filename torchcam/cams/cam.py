@@ -7,7 +7,6 @@ GradCAM
 
 import torch
 
-
 __all__ = ['CAM']
 
 
