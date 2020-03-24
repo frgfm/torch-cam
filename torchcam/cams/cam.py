@@ -30,9 +30,12 @@ class _CAM(object):
         self.model = model
         # Forward hook
         self.hook_handles.append(self.model._modules.get(conv_layer).register_forward_hook(self._hook_a))
+        # Enable hooks
+        self._hooks_enabled = True
 
     def _hook_a(self, module, input, output):
-        self.hook_a = output.data
+        if self._hooks_enabled:
+            self.hook_a = output.data
 
     def clear_hooks(self):
         """Clear model hooks"""
@@ -109,11 +112,10 @@ class ScoreCAM(_CAM):
         # Input hook
         self.hook_handles.append(self.model._modules.get(input_layer).register_forward_pre_hook(self._store_input))
         self.max_batch = max_batch
-        self.observing = True
 
     def _store_input(self, module, input):
 
-        if self.observing:
+        if self._hooks_enabled:
             self._input = input[0].data.clone()
 
     def _get_weights(self, class_idx):
@@ -132,8 +134,8 @@ class ScoreCAM(_CAM):
         # Initialize weights
         weights = torch.zeros(masked_input.shape[0], dtype=masked_input.dtype).to(device=masked_input.device)
 
-        # Disable input hook
-        self.observing = False
+        # Disable hook updates
+        self._hooks_enabled = False
         # Process by chunk (GPU RAM limitation)
         for idx in range(math.ceil(weights.shape[0] / self.max_batch)):
 
@@ -142,8 +144,8 @@ class ScoreCAM(_CAM):
                 # Get the softmax probabilities of the target class
                 weights[selection_slice] = F.softmax(self.model(masked_input[selection_slice]), dim=1)[:, class_idx]
 
-        # Reenable input hook
-        self.observing = True
+        # Reenable hook updates
+        self._hooks_enabled = True
 
         return weights
 

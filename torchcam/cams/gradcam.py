@@ -30,7 +30,8 @@ class _GradCAM(_CAM):
         self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
 
     def _hook_g(self, module, input, output):
-        self.hook_g = output[0].data
+        if self._hooks_enabled:
+            self.hook_g = output[0].data
 
     def _backprop(self, output, class_idx):
 
@@ -132,19 +133,20 @@ class SmoothGradCAMpp(_GradCAM):
         self.num_samples = num_samples
         self.std = std
         self._distrib = torch.distributions.normal.Normal(0, self.std)
-        self._observing = True
+        # Specific input hook updater
+        self._ihook_enabled = True
 
     def _store_input(self, module, input):
 
-        if self._observing:
+        if self._ihook_enabled:
             self._input = input[0].data.clone()
 
     def _get_weights(self, output, class_idx):
 
         # Disable input update
-        self._observing = False
+        self._ihook_enabled = False
         # Keep initial activation
-        init_fmap = self.hook_a.data
+        init_fmap = self.hook_a.data.clone()
         # Initialize our gradient estimates
         grad_2, grad_3 = torch.zeros_like(self.hook_a.data), torch.zeros_like(self.hook_a.data)
         # Perform the operations N times
@@ -161,7 +163,7 @@ class SmoothGradCAMpp(_GradCAM):
             grad_3.add_(self.hook_g.data.pow(3))
 
         # Reenable input update
-        self._observing = True
+        self._ihook_enabled = True
 
         # Average the gradient estimates
         grad_2.div_(self.num_samples)
