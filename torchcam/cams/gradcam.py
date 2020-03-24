@@ -65,6 +65,14 @@ class _GradCAM(_CAM):
 class GradCAM(_GradCAM):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1710.11063.pdf
 
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import GradCAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = GradCAM(model, 'layer4')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(out, class_idx=100)
+
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer
@@ -86,6 +94,14 @@ class GradCAM(_GradCAM):
 
 class GradCAMpp(_GradCAM):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1710.11063.pdf
+
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import GradCAMpp
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = GradCAMpp(model, 'layer4')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(out, class_idx=100)
 
     Args:
         model (torch.nn.Module): input model
@@ -114,6 +130,14 @@ class GradCAMpp(_GradCAM):
 class SmoothGradCAMpp(_GradCAM):
     """Implements a class activation map extractor as described in https://arxiv.org/pdf/1908.01224.pdf
     with a personal correction to the paper (alpha coefficient numerator)
+
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import SmoothGradCAMpp
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = SmoothGradCAMpp(model, 'layer4', 'conv1')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(class_idx=100)
 
     Args:
         model (torch.nn.Module): input model

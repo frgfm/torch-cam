@@ -74,6 +74,14 @@ class _CAM(object):
 class CAM(_CAM):
     """Implements a class activation map extractor as described in https://arxiv.org/abs/1512.04150
 
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import CAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = CAM(model, 'layer4', 'fc')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(class_idx=100)
+
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer
@@ -96,6 +104,14 @@ class CAM(_CAM):
 
 class ScoreCAM(_CAM):
     """Implements a class activation map extractor as described in https://arxiv.org/abs/1910.01279
+
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import ScoreCAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = ScoreCAM(model, 'layer4', 'conv1')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(class_idx=100)
 
     Args:
         model (torch.nn.Module): input model
