@@ -141,7 +141,7 @@ class SmoothGradCAMpp(_GradCAM):
         if self._ihook_enabled:
             self._input = input[0].data.clone()
 
-    def _get_weights(self, output, class_idx):
+    def _get_weights(self, class_idx):
 
         # Disable input update
         self._ihook_enabled = False
@@ -174,6 +174,20 @@ class SmoothGradCAMpp(_GradCAM):
 
         # Apply pixel coefficient in each weight
         return alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
+
+    def __call__(self, class_idx, normalized=True):
+
+        # Get map weight
+        weights = self._get_weights(class_idx)
+
+        # Perform the weighted combination to get the CAM
+        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * self.hook_a).sum(dim=1))
+
+        # Normalize the CAM
+        if normalized:
+            batch_cams = self._normalize(batch_cams)
+
+        return batch_cams
 
     def __repr__(self):
         return f"{self.__class__.__name__}(num_samples={self.num_samples}, std={self.std})"
