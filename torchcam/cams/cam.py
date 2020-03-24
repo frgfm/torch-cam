@@ -29,10 +29,22 @@ class CAM(object):
         # Forward hook
         self.model._modules.get(conv_layer).register_forward_hook(self._hook_a)
         # Softmax weight
-        self.smax_weights = self.model._modules.get(fc_layer).weight.data
+        self._fc_weights = self.model._modules.get(fc_layer).weight.data
 
     def _hook_a(self, module, input, output):
         self.hook_a = output.data
+
+    def _compute_cams(self, weights, normalized=True):
+
+        # Perform the weighted combination to get the CAM
+        batch_cams = (weights.view(-1, 1, 1) * self.hook_a).sum(dim=1)
+
+        # Normalize the CAM
+        if normalized:
+            batch_cams -= batch_cams.flatten(start_dim=1).min().view(-1, 1, 1)
+            batch_cams /= batch_cams.flatten(start_dim=1).max().view(-1, 1, 1)
+
+        return batch_cams
 
     def get_activation_maps(self, class_idx, normalized=True):
         """Recreate class activation maps
@@ -45,17 +57,14 @@ class CAM(object):
             torch.Tensor[N, H, W]: activation maps of the last forwarded batch at the hooked layer
         """
 
-        if class_idx >= self.smax_weights.shape[0]:
+        if class_idx >= self._fc_weights.shape[0]:
             raise ValueError("Expected class_idx to be lower than number of output classes")
 
         if self.hook_a is None:
             raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
 
-        # Flatten spatial dimensions of feature map
-        batch_cams = self.smax_weights[class_idx, :].unsqueeze(0) @ torch.flatten(self.hook_a, 2)
-        # Normalize feature map
-        if normalized:
-            batch_cams -= batch_cams.min(dim=2, keepdim=True)[0]
-            batch_cams /= batch_cams.max(dim=2, keepdim=True)[0]
+        # Take the FC weights of the target class
+        weights = self._fc_weights[class_idx, :]
 
-        return batch_cams.view(self.hook_a.size(0), self.hook_a.size(3), self.hook_a.size(2))
+        # Assemble CAMs
+        return self._compute_cams(weights, normalized)
