@@ -34,6 +34,7 @@ class _CAM(object):
         self._hooks_enabled = True
 
     def _hook_a(self, module, input, output):
+        """Activation hook"""
         if self._hooks_enabled:
             self.hook_a = output.data
 
@@ -44,6 +45,7 @@ class _CAM(object):
 
     @staticmethod
     def _normalize(cams):
+        """CAM normalization"""
         cams -= cams.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1)
         cams /= cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1)
 
@@ -85,6 +87,7 @@ class CAM(_CAM):
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer
+        fc_layer (str): name of the fully convolutional layer
     """
 
     hook_a = None
@@ -97,6 +100,7 @@ class CAM(_CAM):
         self._fc_weights = self.model._modules.get(fc_layer).weight.data
 
     def _get_weights(self, class_idx):
+        """Computes the weight coefficients of the hooked activation maps"""
 
         # Take the FC weights of the target class
         return self._fc_weights[class_idx, :]
@@ -116,6 +120,8 @@ class ScoreCAM(_CAM):
     Args:
         model (torch.nn.Module): input model
         conv_layer (str): name of the last convolutional layer
+        input_layer (str): name of the first layer
+        batch_size (int, optional): batch size used to forward masked inputs
     """
 
     hook_a = None
@@ -130,11 +136,13 @@ class ScoreCAM(_CAM):
         self.max_batch = max_batch
 
     def _store_input(self, module, input):
+        """Store model input tensor"""
 
         if self._hooks_enabled:
             self._input = input[0].data.clone()
 
     def _get_weights(self, class_idx):
+        """Computes the weight coefficients of the hooked activation maps"""
 
         # Upsample activation to input_size
         # 1 * O * M * N

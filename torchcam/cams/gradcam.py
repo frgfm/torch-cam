@@ -30,10 +30,12 @@ class _GradCAM(_CAM):
         self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
 
     def _hook_g(self, module, input, output):
+        """Gradient hook"""
         if self._hooks_enabled:
             self.hook_g = output[0].data
 
     def _backprop(self, output, class_idx):
+        """Backpropagate the loss for a specific output class"""
 
         if self.hook_a is None:
             raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
@@ -70,8 +72,8 @@ class GradCAM(_GradCAM):
         >>> from torchcam.cams import GradCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = GradCAM(model, 'layer4')
-        >>> with torch.no_grad(): out = model(input_tensor)
-        >>> cam(out, class_idx=100)
+        >>> with torch.no_grad(): scores = model(input_tensor)
+        >>> cam(class_idx=100, scores=scores)
 
     Args:
         model (torch.nn.Module): input model
@@ -85,6 +87,7 @@ class GradCAM(_GradCAM):
         super().__init__(model, conv_layer)
 
     def _get_weights(self, output, class_idx):
+        """Computes the weight coefficients of the hooked activation maps"""
 
         # Backpropagate
         self._backprop(output, class_idx)
@@ -100,8 +103,8 @@ class GradCAMpp(_GradCAM):
         >>> from torchcam.cams import GradCAMpp
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = GradCAMpp(model, 'layer4')
-        >>> with torch.no_grad(): out = model(input_tensor)
-        >>> cam(out, class_idx=100)
+        >>> with torch.no_grad(): scores = model(input_tensor)
+        >>> cam(class_idx=100, scores=scores)
 
     Args:
         model (torch.nn.Module): input model
@@ -115,6 +118,7 @@ class GradCAMpp(_GradCAM):
         super().__init__(model, conv_layer)
 
     def _get_weights(self, output, class_idx):
+        """Computes the weight coefficients of the hooked activation maps"""
 
         # Backpropagate
         self._backprop(output, class_idx)
@@ -136,7 +140,7 @@ class SmoothGradCAMpp(_GradCAM):
         >>> from torchcam.cams import SmoothGradCAMpp
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = SmoothGradCAMpp(model, 'layer4', 'conv1')
-        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> with torch.no_grad(): scores = model(input_tensor)
         >>> cam(class_idx=100)
 
     Args:
@@ -161,11 +165,13 @@ class SmoothGradCAMpp(_GradCAM):
         self._ihook_enabled = True
 
     def _store_input(self, module, input):
+        """Store model input tensor"""
 
         if self._ihook_enabled:
             self._input = input[0].data.clone()
 
     def _get_weights(self, class_idx):
+        """Computes the weight coefficients of the hooked activation maps"""
 
         # Disable input update
         self._ihook_enabled = False
