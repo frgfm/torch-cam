@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-GradCAM
+CAM
 """
 
 import math
