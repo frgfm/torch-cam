@@ -112,7 +112,6 @@ class _CAM(object):
 
         return batch_cams
 
-
     def __repr__(self):
         return f"{self.__class__.__name__}()"
 

@@ -10,7 +10,7 @@ from torchvision.transforms.functional import normalize, resize, to_tensor
 from torchcam import cams
 
 
-def _forward(model , input_tensor):
+def _forward(model, input_tensor):
     if model.training:
         scores = model(input_tensor)
     else:
