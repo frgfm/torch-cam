@@ -10,11 +10,21 @@ from torchvision.transforms.functional import normalize, resize, to_tensor
 from torchcam import cams
 
 
+def _forward(model , input_tensor):
+    if model.training:
+        scores = model(input_tensor)
+    else:
+        with torch.no_grad():
+            scores = model(input_tensor)
+
+    return scores
+
+
 class Tester(unittest.TestCase):
     def _verify_cam(self, cam):
         # Simple verifications
         self.assertIsInstance(cam, torch.Tensor)
-        self.assertEqual(cam.shape, (1, 7, 7))
+        self.assertEqual(cam.shape, (7, 7))
 
     @staticmethod
     def _get_img_tensor():
@@ -30,6 +40,31 @@ class Tester(unittest.TestCase):
 
         return img_tensor
 
+    def _test_extractor(self, extractor, model):
+
+        # Check missing forward raises Error
+        self.assertRaises(AssertionError, extractor, 0)
+
+        # Get a dog image
+        img_tensor = self._get_img_tensor()
+
+        # Check that a batch of 2 cannot be accepted
+        _ = _forward(model, torch.stack((img_tensor, img_tensor)))
+        self.assertRaises(ValueError, extractor, 0)
+
+        # Correct forward
+        scores = _forward(model, img_tensor.unsqueeze(0))
+
+        # Check incorrect class index
+        self.assertRaises(ValueError, extractor, -1)
+
+        # Check missing score
+        if extractor._score_used:
+            self.assertRaises(ValueError, extractor, 0)
+
+        # Use the hooked data to compute activation map
+        self._verify_cam(extractor(scores[0].argmax().item(), scores))
+
     def _test_cam(self, name):
         # Get a pretrained model
         model = resnet18(pretrained=True).eval()
@@ -40,14 +75,7 @@ class Tester(unittest.TestCase):
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer, fc_layer if name == 'CAM' else input_layer)
 
-        # Get a dog image
-        img_tensor = self._get_img_tensor()
-        # Forward it
-        with torch.no_grad():
-            out = model(img_tensor.unsqueeze(0))
-
-        # Use the hooked data to compute activation map
-        self._verify_cam(extractor(out[0].argmax().item()))
+        self._test_extractor(extractor, model)
 
     def _test_gradcam(self, name):
 
@@ -58,33 +86,19 @@ class Tester(unittest.TestCase):
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
 
-        # Get a dog image
-        img_tensor = self._get_img_tensor()
-
-        # Forward an image
-        out = model(img_tensor.unsqueeze(0))
-
-        # Use the hooked data to compute activation map
-        self._verify_cam(extractor(out, out[0].argmax().item()))
+        self._test_extractor(extractor, model)
 
     def test_smooth_gradcampp(self):
 
         # Get a pretrained model
         model = mobilenet_v2(pretrained=True)
         conv_layer = 'features'
-        first_layer = 'features'
+        input_layer = 'features'
 
         # Hook the corresponding layer in the model
-        extractor = cams.SmoothGradCAMpp(model, conv_layer, first_layer)
+        extractor = cams.SmoothGradCAMpp(model, conv_layer, input_layer)
 
-        # Get a dog image
-        img_tensor = self._get_img_tensor()
-
-        # Forward an image
-        out = model(img_tensor.unsqueeze(0))
-
-        # Use the hooked data to compute activation map
-        self._verify_cam(extractor(out[0].argmax().item()))
+        self._test_extractor(extractor, model)
 
 
 for cam_extractor in ['CAM', 'ScoreCAM']:
