@@ -63,16 +63,13 @@ def main(args):
     fig, axes = plt.subplots(1, len(cam_extractors))
     for idx, extractor in enumerate(cam_extractors):
         model.zero_grad()
-        out = model(img_tensor.unsqueeze(0))
+        scores = model(img_tensor.unsqueeze(0))
 
         # Select the class index
-        class_idx = out.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
+        class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
 
         # Use the hooked data to compute activation map
-        if isinstance(extractor, (GradCAM, GradCAMpp)):
-            activation_map = extractor(out, class_idx)[0].cpu().numpy()
-        else:
-            activation_map = extractor(class_idx)[0].cpu().numpy()
+        activation_map = extractor(class_idx, scores).cpu()
         # Clean data
         extractor.clear_hooks()
         # Convert it to PIL image
