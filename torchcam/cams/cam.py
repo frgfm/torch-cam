@@ -60,6 +60,7 @@ class _CAM(object):
         raise NotImplementedError
 
     def _precheck(self, class_idx, scores):
+        """Check for invalid computation cases"""
 
         # Check that forward has already occurred
         if self.hook_a is None:
@@ -85,6 +86,16 @@ class _CAM(object):
         return self.compute_cams(class_idx, scores, normalized)
 
     def compute_cams(self, class_idx, scores=None, normalized=True):
+        """Compute the CAM for a specific output class
+
+        Args:
+            class_idx (int): output class index of the target class whose CAM will be computed
+            scores (torch.Tensor[1, K], optional): forward output scores of the hooked model
+            normalized (bool, optional): whether the CAM should be normalized
+
+        Returns:
+            torch.Tensor[M, N]: class activation map of hooked conv layer
+        """
 
         # Get map weight
         weights = self._get_weights(class_idx, scores)
