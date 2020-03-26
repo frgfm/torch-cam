@@ -26,6 +26,10 @@ class _GradCAM(_CAM):
     def __init__(self, model, conv_layer):
 
         super().__init__(model, conv_layer)
+        # Ensure ReLU is applied before normalization
+        self._relu = True
+        # Model output is used by the extractor
+        self._score_used = True
         # Backward hook
         self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
 
@@ -34,34 +38,20 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_g = output[0].data
 
-    def _backprop(self, output, class_idx):
+    def _backprop(self, scores, class_idx):
         """Backpropagate the loss for a specific output class"""
 
         if self.hook_a is None:
             raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
 
         # Backpropagate to get the gradients on the hooked layer
-        loss = output[:, class_idx].sum()
+        loss = scores[:, class_idx].sum()
         self.model.zero_grad()
         loss.backward(retain_graph=True)
 
-    def _get_weights(self, output, class_idx):
+    def _get_weights(self, class_idx, scores):
 
         raise NotImplementedError
-
-    def __call__(self, output, class_idx, normalized=True):
-
-        # Get map weight
-        weights = self._get_weights(output, class_idx)
-
-        # Perform the weighted combination to get the CAM
-        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * self.hook_a).sum(dim=1))
-
-        # Normalize the CAM
-        if normalized:
-            batch_cams = self._normalize(batch_cams)
-
-        return batch_cams
 
 
 class GradCAM(_GradCAM):
@@ -86,13 +76,13 @@ class GradCAM(_GradCAM):
 
         super().__init__(model, conv_layer)
 
-    def _get_weights(self, output, class_idx):
+    def _get_weights(self, class_idx, scores):
         """Computes the weight coefficients of the hooked activation maps"""
 
         # Backpropagate
-        self._backprop(output, class_idx)
+        self._backprop(scores, class_idx)
         # Global average pool the gradients over spatial dimensions
-        return self.hook_g.data.mean(axis=(2, 3))
+        return self.hook_g.squeeze(0).mean(axis=(1, 2))
 
 
 class GradCAMpp(_GradCAM):
@@ -117,18 +107,18 @@ class GradCAMpp(_GradCAM):
 
         super().__init__(model, conv_layer)
 
-    def _get_weights(self, output, class_idx):
+    def _get_weights(self, class_idx, scores):
         """Computes the weight coefficients of the hooked activation maps"""
 
         # Backpropagate
-        self._backprop(output, class_idx)
+        self._backprop(scores, class_idx)
         # Alpha coefficient for each pixel
-        grad_2 = self.hook_g.data.pow(2)
-        grad_3 = self.hook_g.data.pow(3)
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a.data).sum(axis=(2, 3), keepdims=True))
+        grad_2 = self.hook_g.pow(2)
+        grad_3 = self.hook_g.pow(3)
+        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a).sum(axis=(2, 3), keepdims=True))
 
         # Apply pixel coefficient in each weight
-        return alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
+        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(axis=(1, 2))
 
 
 class SmoothGradCAMpp(_GradCAM):
@@ -154,6 +144,8 @@ class SmoothGradCAMpp(_GradCAM):
     def __init__(self, model, conv_layer, first_layer, num_samples=4, std=0.3):
 
         super().__init__(model, conv_layer)
+        # Model scores is not used by the extractor
+        self._score_used = False
 
         # Input hook
         self.hook_handles.append(self.model._modules.get(first_layer).register_forward_pre_hook(self._store_input))
@@ -170,15 +162,15 @@ class SmoothGradCAMpp(_GradCAM):
         if self._ihook_enabled:
             self._input = input[0].data.clone()
 
-    def _get_weights(self, class_idx):
+    def _get_weights(self, class_idx, scores=None):
         """Computes the weight coefficients of the hooked activation maps"""
 
         # Disable input update
         self._ihook_enabled = False
         # Keep initial activation
-        init_fmap = self.hook_a.data.clone()
+        init_fmap = self.hook_a.clone()
         # Initialize our gradient estimates
-        grad_2, grad_3 = torch.zeros_like(self.hook_a.data), torch.zeros_like(self.hook_a.data)
+        grad_2, grad_3 = torch.zeros_like(self.hook_a), torch.zeros_like(self.hook_a)
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
@@ -189,8 +181,8 @@ class SmoothGradCAMpp(_GradCAM):
             self._backprop(out, class_idx)
 
             # Sum partial derivatives
-            grad_2.add_(self.hook_g.data.pow(2))
-            grad_3.add_(self.hook_g.data.pow(3))
+            grad_2.add_(self.hook_g.pow(2))
+            grad_3.add_(self.hook_g.pow(3))
 
         # Reenable input update
         self._ihook_enabled = True
@@ -203,21 +195,7 @@ class SmoothGradCAMpp(_GradCAM):
         alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).sum(axis=(2, 3), keepdims=True))
 
         # Apply pixel coefficient in each weight
-        return alpha.mul(torch.relu(self.hook_g.data)).sum(axis=(2, 3))
-
-    def __call__(self, class_idx, normalized=True):
-
-        # Get map weight
-        weights = self._get_weights(class_idx)
-
-        # Perform the weighted combination to get the CAM
-        batch_cams = torch.relu((weights.view(*weights.shape, 1, 1) * self.hook_a).sum(dim=1))
-
-        # Normalize the CAM
-        if normalized:
-            batch_cams = self._normalize(batch_cams)
-
-        return batch_cams
+        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(axis=(1, 2))
 
     def __repr__(self):
         return f"{self.__class__.__name__}(num_samples={self.num_samples}, std={self.std})"
