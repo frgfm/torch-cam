@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.1.1a0+d41c073-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.1.1a0+05f02bd-git documentation</title>
   
 
   
@@ -62,7 +62,7 @@
             
             
               <div class="version">
-                0.1.1a0+d41c073
+                0.1.1a0+05f02bd
               </div>
             
           
@@ -183,6 +183,7 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
 <li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+<li><p><strong>fc_layer</strong> (<em>str</em>) – name of the fully convolutional layer</p></li>
 </ul>
 </dd>
 </dl>
@@ -190,7 +191,7 @@
 
 <dl class="class">
 <dt id="torchcam.cams.ScoreCAM">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">ScoreCAM</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em>, <em class="sig-param">input_layer</em>, <em class="sig-param">max_batch=32</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#ScoreCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.ScoreCAM" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">ScoreCAM</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">conv_layer</em>, <em class="sig-param">input_layer</em>, <em class="sig-param">batch_size=32</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#ScoreCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.ScoreCAM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/abs/1910.01279">https://arxiv.org/abs/1910.01279</a></p>
 <dl>
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
@@ -208,6 +209,8 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
 <li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+<li><p><strong>input_layer</strong> (<em>str</em>) – name of the first layer</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – batch size used to forward masked inputs</p></li>
 </ul>
 </dd>
 </dl>
@@ -226,8 +229,8 @@
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">GradCAM</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">GradCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd>
@@ -251,8 +254,8 @@
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">GradCAMpp</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">GradCAMpp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd>
@@ -277,7 +280,7 @@ with a personal correction to the paper (alpha coefficient numerator)</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">SmoothGradCAMpp</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">SmoothGradCAMpp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </pre></div>
 </div>
