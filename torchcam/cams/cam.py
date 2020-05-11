@@ -75,7 +75,7 @@ class _CAM(object):
 
         # Check scores arg
         if self._score_used and not isinstance(scores, torch.Tensor):
-            raise ValueError(f"model output scores is required to be passed to compute CAMs")
+            raise ValueError("model output scores is required to be passed to compute CAMs")
 
     def __call__(self, class_idx, scores=None, normalized=True):
 
