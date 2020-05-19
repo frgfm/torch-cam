@@ -7,7 +7,7 @@ torchcam.cams
 
 CAM
 --------
-Related to activation-based class activation maps.
+Methods related to activation-based class activation maps.
 
 
 .. autoclass:: CAM
@@ -17,11 +17,10 @@ Related to activation-based class activation maps.
 
 Grad-CAM
 --------
-Related to gradient-based class activation maps.
+Methods related to gradient-based class activation maps.
 
 
 .. autoclass:: GradCAM
-
 
 .. autoclass:: GradCAMpp
 
