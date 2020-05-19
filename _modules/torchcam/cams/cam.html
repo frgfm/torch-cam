@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.cam &mdash; torchcam 0.1.1a0+9a45c93-git documentation</title>
+  <title>torchcam.cams.cam &mdash; torchcam 0.1.1a0+fb3be81-git documentation</title>
   
 
   
@@ -25,6 +25,7 @@
         <script src="../../../_static/underscore.js"></script>
         <script src="../../../_static/doctools.js"></script>
         <script src="../../../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../../../_static/js/theme.js"></script>
 
@@ -60,7 +61,7 @@
             
             
               <div class="version">
-                0.1.1a0+9a45c93
+                0.1.1a0+fb3be81
               </div>
             
           
@@ -84,7 +85,16 @@
               
             
             
-              <p class="caption"><span class="caption-text">Package Reference</span></p>
+              <p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installing.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../installing.html#via-python-package">Via Python Package</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installing.html#via-conda">Via Conda</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../installing.html#via-git">Via Git</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Package Documentation</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../cams.html">torchcam.cams</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../cams.html#cam">CAM</a></li>
@@ -274,7 +284,18 @@
 
 
 <div class="viewcode-block" id="CAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.CAM">[docs]</a><span class="k">class</span> <span class="nc">CAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in https://arxiv.org/abs/1512.04150</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Learning Deep Features for Discriminative</span>
+<span class="sd">    Localization&quot; &lt;https://arxiv.org/pdf/1512.04150.pdf&gt;`_.</span>
+
+<span class="sd">    The Class Activation Map (CAM) is defined for image classification models that have global pooling at the end</span>
+<span class="sd">    of the visual feature extraction block. The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k`.</span>
 
 <span class="sd">    Example::</span>
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
@@ -307,7 +328,29 @@
 
 
 <div class="viewcode-block" id="ScoreCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.ScoreCAM">[docs]</a><span class="k">class</span> <span class="nc">ScoreCAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in https://arxiv.org/abs/1910.01279</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Score-CAM:</span>
+<span class="sd">    Score-Weighted Visual Explanations for Convolutional Neural Networks&quot; &lt;https://arxiv.org/pdf/1910.01279.pdf&gt;`_.</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{Score-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)} = softmax(Y^{(c)}(M) - Y^{(c)}(X_b))</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax</span>
+<span class="sd">    for input :math:`X`, :math:`X_b` is a baseline image,</span>
+<span class="sd">    and :math:`M` is defined as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        M = \\Big(\\frac{M^{(d)} - \\min M^{(d)}}{\\max M^{(d)} - \\min M^{(d)}} \\odot X \\Big)_{1 \\leq d \\leq D}</span>
+
+<span class="sd">    where :math:`\\odot` refers to the element-wise multiplication, :math:`M^{(d)}` is the upsampled version of</span>
+<span class="sd">    :math:`A_d` on node :math:`d`, and :math:`D` is the number of channels on the target convolutional layer.</span>
 
 <span class="sd">    Example::</span>
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
