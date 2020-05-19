@@ -117,7 +117,18 @@ class _CAM(object):
 
 
 class CAM(_CAM):
-    """Implements a class activation map extractor as described in https://arxiv.org/abs/1512.04150
+    """Implements a class activation map extractor as described in `"Learning Deep Features for Discriminative
+    Localization" <https://arxiv.org/pdf/1512.04150.pdf>`_.
+
+    The Class Activation Map (CAM) is defined for image classification models that have global pooling at the end
+    of the visual feature extraction block. The localization map is computed as follows:
+
+    .. math::
+        L^{(c)}_{CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    position :math:`(x, y)`,
+    and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k`.
 
     Example::
         >>> from torchvision.models import resnet18
@@ -150,7 +161,29 @@ class CAM(_CAM):
 
 
 class ScoreCAM(_CAM):
-    """Implements a class activation map extractor as described in https://arxiv.org/abs/1910.01279
+    """Implements a class activation map extractor as described in `"Score-CAM:
+    Score-Weighted Visual Explanations for Convolutional Neural Networks" <https://arxiv.org/pdf/1910.01279.pdf>`_.
+
+    The localization map is computed as follows:
+
+    .. math::
+        L^{(c)}_{Score-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+
+    with the coefficient :math:`w_k^{(c)}` being defined as:
+
+    .. math::
+        w_k^{(c)} = softmax(Y^{(c)}(M) - Y^{(c)}(X_b))
+
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
+    for input :math:`X`, :math:`X_b` is a baseline image,
+    and :math:`M` is defined as follows:
+
+    .. math::
+        M = \\Big(\\frac{M^{(d)} - \\min M^{(d)}}{\\max M^{(d)} - \\min M^{(d)}} \\odot X \\Big)_{d}
+
+    where :math:`\\odot` refers to the element-wise multiplication, and :math:`M^{(d)}` is the upsampled version of
+    :math:`A_d` on node :math:`d`.
 
     Example::
         >>> from torchvision.models import resnet18
