@@ -180,10 +180,10 @@ class ScoreCAM(_CAM):
     and :math:`M` is defined as follows:
 
     .. math::
-        M = \\Big(\\frac{M^{(d)} - \\min M^{(d)}}{\\max M^{(d)} - \\min M^{(d)}} \\odot X \\Big)_{d}
+        M = \\Big(\\frac{M^{(d)} - \\min M^{(d)}}{\\max M^{(d)} - \\min M^{(d)}} \\odot X \\Big)_{1 \\leq d \\leq D}
 
-    where :math:`\\odot` refers to the element-wise multiplication, and :math:`M^{(d)}` is the upsampled version of
-    :math:`A_d` on node :math:`d`.
+    where :math:`\\odot` refers to the element-wise multiplication, :math:`M^{(d)}` is the upsampled version of
+    :math:`A_d` on node :math:`d`, and :math:`D` is the number of channels on the target convolutional layer.
 
     Example::
         >>> from torchvision.models import resnet18
