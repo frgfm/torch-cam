@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.1.1a0+fb3be81-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.1.1a0+a95d680-git documentation</title>
   
 
   
@@ -25,7 +25,7 @@
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
         <script src="_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.1a0+fb3be81
+                0.1.1a0+a95d680
               </div>
             
           
@@ -184,7 +184,8 @@ of the visual feature extraction block. The localization map is computed as foll
 \[L^{(c)}_{CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
 <p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>,
-and <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> is the weight corresponding to class <span class="math notranslate nohighlight">\(c\)</span> for unit <span class="math notranslate nohighlight">\(k\)</span>.</p>
+and <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> is the weight corresponding to class <span class="math notranslate nohighlight">\(c\)</span> for unit <span class="math notranslate nohighlight">\(k\)</span> in the fully
+connected layer..</p>
 <dl>
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">CAM</span>
@@ -217,15 +218,15 @@ Score-Weighted Visual Explanations for Convolutional Neural Networks”</a>.</p>
 \[L^{(c)}_{Score-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
 <p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
 <div class="math notranslate nohighlight">
-\[w_k^{(c)} = softmax(Y^{(c)}(M) - Y^{(c)}(X_b))\]</div>
+\[w_k^{(c)} = softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
 <p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
 for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
-and <span class="math notranslate nohighlight">\(M\)</span> is defined as follows:</p>
+and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
 <div class="math notranslate nohighlight">
-\[M = \Big(\frac{M^{(d)} - \min M^{(d)}}{\max M^{(d)} - \min M^{(d)}} \odot X \Big)_{1 \leq d \leq D}\]</div>
-<p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication, <span class="math notranslate nohighlight">\(M^{(d)}\)</span> is the upsampled version of
-<span class="math notranslate nohighlight">\(A_d\)</span> on node <span class="math notranslate nohighlight">\(d\)</span>, and <span class="math notranslate nohighlight">\(D\)</span> is the number of channels on the target convolutional layer.</p>
+\[M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)})
+\odot X\]</div>
+<p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication and <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation.</p>
 <dl>
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">ScoreCAM</span>
@@ -244,6 +245,53 @@ and <span class="math notranslate nohighlight">\(M\)</span> is defined as follow
 <li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
 <li><p><strong>input_layer</strong> (<em>str</em>) – name of the first layer</p></li>
 <li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – batch size used to forward masked inputs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="torchcam.cams.SSCAM">
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">SSCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em>, <em class="sig-param"><span class="n">input_layer</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="o">=</span><span class="default_value">32</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="o">=</span><span class="default_value">35</span></em>, <em class="sig-param"><span class="n">std</span><span class="o">=</span><span class="default_value">2.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#SSCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.SSCAM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/2006.14255.pdf">“SS-CAM: Smoothed Score-CAM for
+Sharper Visual Feature Localization”</a>.</p>
+<p>The localization map is computed as follows:</p>
+<div class="math notranslate nohighlight">
+\[L^{(c)}_{SS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
+<p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
+<div class="math notranslate nohighlight">
+\[w_k^{(c)} = \frac{1}{N} \sum\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
+<p>where <span class="math notranslate nohighlight">\(N\)</span> is the number of samples used to smooth the weights,
+<span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
+position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
+for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
+and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
+<div class="math notranslate nohighlight">
+\[M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
+\delta\Bigg) \odot X\]</div>
+<p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication, <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation,
+<span class="math notranslate nohighlight">\(\delta \sim \mathcal{N}(0, \sigma^2)\)</span> is the random noise that follows a 0-mean gaussian distribution
+with a standard deviation of <span class="math notranslate nohighlight">\(\sigma\)</span>.</p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">SSCAM</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">SSCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+<li><p><strong>input_layer</strong> (<em>str</em>) – name of the first layer</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – batch size used to forward masked inputs</p></li>
+<li><p><strong>num_samples</strong> (<em>int</em><em>, </em><em>optional</em>) – number of noisy samples used for weight computation</p></li>
+<li><p><strong>std</strong> (<em>float</em><em>, </em><em>optional</em>) – standard deviation of the noise added to the normalized activation</p></li>
 </ul>
 </dd>
 </dl>
