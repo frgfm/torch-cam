@@ -256,7 +256,7 @@ class ScoreCAM(_CAM):
         return f"{self.__class__.__name__}(batch_size={self.bs})"
 
 
-class SSCAM(_CAM):
+class SSCAM(ScoreCAM):
     """Implements a class activation map extractor as described in `"SS-CAM: Smoothed Score-CAM for
     Sharper Visual Feature Localization" <https://arxiv.org/pdf/2006.14255.pdf>`_.
 
@@ -306,22 +306,11 @@ class SSCAM(_CAM):
 
     def __init__(self, model, conv_layer, input_layer, batch_size=32, num_samples=35, std=2.0):
 
-        super().__init__(model, conv_layer)
+        super().__init__(model, conv_layer, input_layer, batch_size)
 
-        # Input hook
-        self.hook_handles.append(self.model._modules.get(input_layer).register_forward_pre_hook(self._store_input))
-        self.bs = batch_size
-        # Ensure ReLU is applied to CAM before normalization
-        self._relu = True
         self.num_samples = num_samples
         self.std = std
         self._distrib = torch.distributions.normal.Normal(0, self.std)
-
-    def _store_input(self, module, input):
-        """Store model input tensor"""
-
-        if self._hooks_enabled:
-            self._input = input[0].data.clone()
 
     def _get_weights(self, class_idx, scores=None):
         """Computes the weight coefficients of the hooked activation maps"""
@@ -363,4 +352,4 @@ class SSCAM(_CAM):
         return weights
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(batch_size={self.bs})"
+        return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
