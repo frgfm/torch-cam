@@ -93,6 +93,7 @@ This project is developed and maintained by the repo owner, but the implementati
 - [Grad-CAM++](https://arxiv.org/abs/1710.11063): improvement of GradCAM++ for more accurate pixel-level contribution to the activation.
 - [Smooth Grad-CAM++](https://arxiv.org/abs/1908.01224): SmoothGrad mechanism coupled with GradCAM.
 - [Score-CAM](https://arxiv.org/abs/1910.01279): score-weighting of class activation for better interpretability.
+- [SS-CAM](https://arxiv.org/abs/2006.14255): SmoothGrad mechanism coupled with Score-CAM.
 
 
 
