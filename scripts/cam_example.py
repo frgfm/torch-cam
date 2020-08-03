@@ -15,7 +15,7 @@ import torch
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
 
-from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM
+from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM
 from torchcam.utils import overlay_mask
 
 VGG_CONFIG = {_vgg: dict(input_layer='features', conv_layer='features')
@@ -58,9 +58,9 @@ def main(args):
     # Hook the corresponding layer in the model
     cam_extractors = [CAM(model, conv_layer, fc_layer), GradCAM(model, conv_layer),
                       GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer, input_layer),
-                      ScoreCAM(model, conv_layer, input_layer)]
+                      ScoreCAM(model, conv_layer, input_layer), SSCAM(model, conv_layer, input_layer)]
 
-    fig, axes = plt.subplots(1, len(cam_extractors))
+    fig, axes = plt.subplots(1, len(cam_extractors), figsize=(7, 2))
     for idx, extractor in enumerate(cam_extractors):
         model.zero_grad()
         scores = model(img_tensor.unsqueeze(0))
@@ -80,7 +80,7 @@ def main(args):
 
         axes[idx].imshow(result)
         axes[idx].axis('off')
-        axes[idx].set_title(extractor.__class__.__name__, size=10)
+        axes[idx].set_title(extractor.__class__.__name__, size=8)
 
     plt.tight_layout()
     if args.savefig:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     parser.add_argument("--img", type=str,
                         default='https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg',
                         help="The image to extract CAM from")
-    parser.add_argument("--class-idx", type=int, default=None, help='Index of the class to inspect')
+    parser.add_argument("--class-idx", type=int, default=232, help='Index of the class to inspect')
     parser.add_argument("--device", type=str, default=None, help='Default device to perform computation on')
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
     args = parser.parse_args()
