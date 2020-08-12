@@ -362,7 +362,7 @@ class ISSCAM(SSCAM):
     The localization map is computed as follows:
 
     .. math::
-        L^{(c)}_{SS-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+        L^{(c)}_{ISS-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
 
     with the coefficient :math:`w_k^{(c)}` being defined as:
 
