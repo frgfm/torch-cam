@@ -402,14 +402,6 @@ class ISSCAM(SSCAM):
     hook_a = None
     hook_handles = []
 
-    def __init__(self, model, conv_layer, input_layer, batch_size=32, num_samples=10, std=2.0):
-
-        super().__init__(model, conv_layer, input_layer, batch_size)
-
-        self.num_samples = num_samples
-        self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)
-
     def _get_weights(self, class_idx, scores=None):
         """Computes the weight coefficients of the hooked activation maps"""
 
@@ -447,6 +439,3 @@ class ISSCAM(SSCAM):
         self._hooks_enabled = True
 
         return weights
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
