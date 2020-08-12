@@ -355,8 +355,8 @@ class SSCAM(ScoreCAM):
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
 
 
-class ISSCAM(SSCAM):
-    """Implements a variant of SS-CAM, based on Rakshit Naidu's `work
+class ISSCAM(ScoreCAM):
+    """Implements a variant of Score-CAM, based on Rakshit Naidu's `work
     <https://github.com/r0cketr1kky/ISS-CAM_resources>`_.
 
     The localization map is computed as follows:
@@ -397,11 +397,16 @@ class ISSCAM(SSCAM):
         input_layer (str): name of the first layer
         batch_size (int, optional): batch size used to forward masked inputs
         num_samples (int, optional): number of noisy samples used for weight computation
-        std (float, optional): standard deviation of the noise added to the normalized activation
     """
 
     hook_a = None
     hook_handles = []
+
+    def __init__(self, model, conv_layer, input_layer, batch_size=32, num_samples=10):
+
+        super().__init__(model, conv_layer, input_layer, batch_size)
+
+        self.num_samples = num_samples
 
     def _get_weights(self, class_idx, scores=None):
         """Computes the weight coefficients of the hooked activation maps"""
@@ -422,10 +427,10 @@ class ISSCAM(SSCAM):
 
         # Disable hook updates
         self._hooks_enabled = False
+        fmap = 0
 
         for _idx in range(self.num_samples):
-            noisy_m = (_idx + 1) / self.num_samples * self._input * (upsampled_a +
-                                     self._distrib.sample(self._input.size()).to(device=self._input.device))
+            fmap += (_idx + 1) / self.num_samples * self._input * upsampled_a
 
             # Process by chunk (GPU RAM limitation)
             for idx in range(math.ceil(weights.shape[0] / self.bs)):
@@ -433,7 +438,7 @@ class ISSCAM(SSCAM):
                 selection_slice = slice(idx * self.bs, min((idx + 1) * self.bs, weights.shape[0]))
                 with torch.no_grad():
                     # Get the softmax probabilities of the target class
-                    weights[selection_slice] += F.softmax(self.model(noisy_m[selection_slice]), dim=1)[:, class_idx]
+                    weights[selection_slice] += F.softmax(self.model(fmap[selection_slice]), dim=1)[:, class_idx]
 
         # Reenable hook updates
         self._hooks_enabled = True
