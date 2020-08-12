@@ -9,7 +9,7 @@ import math
 import torch
 import torch.nn.functional as F
 
-__all__ = ['CAM', 'ScoreCAM', 'SSCAM']
+__all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']
 
 
 class _CAM(object):
@@ -345,6 +345,103 @@ class SSCAM(ScoreCAM):
                     weights[selection_slice] += F.softmax(self.model(noisy_m[selection_slice]), dim=1)[:, class_idx]
 
         weights /= self.num_samples
+
+        # Reenable hook updates
+        self._hooks_enabled = True
+
+        return weights
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
+
+
+class ISSCAM(SSCAM):
+    """Implements a variant of SS-CAM.
+
+    The localization map is computed as follows:
+
+    .. math::
+        L^{(c)}_{SS-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+
+    with the coefficient :math:`w_k^{(c)}` being defined as:
+
+    .. math::
+        w_k^{(c)} = \\sum\\limits_{i=1}^N \\frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
+
+    where :math:`N` is the number of samples used to smooth the weights,
+    :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
+    for input :math:`X`, :math:`X_b` is a baseline image,
+    and :math:`M_k` is defined as follows:
+
+    .. math::
+        M_k = \\Bigg(\\frac{U(A_k) - \\min\\limits_m U(A_m)}{\\max\\limits_m  U(A_m) - \\min\\limits_m  U(A_m)} +
+        \\delta\\Bigg) \\odot X
+
+    where :math:`\\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
+    :math:`\\delta \\sim \\mathcal{N}(0, \\sigma^2)` is the random noise that follows a 0-mean gaussian distribution
+    with a standard deviation of :math:`\\sigma`.
+
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import ISSCAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = ISSCAM(model, 'layer4', 'conv1')
+        >>> with torch.no_grad(): out = model(input_tensor)
+        >>> cam(class_idx=100)
+
+    Args:
+        model (torch.nn.Module): input model
+        conv_layer (str): name of the last convolutional layer
+        input_layer (str): name of the first layer
+        batch_size (int, optional): batch size used to forward masked inputs
+        num_samples (int, optional): number of noisy samples used for weight computation
+        std (float, optional): standard deviation of the noise added to the normalized activation
+    """
+
+    hook_a = None
+    hook_handles = []
+
+    def __init__(self, model, conv_layer, input_layer, batch_size=32, num_samples=10, std=2.0):
+
+        super().__init__(model, conv_layer, input_layer, batch_size)
+
+        self.num_samples = num_samples
+        self.std = std
+        self._distrib = torch.distributions.normal.Normal(0, self.std)
+
+    def _get_weights(self, class_idx, scores=None):
+        """Computes the weight coefficients of the hooked activation maps"""
+
+        # Normalize the activation
+        upsampled_a = self._normalize(self.hook_a)
+
+        # Upsample it to input_size
+        # 1 * O * M * N
+        upsampled_a = F.interpolate(upsampled_a, self._input.shape[-2:], mode='bilinear', align_corners=False)
+
+        # Use it as a mask
+        # O * I * H * W
+        upsampled_a = upsampled_a.squeeze(0).unsqueeze(1)
+
+        # Initialize weights
+        weights = torch.zeros(upsampled_a.shape[0], dtype=upsampled_a.dtype).to(device=upsampled_a.device)
+
+        # Disable hook updates
+        self._hooks_enabled = False
+
+        for _idx in range(self.num_samples):
+            noisy_m = self._input * (upsampled_a +
+                                     self._distrib.sample(self._input.size()).to(device=self._input.device))
+
+            # Process by chunk (GPU RAM limitation)
+            for idx in range(math.ceil(weights.shape[0] / self.bs)):
+
+                selection_slice = slice(idx * self.bs, min((idx + 1) * self.bs, weights.shape[0]))
+                with torch.no_grad():
+                    # Get the softmax probabilities of the target class
+                    weights[selection_slice] += (_idx + 1) / self.num_samples * \
+                        F.softmax(self.model(noisy_m[selection_slice]), dim=1)[:, class_idx]
 
         # Reenable hook updates
         self._hooks_enabled = True
