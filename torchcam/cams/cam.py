@@ -356,7 +356,8 @@ class SSCAM(ScoreCAM):
 
 
 class ISSCAM(SSCAM):
-    """Implements a variant of SS-CAM.
+    """Implements a variant of SS-CAM, based on Rakshit Naidu's `work
+    <https://github.com/r0cketr1kky/ISS-CAM_resources>`_.
 
     The localization map is computed as follows:
 
