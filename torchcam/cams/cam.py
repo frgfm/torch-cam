@@ -424,7 +424,7 @@ class ISSCAM(SSCAM):
         self._hooks_enabled = False
 
         for _idx in range(self.num_samples):
-            noisy_m = self._input * (upsampled_a +
+            noisy_m = (_idx + 1) / self.num_samples * self._input * (upsampled_a +
                                      self._distrib.sample(self._input.size()).to(device=self._input.device))
 
             # Process by chunk (GPU RAM limitation)
@@ -433,8 +433,7 @@ class ISSCAM(SSCAM):
                 selection_slice = slice(idx * self.bs, min((idx + 1) * self.bs, weights.shape[0]))
                 with torch.no_grad():
                     # Get the softmax probabilities of the target class
-                    weights[selection_slice] += (_idx + 1) / self.num_samples * \
-                        F.softmax(self.model(noisy_m[selection_slice]), dim=1)[:, class_idx]
+                    weights[selection_slice] += F.softmax(self.model(noisy_m[selection_slice]), dim=1)[:, class_idx]
 
         # Reenable hook updates
         self._hooks_enabled = True
