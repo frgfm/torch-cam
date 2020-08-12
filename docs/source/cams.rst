@@ -16,6 +16,8 @@ Methods related to activation-based class activation maps.
 
 .. autoclass:: SSCAM
 
+.. autoclass:: ISSCAM
+
 
 Grad-CAM
 --------
