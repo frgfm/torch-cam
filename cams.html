@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.1.2a0+8396551-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.1.2a0+6dd7a75-git documentation</title>
   
 
   
@@ -63,7 +63,7 @@
             
             
               <div class="version">
-                0.1.2a0+8396551
+                0.1.2a0+6dd7a75
               </div>
             
           
@@ -292,6 +292,51 @@ with a standard deviation of <span class="math notranslate nohighlight">\(\sigma
 <li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – batch size used to forward masked inputs</p></li>
 <li><p><strong>num_samples</strong> (<em>int</em><em>, </em><em>optional</em>) – number of noisy samples used for weight computation</p></li>
 <li><p><strong>std</strong> (<em>float</em><em>, </em><em>optional</em>) – standard deviation of the noise added to the normalized activation</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="torchcam.cams.ISSCAM">
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">ISSCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em>, <em class="sig-param"><span class="n">input_layer</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="o">=</span><span class="default_value">32</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="o">=</span><span class="default_value">10</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#ISSCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.ISSCAM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements a variant of Score-CAM, based on Rakshit Naidu’s <a class="reference external" href="https://github.com/r0cketr1kky/ISS-CAM_resources">work</a>.</p>
+<p>The localization map is computed as follows:</p>
+<div class="math notranslate nohighlight">
+\[L^{(c)}_{ISS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
+<p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
+<div class="math notranslate nohighlight">
+\[w_k^{(c)} = \sum\limits_{i=1}^N \frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
+<p>where <span class="math notranslate nohighlight">\(N\)</span> is the number of samples used to smooth the weights,
+<span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
+position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
+for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
+and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
+<div class="math notranslate nohighlight">
+\[M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
+\delta\Bigg) \odot X\]</div>
+<p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication, <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation,
+<span class="math notranslate nohighlight">\(\delta \sim \mathcal{N}(0, \sigma^2)\)</span> is the random noise that follows a 0-mean gaussian distribution
+with a standard deviation of <span class="math notranslate nohighlight">\(\sigma\)</span>.</p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">ISSCAM</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">ISSCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+<li><p><strong>input_layer</strong> (<em>str</em>) – name of the first layer</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – batch size used to forward masked inputs</p></li>
+<li><p><strong>num_samples</strong> (<em>int</em><em>, </em><em>optional</em>) – number of noisy samples used for weight computation</p></li>
 </ul>
 </dd>
 </dl>
