@@ -15,7 +15,7 @@ import torch
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
 
-from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM
+from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM, ISSCAM
 from torchcam.utils import overlay_mask
 
 VGG_CONFIG = {_vgg: dict(input_layer='features', conv_layer='features')
@@ -58,7 +58,8 @@ def main(args):
     # Hook the corresponding layer in the model
     cam_extractors = [CAM(model, conv_layer, fc_layer), GradCAM(model, conv_layer),
                       GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer, input_layer),
-                      ScoreCAM(model, conv_layer, input_layer), SSCAM(model, conv_layer, input_layer)]
+                      ScoreCAM(model, conv_layer, input_layer), SSCAM(model, conv_layer, input_layer),
+                      ISSCAM(model, conv_layer, input_layer)]
 
     fig, axes = plt.subplots(1, len(cam_extractors), figsize=(7, 2))
     for idx, extractor in enumerate(cam_extractors):
