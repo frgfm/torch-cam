@@ -41,7 +41,7 @@ def main(args):
     device = torch.device(args.device)
 
     # Pretrained imagenet model
-    model = models.__dict__[args.model](pretrained=True).to(device=device)
+    model = models.__dict__[args.model](pretrained=True).eval().to(device=device)
     conv_layer = MODEL_CONFIG[args.model]['conv_layer']
     input_layer = MODEL_CONFIG[args.model]['input_layer']
     fc_layer = MODEL_CONFIG[args.model]['fc_layer']
