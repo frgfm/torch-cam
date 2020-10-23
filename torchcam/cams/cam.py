@@ -1,22 +1,29 @@
 import math
 import torch
+from torch import Tensor
+from torch import nn
 import torch.nn.functional as F
+from typing import Optional, List
 
 __all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']
 
 
-class _CAM(object):
+class _CAM:
     """Implements a class activation map extractor
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
+        model: input model
+        conv_layer: name of the last convolutional layer
     """
 
-    hook_a = None
-    hook_handles = []
+    hook_a: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
-    def __init__(self, model, conv_layer):
+    def __init__(
+        self,
+        model: nn.Module,
+        conv_layer: str
+    ) -> None:
 
         if not hasattr(model, conv_layer):
             raise ValueError(f"Unable to find submodule {conv_layer} in the model")
@@ -30,33 +37,33 @@ class _CAM(object):
         # Model output is used by the extractor
         self._score_used = False
 
-    def _hook_a(self, module, input, output):
+    def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor) -> None:
         """Activation hook"""
         if self._hooks_enabled:
             self.hook_a = output.data
 
-    def clear_hooks(self):
+    def clear_hooks(self) -> None:
         """Clear model hooks"""
         for handle in self.hook_handles:
             handle.remove()
 
     @staticmethod
-    def _normalize(cams):
+    def _normalize(cams: Tensor) -> Tensor:
         """CAM normalization"""
-        cams -= cams.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1)
-        cams /= cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1)
+        cams.sub_(cams.flatten(start_dim=-2).min(-1).values.unsqueeze(-1).unsqueeze(-1))
+        cams.div_(cams.flatten(start_dim=-2).max(-1).values.unsqueeze(-1).unsqueeze(-1))
 
         return cams
 
-    def _get_weights(self, class_idx, scores=None):
+    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
 
         raise NotImplementedError
 
-    def _precheck(self, class_idx, scores):
+    def _precheck(self, class_idx: int, scores: Optional[Tensor] = None) -> None:
         """Check for invalid computation cases"""
 
         # Check that forward has already occurred
-        if self.hook_a is None:
+        if not isinstance(self.hook_a, Tensor):
             raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")
         # Check batch size
         if self.hook_a.shape[0] != 1:
@@ -70,7 +77,7 @@ class _CAM(object):
         if self._score_used and not isinstance(scores, torch.Tensor):
             raise ValueError("model output scores is required to be passed to compute CAMs")
 
-    def __call__(self, class_idx, scores=None, normalized=True):
+    def __call__(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> Tensor:
 
         # Integrity check
         self._precheck(class_idx, scores)
@@ -78,7 +85,7 @@ class _CAM(object):
         # Compute CAM
         return self.compute_cams(class_idx, scores, normalized)
 
-    def compute_cams(self, class_idx, scores=None, normalized=True):
+    def compute_cams(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> Tensor:
         """Compute the CAM for a specific output class
 
         Args:
@@ -94,7 +101,7 @@ class _CAM(object):
         weights = self._get_weights(class_idx, scores)
 
         # Perform the weighted combination to get the CAM
-        batch_cams = (weights.unsqueeze(-1).unsqueeze(-1) * self.hook_a.squeeze(0)).sum(dim=0)
+        batch_cams = (weights.view(*weights.shape, 1, 1) * self.hook_a.squeeze(0)).sum(dim=0) # type: ignore[union-attr]
 
         if self._relu:
             batch_cams = F.relu(batch_cams, inplace=True)
@@ -105,7 +112,7 @@ class _CAM(object):
 
         return batch_cams
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
 
 
@@ -133,21 +140,23 @@ class CAM(_CAM):
         >>> cam(class_idx=100)
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
-        fc_layer (str): name of the fully convolutional layer
+        model: input model
+        conv_layer: name of the last convolutional layer
+        fc_layer: name of the fully convolutional layer
     """
 
-    hook_a = None
-    hook_handles = []
-
-    def __init__(self, model, conv_layer, fc_layer):
+    def __init__(
+        self,
+        model: nn.Module,
+        conv_layer: str,
+        fc_layer: str
+    ):
 
         super().__init__(model, conv_layer)
         # Softmax weight
         self._fc_weights = self.model._modules.get(fc_layer).weight.data
 
-    def _get_weights(self, class_idx, scores=None):
+    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
         """Computes the weight coefficients of the hooked activation maps"""
 
         # Take the FC weights of the target class
@@ -188,16 +197,19 @@ class ScoreCAM(_CAM):
         >>> cam(class_idx=100)
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
-        input_layer (str): name of the first layer
-        batch_size (int, optional): batch size used to forward masked inputs
+        model: input model
+        conv_layer: name of the last convolutional layer
+        input_layer: name of the first layer
+        batch_size: batch size used to forward masked inputs
     """
 
-    hook_a = None
-    hook_handles = []
-
-    def __init__(self, model, conv_layer, input_layer, batch_size=32):
+    def __init__(
+        self,
+        model: nn.Module,
+        conv_layer: str,
+        input_layer: str,
+        batch_size: int = 32
+    ) -> None:
 
         super().__init__(model, conv_layer)
 
@@ -207,16 +219,17 @@ class ScoreCAM(_CAM):
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
-    def _store_input(self, module, input):
+    def _store_input(self, module: nn.Module, input: Tensor):
         """Store model input tensor"""
 
         if self._hooks_enabled:
             self._input = input[0].data.clone()
 
-    def _get_weights(self, class_idx, scores=None):
+    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
         """Computes the weight coefficients of the hooked activation maps"""
 
         # Normalize the activation
+        self.hook_a: Tensor
         upsampled_a = self._normalize(self.hook_a)
 
         # Upsample it to input_size
@@ -245,7 +258,7 @@ class ScoreCAM(_CAM):
 
         return weights
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(batch_size={self.bs})"
 
 
@@ -286,18 +299,23 @@ class SSCAM(ScoreCAM):
         >>> cam(class_idx=100)
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
-        input_layer (str): name of the first layer
-        batch_size (int, optional): batch size used to forward masked inputs
-        num_samples (int, optional): number of noisy samples used for weight computation
-        std (float, optional): standard deviation of the noise added to the normalized activation
+        model: input model
+        conv_layer: name of the last convolutional layer
+        input_layer: name of the first layer
+        batch_size: batch size used to forward masked inputs
+        num_samples: number of noisy samples used for weight computation
+        std: standard deviation of the noise added to the normalized activation
     """
 
-    hook_a = None
-    hook_handles = []
-
-    def __init__(self, model, conv_layer, input_layer, batch_size=32, num_samples=35, std=2.0):
+    def __init__(
+        self,
+        model: nn.Module,
+        conv_layer: str,
+        input_layer: str,
+        batch_size: int = 32,
+        num_samples: int = 35,
+        std: float = 2.0
+    ) -> None:
 
         super().__init__(model, conv_layer, input_layer, batch_size)
 
@@ -305,10 +323,11 @@ class SSCAM(ScoreCAM):
         self.std = std
         self._distrib = torch.distributions.normal.Normal(0, self.std)
 
-    def _get_weights(self, class_idx, scores=None):
+    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
         """Computes the weight coefficients of the hooked activation maps"""
 
         # Normalize the activation
+        self.hook_a: Tensor
         upsampled_a = self._normalize(self.hook_a)
 
         # Upsample it to input_size
@@ -337,14 +356,14 @@ class SSCAM(ScoreCAM):
                     # Get the softmax probabilities of the target class
                     weights[selection_slice] += F.softmax(self.model(noisy_m[selection_slice]), dim=1)[:, class_idx]
 
-        weights /= self.num_samples
+        weights.div_(self.num_samples)
 
         # Reenable hook updates
         self._hooks_enabled = True
 
         return weights
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
 
 
@@ -385,26 +404,31 @@ class ISSCAM(ScoreCAM):
         >>> cam(class_idx=100)
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
-        input_layer (str): name of the first layer
-        batch_size (int, optional): batch size used to forward masked inputs
-        num_samples (int, optional): number of noisy samples used for weight computation
+        model: input model
+        conv_layer: name of the last convolutional layer
+        input_layer: name of the first layer
+        batch_size: batch size used to forward masked inputs
+        num_samples: number of noisy samples used for weight computation
     """
 
-    hook_a = None
-    hook_handles = []
-
-    def __init__(self, model, conv_layer, input_layer, batch_size=32, num_samples=10):
+    def __init__(
+        self,
+        model: nn.Module,
+        conv_layer: str,
+        input_layer: str,
+        batch_size: int = 32,
+        num_samples: int = 10
+    ) -> None:
 
         super().__init__(model, conv_layer, input_layer, batch_size)
 
         self.num_samples = num_samples
 
-    def _get_weights(self, class_idx, scores=None):
+    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
         """Computes the weight coefficients of the hooked activation maps"""
 
         # Normalize the activation
+        self.hook_a: Tensor
         upsampled_a = self._normalize(self.hook_a)
 
         # Upsample it to input_size
@@ -420,7 +444,8 @@ class ISSCAM(ScoreCAM):
 
         # Disable hook updates
         self._hooks_enabled = False
-        fmap = 0
+        fmap = torch.zeros((upsampled_a.shape[0], *self._input.shape[1:]),
+                           dtype=upsampled_a.dtype, device=upsampled_a.device)
 
         for _idx in range(self.num_samples):
             fmap += (_idx + 1) / self.num_samples * self._input * upsampled_a

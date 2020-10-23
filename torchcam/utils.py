@@ -3,7 +3,7 @@ from matplotlib import cm
 from PIL import Image
 
 
-def overlay_mask(img, mask, colormap='jet', alpha=0.7):
+def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = 'jet', alpha: float = 0.7) -> Image.Image:
     """Overlay a colormapped mask on a background image
 
     Args:

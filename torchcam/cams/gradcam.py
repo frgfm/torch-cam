@@ -1,4 +1,6 @@
 import torch
+from torch import Tensor
+from typing import Optional
 
 from .cam import _CAM
 
@@ -9,14 +11,17 @@ class _GradCAM(_CAM):
     """Implements a gradient-based class activation map extractor
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
+        model: input model
+        conv_layer: name of the last convolutional layer
     """
 
-    hook_a, hook_g = None, None
-    hook_handles = []
+    hook_g: Optional[Tensor] = None
 
-    def __init__(self, model, conv_layer):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        conv_layer: str
+    ) -> None:
 
         super().__init__(model, conv_layer)
         # Ensure ReLU is applied before normalization
@@ -26,12 +31,12 @@ class _GradCAM(_CAM):
         # Backward hook
         self.hook_handles.append(self.model._modules.get(conv_layer).register_backward_hook(self._hook_g))
 
-    def _hook_g(self, module, input, output):
+    def _hook_g(self, module: torch.nn.Module, input: Tensor, output: Tensor) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
             self.hook_g = output[0].data
 
-    def _backprop(self, scores, class_idx):
+    def _backprop(self, scores: Tensor, class_idx: int) -> None:
         """Backpropagate the loss for a specific output class"""
 
         if self.hook_a is None:
@@ -75,23 +80,18 @@ class GradCAM(_GradCAM):
         >>> cam(class_idx=100, scores=scores)
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
+        model: input model
+        conv_layer: name of the last convolutional layer
     """
 
-    hook_a, hook_g = None, None
-
-    def __init__(self, model, conv_layer):
-
-        super().__init__(model, conv_layer)
-
-    def _get_weights(self, class_idx, scores):
+    def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
         """Computes the weight coefficients of the hooked activation maps"""
 
+        self.hook_g: Tensor
         # Backpropagate
         self._backprop(scores, class_idx)
         # Global average pool the gradients over spatial dimensions
-        return self.hook_g.squeeze(0).mean(axis=(1, 2))
+        return self.hook_g.squeeze(0).mean(dim=(1, 2))
 
 
 class GradCAMpp(_GradCAM):
@@ -131,28 +131,23 @@ class GradCAMpp(_GradCAM):
         >>> cam(class_idx=100, scores=scores)
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
+        model: input model
+        conv_layer: name of the last convolutional layer
     """
 
-    hook_a, hook_g = None, None
-
-    def __init__(self, model, conv_layer):
-
-        super().__init__(model, conv_layer)
-
-    def _get_weights(self, class_idx, scores):
+    def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
         """Computes the weight coefficients of the hooked activation maps"""
 
+        self.hook_g: Tensor
         # Backpropagate
         self._backprop(scores, class_idx)
         # Alpha coefficient for each pixel
         grad_2 = self.hook_g.pow(2)
-        grad_3 = self.hook_g.pow(3)
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a).sum(axis=(2, 3), keepdims=True))
+        grad_3 = grad_2 * self.hook_g
+        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a).sum(dim=(2, 3), keepdim=True))
 
         # Apply pixel coefficient in each weight
-        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(axis=(1, 2))
+        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(dim=(1, 2))
 
 
 class SmoothGradCAMpp(_GradCAM):
@@ -201,14 +196,18 @@ class SmoothGradCAMpp(_GradCAM):
         >>> cam(class_idx=100)
 
     Args:
-        model (torch.nn.Module): input model
-        conv_layer (str): name of the last convolutional layer
+        model: input model
+        conv_layer: name of the last convolutional layer
     """
 
-    hook_a, hook_g = None, None
-    hook_handles = []
-
-    def __init__(self, model, conv_layer, first_layer, num_samples=4, std=0.3):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        conv_layer: str,
+        first_layer: str,
+        num_samples: int = 4,
+        std: float = 0.3
+    ) -> None:
 
         super().__init__(model, conv_layer)
         # Model scores is not used by the extractor
@@ -223,15 +222,17 @@ class SmoothGradCAMpp(_GradCAM):
         # Specific input hook updater
         self._ihook_enabled = True
 
-    def _store_input(self, module, input):
+    def _store_input(self, module: torch.nn.Module, input: Tensor) -> None:
         """Store model input tensor"""
 
         if self._ihook_enabled:
             self._input = input[0].data.clone()
 
-    def _get_weights(self, class_idx, scores=None):
+    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
         """Computes the weight coefficients of the hooked activation maps"""
 
+        self.hook_a: Tensor
+        self.hook_g: Tensor
         # Disable input update
         self._ihook_enabled = False
         # Keep initial activation
@@ -259,10 +260,10 @@ class SmoothGradCAMpp(_GradCAM):
         grad_3.div_(self.num_samples)
 
         # Alpha coefficient for each pixel
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).sum(axis=(2, 3), keepdims=True))
+        alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).sum(dim=(2, 3), keepdim=True))
 
         # Apply pixel coefficient in each weight
-        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(axis=(1, 2))
+        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(dim=(1, 2))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(num_samples={self.num_samples}, std={self.std})"
