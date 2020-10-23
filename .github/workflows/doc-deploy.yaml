@@ -47,4 +47,3 @@ jobs:
           COMMIT_MESSAGE: '[skip ci] Documentation updates'
           CLEAN: true
           SSH: true
-      
