@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.utils &mdash; torchcam 0.1.2a0+503218c-git documentation</title>
+  <title>torchcam.utils &mdash; torchcam 0.1.2a0+7c0f759-git documentation</title>
   
 
   
@@ -61,7 +61,7 @@
             
             
               <div class="version">
-                0.1.2a0+503218c
+                0.1.2a0+7c0f759
               </div>
             
           
@@ -165,29 +165,22 @@
            <div itemprop="articleBody">
             
   <h1>Source code for torchcam.utils</h1><div class="highlight"><pre>
-<span></span><span class="ch">#!usr/bin/python</span>
-<span class="c1"># -*- coding: utf-8 -*-</span>
-
-<span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">Utils</span>
-<span class="sd">&quot;&quot;&quot;</span>
-
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
 
 
-<div class="viewcode-block" id="overlay_mask"><a class="viewcode-back" href="../../utils.html#torchcam.utils.overlay_mask">[docs]</a><span class="k">def</span> <span class="nf">overlay_mask</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s1">&#39;jet&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">):</span>
+<div class="viewcode-block" id="overlay_mask"><a class="viewcode-back" href="../../utils.html#torchcam.utils.overlay_mask">[docs]</a><span class="k">def</span> <span class="nf">overlay_mask</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">colormap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;jet&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Overlay a colormapped mask on a background image</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        img (PIL.Image.Image): background image</span>
-<span class="sd">        mask (PIL.Image.Image): mask to be overlayed in grayscale</span>
-<span class="sd">        colormap (str, optional): colormap to be applied on the mask</span>
-<span class="sd">        alpha (float, optional): transparency of the background image</span>
+<span class="sd">        img: background image</span>
+<span class="sd">        mask: mask to be overlayed in grayscale</span>
+<span class="sd">        colormap: colormap to be applied on the mask</span>
+<span class="sd">        alpha: transparency of the background image</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        PIL.Image.Image: overlayed image</span>
+<span class="sd">        overlayed image</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">):</span>
