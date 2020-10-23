@@ -115,7 +115,7 @@ jobs:
       - name: Run mypy
         run: |
           mypy --version
-          mypy --config-file mypy.ini torchcam/*.py
+          mypy --config-file mypy.ini
 
   docs-build:
     runs-on: ubuntu-latest
