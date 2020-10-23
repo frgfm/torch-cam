@@ -101,7 +101,7 @@ class _CAM:
         weights = self._get_weights(class_idx, scores)
 
         # Perform the weighted combination to get the CAM
-        batch_cams = (weights.view(*weights.shape, 1, 1) * self.hook_a.squeeze(0)).sum(dim=0) # type: ignore[union-attr]
+        batch_cams = (weights.view(*weights.shape, 1, 1) * self.hook_a.squeeze(0)).sum(0)  # type: ignore[union-attr]
 
         if self._relu:
             batch_cams = F.relu(batch_cams, inplace=True)
