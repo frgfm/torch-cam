@@ -7,13 +7,13 @@ def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = 'jet', alp
     """Overlay a colormapped mask on a background image
 
     Args:
-        img (PIL.Image.Image): background image
-        mask (PIL.Image.Image): mask to be overlayed in grayscale
-        colormap (str, optional): colormap to be applied on the mask
-        alpha (float, optional): transparency of the background image
+        img: background image
+        mask: mask to be overlayed in grayscale
+        colormap: colormap to be applied on the mask
+        alpha: transparency of the background image
 
     Returns:
-        PIL.Image.Image: overlayed image
+        overlayed image
     """
 
     if not isinstance(img, Image.Image) or not isinstance(mask, Image.Image):
