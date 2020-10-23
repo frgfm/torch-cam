@@ -1,10 +1,3 @@
-#!usr/bin/python
-# -*- coding: utf-8 -*-
-
-"""
-CAM
-"""
-
 import math
 import torch
 import torch.nn.functional as F

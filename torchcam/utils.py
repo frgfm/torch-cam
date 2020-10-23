@@ -1,10 +1,3 @@
-#!usr/bin/python
-# -*- coding: utf-8 -*-
-
-"""
-Utils
-"""
-
 import numpy as np
 from matplotlib import cm
 from PIL import Image

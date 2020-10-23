@@ -1,10 +1,3 @@
-#!usr/bin/python
-# -*- coding: utf-8 -*-
-
-"""
-GradCAM
-"""
-
 import torch
 
 from .cam import _CAM
