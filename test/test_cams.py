@@ -77,11 +77,35 @@ class Tester(unittest.TestCase):
 
         self._test_extractor(extractor, model)
 
+    def _test_cam_arbitrary_layer(self, name):
+        """ Test CAM computation for an arbitrary intermediate layer """
+
+        model = resnet18(pretrained=True).eval()
+        conv_layer = 'layer4.1.relu'
+        input_layer = 'conv1'
+        fc_layer = 'fc'
+
+        # Hook the corresponding layer in the model
+        extractor = cams.__dict__[name](model, conv_layer, fc_layer if name == 'CAM' else input_layer)
+
+        self._test_extractor(extractor, model)
+
     def _test_gradcam(self, name):
 
         # Get a pretrained model
         model = mobilenet_v2(pretrained=True)
         conv_layer = 'features'
+
+        # Hook the corresponding layer in the model
+        extractor = cams.__dict__[name](model, conv_layer)
+
+        self._test_extractor(extractor, model)
+
+    def _test_gradcam_arbitrary_layer(self, name):
+        """ Test GradCAM computation for an arbitrary intermediate layer """
+
+        model = mobilenet_v2(pretrained=True)
+        conv_layer = 'features.17.conv.3'
 
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
@@ -104,6 +128,7 @@ class Tester(unittest.TestCase):
 for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']:
     def do_test(self, cam_extractor=cam_extractor):
         self._test_cam(cam_extractor)
+        self._test_cam_arbitrary_layer(cam_extractor)
 
     setattr(Tester, "test_" + cam_extractor.lower(), do_test)
 
@@ -111,6 +136,7 @@ for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']:
 for cam_extractor in ['GradCAM', 'GradCAMpp']:
     def do_test(self, cam_extractor=cam_extractor):
         self._test_gradcam(cam_extractor)
+        self._test_gradcam_arbitrary_layer(cam_extractor)
 
     setattr(Tester, "test_" + cam_extractor.lower(), do_test)
 
