@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-from typing import Optional
+from typing import Optional, List
 
 from .cam import _CAM
 
@@ -84,6 +84,10 @@ class GradCAM(_GradCAM):
         conv_layer: name of the last convolutional layer
     """
 
+    hook_a: Optional[Tensor] = None
+    hook_g: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
+
     def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
         """Computes the weight coefficients of the hooked activation maps"""
 
@@ -134,6 +138,10 @@ class GradCAMpp(_GradCAM):
         model: input model
         conv_layer: name of the last convolutional layer
     """
+
+    hook_a: Optional[Tensor] = None
+    hook_g: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
         """Computes the weight coefficients of the hooked activation maps"""
@@ -199,6 +207,10 @@ class SmoothGradCAMpp(_GradCAM):
         model: input model
         conv_layer: name of the last convolutional layer
     """
+
+    hook_a: Optional[Tensor] = None
+    hook_g: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def __init__(
         self,

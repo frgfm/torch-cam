@@ -145,6 +145,9 @@ class CAM(_CAM):
         fc_layer: name of the fully convolutional layer
     """
 
+    hook_a: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
+
     def __init__(
         self,
         model: nn.Module,
@@ -202,6 +205,9 @@ class ScoreCAM(_CAM):
         input_layer: name of the first layer
         batch_size: batch size used to forward masked inputs
     """
+
+    hook_a: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def __init__(
         self,
@@ -307,6 +313,9 @@ class SSCAM(ScoreCAM):
         std: standard deviation of the noise added to the normalized activation
     """
 
+    hook_a: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
+
     def __init__(
         self,
         model: nn.Module,
@@ -410,6 +419,9 @@ class ISSCAM(ScoreCAM):
         batch_size: batch size used to forward masked inputs
         num_samples: number of noisy samples used for weight computation
     """
+
+    hook_a: Optional[Tensor] = None
+    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def __init__(
         self,
