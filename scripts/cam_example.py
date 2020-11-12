@@ -61,8 +61,13 @@ def main(args):
                       ScoreCAM(model, conv_layer, input_layer), SSCAM(model, conv_layer, input_layer),
                       ISSCAM(model, conv_layer, input_layer)]
 
+    # Don't trigger all hooks
+    for extractor in cam_extractors:
+        extractor._hooks_enabled = False
+
     fig, axes = plt.subplots(1, len(cam_extractors), figsize=(7, 2))
     for idx, extractor in enumerate(cam_extractors):
+        extractor._hooks_enabled = True
         model.zero_grad()
         scores = model(img_tensor.unsqueeze(0))
 
@@ -73,6 +78,7 @@ def main(args):
         activation_map = extractor(class_idx, scores).cpu()
         # Clean data
         extractor.clear_hooks()
+        extractor._hooks_enabled = False
         # Convert it to PIL image
         # The indexing below means first image in batch
         heatmap = to_pil_image(activation_map, mode='F')

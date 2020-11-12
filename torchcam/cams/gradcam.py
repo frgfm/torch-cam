@@ -15,8 +15,6 @@ class _GradCAM(_CAM):
         conv_layer: name of the last convolutional layer
     """
 
-    hook_g: Optional[Tensor] = None
-
     def __init__(
         self,
         model: torch.nn.Module,
@@ -24,6 +22,8 @@ class _GradCAM(_CAM):
     ) -> None:
 
         super().__init__(model, conv_layer)
+        # Init hook
+        self.hook_g: Optional[Tensor] = None
         # Ensure ReLU is applied before normalization
         self._relu = True
         # Model output is used by the extractor
