@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.2a0+9a31c57-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.2a0+5bd8a8c-git documentation</title>
   
 
   
@@ -61,7 +61,7 @@
             
             
               <div class="version">
-                0.1.2a0+9a31c57
+                0.1.2a0+5bd8a8c
               </div>
             
           
@@ -182,8 +182,6 @@
 <span class="sd">        conv_layer: name of the last convolutional layer</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">hook_g</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
@@ -191,6 +189,8 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">)</span>
+        <span class="c1"># Init hook</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Ensure ReLU is applied before normalization</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="c1"># Model output is used by the extractor</span>
