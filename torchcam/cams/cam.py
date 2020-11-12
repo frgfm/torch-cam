@@ -16,9 +16,6 @@ class _CAM:
         conv_layer: name of the last convolutional layer
     """
 
-    hook_a: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
-
     def __init__(
         self,
         model: nn.Module,
@@ -28,6 +25,9 @@ class _CAM:
         if not hasattr(model, conv_layer):
             raise ValueError(f"Unable to find submodule {conv_layer} in the model")
         self.model = model
+        # Init hooks
+        self.hook_a: Optional[Tensor] = None
+        self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
         # Forward hook
         self.hook_handles.append(self.model._modules.get(conv_layer).register_forward_hook(self._hook_a))
         # Enable hooks
@@ -145,15 +145,12 @@ class CAM(_CAM):
         fc_layer: name of the fully convolutional layer
     """
 
-    hook_a: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
-
     def __init__(
         self,
         model: nn.Module,
         conv_layer: str,
         fc_layer: str
-    ):
+    ) -> None:
 
         super().__init__(model, conv_layer)
         # Softmax weight
@@ -206,9 +203,6 @@ class ScoreCAM(_CAM):
         batch_size: batch size used to forward masked inputs
     """
 
-    hook_a: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
-
     def __init__(
         self,
         model: nn.Module,
@@ -225,7 +219,7 @@ class ScoreCAM(_CAM):
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
-    def _store_input(self, module: nn.Module, input: Tensor):
+    def _store_input(self, module: nn.Module, input: Tensor) -> None:
         """Store model input tensor"""
 
         if self._hooks_enabled:
@@ -312,9 +306,6 @@ class SSCAM(ScoreCAM):
         num_samples: number of noisy samples used for weight computation
         std: standard deviation of the noise added to the normalized activation
     """
-
-    hook_a: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def __init__(
         self,
@@ -419,9 +410,6 @@ class ISSCAM(ScoreCAM):
         batch_size: batch size used to forward masked inputs
         num_samples: number of noisy samples used for weight computation
     """
-
-    hook_a: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def __init__(
         self,

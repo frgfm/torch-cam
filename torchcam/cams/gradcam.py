@@ -15,8 +15,6 @@ class _GradCAM(_CAM):
         conv_layer: name of the last convolutional layer
     """
 
-    hook_g: Optional[Tensor] = None
-
     def __init__(
         self,
         model: torch.nn.Module,
@@ -24,6 +22,8 @@ class _GradCAM(_CAM):
     ) -> None:
 
         super().__init__(model, conv_layer)
+        # Init hook
+        self.hook_g: Optional[Tensor] = None
         # Ensure ReLU is applied before normalization
         self._relu = True
         # Model output is used by the extractor
@@ -84,10 +84,6 @@ class GradCAM(_GradCAM):
         conv_layer: name of the last convolutional layer
     """
 
-    hook_a: Optional[Tensor] = None
-    hook_g: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
-
     def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
         """Computes the weight coefficients of the hooked activation maps"""
 
@@ -138,10 +134,6 @@ class GradCAMpp(_GradCAM):
         model: input model
         conv_layer: name of the last convolutional layer
     """
-
-    hook_a: Optional[Tensor] = None
-    hook_g: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
         """Computes the weight coefficients of the hooked activation maps"""
@@ -207,10 +199,6 @@ class SmoothGradCAMpp(_GradCAM):
         model: input model
         conv_layer: name of the last convolutional layer
     """
-
-    hook_a: Optional[Tensor] = None
-    hook_g: Optional[Tensor] = None
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
 
     def __init__(
         self,
