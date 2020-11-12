@@ -79,7 +79,6 @@ class Tester(unittest.TestCase):
 
     def _test_cam_arbitrary_layer(self, name):
         """ Test CAM computation for an arbitrary intermediate layer """
-
         model = resnet18(pretrained=True).eval()
         conv_layer = 'layer4.1.relu'
         input_layer = 'conv1'
@@ -103,7 +102,6 @@ class Tester(unittest.TestCase):
 
     def _test_gradcam_arbitrary_layer(self, name):
         """ Test GradCAM computation for an arbitrary intermediate layer """
-
         model = mobilenet_v2(pretrained=True)
         conv_layer = 'features.17.conv.3'
 
