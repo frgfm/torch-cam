@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-from typing import Optional, List
+from typing import Optional
 
 from .cam import _CAM
 
