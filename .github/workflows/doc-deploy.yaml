@@ -35,12 +35,12 @@ jobs:
           sphinx-build docs/source docs/build -a
 
       - name: Install SSH Client 🔑
-        uses: webfactory/ssh-agent@v0.2.0
+        uses: webfactory/ssh-agent@v0.4.1
         with:
           ssh-private-key: ${{ secrets.SSH_DEPLOY_KEY }}
 
       - name: Deploy to Github Pages
-        uses: JamesIves/github-pages-deploy-action@3.4.1
+        uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
           BRANCH: gh-pages
           FOLDER: 'docs/build'
