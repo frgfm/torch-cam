@@ -78,7 +78,7 @@ class Tester(unittest.TestCase):
         self._test_extractor(extractor, model)
 
     def _test_cam_arbitrary_layer(self, name):
-        
+
         model = resnet18(pretrained=True).eval()
         conv_layer = 'layer4.1.relu'
         input_layer = 'conv1'
@@ -101,7 +101,7 @@ class Tester(unittest.TestCase):
         self._test_extractor(extractor, model)
 
     def _test_gradcam_arbitrary_layer(self, name):
-        
+
         model = mobilenet_v2(pretrained=True)
         conv_layer = 'features.17.conv.3'
 
