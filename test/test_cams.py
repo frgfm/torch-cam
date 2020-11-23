@@ -67,7 +67,7 @@ class Tester(unittest.TestCase):
 
     def _test_cam(self, name):
         # Get a pretrained model
-        model = resnet18(pretrained=True).eval()
+        model = resnet18(pretrained=False).eval()
         conv_layer = 'layer4'
         input_layer = 'conv1'
         fc_layer = 'fc'
@@ -92,7 +92,7 @@ class Tester(unittest.TestCase):
     def _test_gradcam(self, name):
 
         # Get a pretrained model
-        model = mobilenet_v2(pretrained=True)
+        model = mobilenet_v2(pretrained=False)
         conv_layer = 'features'
 
         # Hook the corresponding layer in the model
@@ -113,7 +113,7 @@ class Tester(unittest.TestCase):
     def test_smooth_gradcampp(self):
 
         # Get a pretrained model
-        model = mobilenet_v2(pretrained=True)
+        model = mobilenet_v2(pretrained=False)
         conv_layer = 'features'
         input_layer = 'features'
 
