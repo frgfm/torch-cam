@@ -79,7 +79,7 @@ class Tester(unittest.TestCase):
 
     def _test_cam_arbitrary_layer(self, name):
 
-        model = resnet18(pretrained=True).eval()
+        model = resnet18(pretrained=False).eval()
         conv_layer = 'layer4.1.relu'
         input_layer = 'conv1'
         fc_layer = 'fc'
@@ -102,7 +102,7 @@ class Tester(unittest.TestCase):
 
     def _test_gradcam_arbitrary_layer(self, name):
 
-        model = mobilenet_v2(pretrained=True)
+        model = mobilenet_v2(pretrained=False)
         conv_layer = 'features.17.conv.3'
 
         # Hook the corresponding layer in the model
