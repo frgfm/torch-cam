@@ -29,7 +29,7 @@ class _GradCAM(_CAM):
         # Model output is used by the extractor
         self._score_used = True
         # Backward hook
-        self.hook_handles.append(self.model_module_dict[conv_layer].register_backward_hook(self._hook_g))
+        self.hook_handles.append(self.submodule_dict[conv_layer].register_backward_hook(self._hook_g))
 
     def _hook_g(self, module: torch.nn.Module, input: Tensor, output: Tensor) -> None:
         """Gradient hook"""
@@ -214,7 +214,7 @@ class SmoothGradCAMpp(_GradCAM):
         self._score_used = False
 
         # Input hook
-        self.hook_handles.append(self.model_module_dict[first_layer].register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(self.submodule_dict[first_layer].register_forward_pre_hook(self._store_input))
         # Noise distribution
         self.num_samples = num_samples
         self.std = std

@@ -26,15 +26,13 @@ class _CAM:
     ) -> None:
 
         # Obtain a mapping from module name to module instance for each layer in the model
-        self.model_module_dict = {}
-        for name, module in model.named_modules():
-            self.model_module_dict[name] = module
+        self.submodule_dict = dict(model.named_modules())
 
-        if conv_layer not in self.model_module_dict.keys():
+        if conv_layer not in self.submodule_dict.keys():
             raise ValueError(f"Unable to find submodule {conv_layer} in the model")
         self.model = model
         # Forward hook
-        self.hook_handles.append(self.model_module_dict[conv_layer].register_forward_hook(self._hook_a))
+        self.hook_handles.append(self.submodule_dict[conv_layer].register_forward_hook(self._hook_a))
         # Enable hooks
         self._hooks_enabled = True
         # Should ReLU be used before normalization
@@ -159,7 +157,7 @@ class CAM(_CAM):
 
         super().__init__(model, conv_layer)
         # Softmax weight
-        self._fc_weights = self.model_module_dict[fc_layer].weight.data
+        self._fc_weights = self.submodule_dict[fc_layer].weight.data
 
     def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
         """Computes the weight coefficients of the hooked activation maps"""
@@ -219,7 +217,7 @@ class ScoreCAM(_CAM):
         super().__init__(model, conv_layer)
 
         # Input hook
-        self.hook_handles.append(self.model_module_dict[input_layer].register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(self.submodule_dict[input_layer].register_forward_pre_hook(self._store_input))
         self.bs = batch_size
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
