@@ -76,7 +76,7 @@ class GradCAM(_GradCAM):
         >>> from torchcam.cams import GradCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = GradCAM(model, 'layer4')
-        >>> with torch.no_grad(): scores = model(input_tensor)
+        >>> scores = model(input_tensor)
         >>> cam(class_idx=100, scores=scores)
 
     Args:
@@ -127,7 +127,7 @@ class GradCAMpp(_GradCAM):
         >>> from torchcam.cams import GradCAMpp
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = GradCAMpp(model, 'layer4')
-        >>> with torch.no_grad(): scores = model(input_tensor)
+        >>> scores = model(input_tensor)
         >>> cam(class_idx=100, scores=scores)
 
     Args:
@@ -192,7 +192,7 @@ class SmoothGradCAMpp(_GradCAM):
         >>> from torchcam.cams import SmoothGradCAMpp
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = SmoothGradCAMpp(model, 'layer4', 'conv1')
-        >>> with torch.no_grad(): scores = model(input_tensor)
+        >>> scores = model(input_tensor)
         >>> cam(class_idx=100)
 
     Args:
