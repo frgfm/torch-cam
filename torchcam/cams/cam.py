@@ -5,7 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 from typing import Optional, List
 
-__all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']
+__all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']
 
 
 class _CAM:
@@ -370,9 +370,9 @@ class SSCAM(ScoreCAM):
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
 
 
-class ISSCAM(ScoreCAM):
-    """Implements a variant of Score-CAM, based on Rakshit Naidu's `work
-    <https://github.com/r0cketr1kky/ISS-CAM_resources>`_.
+class ISCAM(ScoreCAM):
+    """Implements a class activation map extractor as described in `"IS-CAM: Integrated Score-CAM for axiomatic-based
+    explanations" <https://arxiv.org/pdf/2010.03023.pdf>`_.
 
     The localization map is computed as follows:
 
@@ -402,7 +402,7 @@ class ISSCAM(ScoreCAM):
         >>> from torchvision.models import resnet18
         >>> from torchcam.cams import ISSCAM
         >>> model = resnet18(pretrained=True).eval()
-        >>> cam = ISSCAM(model, 'layer4', 'conv1')
+        >>> cam = ISCAM(model, 'layer4', 'conv1')
         >>> with torch.no_grad(): out = model(input_tensor)
         >>> cam(class_idx=100)
 
