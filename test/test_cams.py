@@ -123,7 +123,7 @@ class Tester(unittest.TestCase):
         self._test_extractor(extractor, model)
 
 
-for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']:
+for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']:
     def do_test(self, cam_extractor=cam_extractor):
         self._test_cam(cam_extractor)
         self._test_cam_arbitrary_layer(cam_extractor)
