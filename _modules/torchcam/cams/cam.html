@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.cam &mdash; torchcam 0.1.2a0+ecf827d-git documentation</title>
+  <title>torchcam.cams.cam &mdash; torchcam 0.1.2a0+16e7641-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.2a0+ecf827d
+                0.1.2a0+16e7641
               </div>
             
           
@@ -171,7 +171,7 @@
 <span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CAM&#39;</span><span class="p">,</span> <span class="s1">&#39;ScoreCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;SSCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;ISSCAM&#39;</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CAM&#39;</span><span class="p">,</span> <span class="s1">&#39;ScoreCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;SSCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;ISCAM&#39;</span><span class="p">]</span>
 
 
 <span class="k">class</span> <span class="nc">_CAM</span><span class="p">:</span>
@@ -536,9 +536,9 @@
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">)&quot;</span></div>
 
 
-<div class="viewcode-block" id="ISSCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.ISSCAM">[docs]</a><span class="k">class</span> <span class="nc">ISSCAM</span><span class="p">(</span><span class="n">ScoreCAM</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Implements a variant of Score-CAM, based on Rakshit Naidu&#39;s `work</span>
-<span class="sd">    &lt;https://github.com/r0cketr1kky/ISS-CAM_resources&gt;`_.</span>
+<div class="viewcode-block" id="ISCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.ISCAM">[docs]</a><span class="k">class</span> <span class="nc">ISCAM</span><span class="p">(</span><span class="n">ScoreCAM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;IS-CAM: Integrated Score-CAM for axiomatic-based</span>
+<span class="sd">    explanations&quot; &lt;https://arxiv.org/pdf/2010.03023.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -568,7 +568,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import ISSCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ISSCAM(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; cam = ISCAM(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
