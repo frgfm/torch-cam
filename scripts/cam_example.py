@@ -15,7 +15,7 @@ import torch
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
 
-from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM, ISSCAM
+from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM, ISCAM
 from torchcam.utils import overlay_mask
 
 VGG_CONFIG = {_vgg: dict(input_layer='features', conv_layer='features')
