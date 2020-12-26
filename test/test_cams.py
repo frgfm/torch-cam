@@ -20,7 +20,7 @@ def _forward(model, input_tensor):
     return scores
 
 
-class Tester(unittest.TestCase):
+class CAMCoreTester(unittest.TestCase):
     def _verify_cam(self, cam):
         # Simple verifications
         self.assertIsInstance(cam, torch.Tensor)
@@ -128,7 +128,7 @@ for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']:
         self._test_cam(cam_extractor)
         self._test_cam_arbitrary_layer(cam_extractor)
 
-    setattr(Tester, "test_" + cam_extractor.lower(), do_test)
+    setattr(CAMCoreTester, "test_" + cam_extractor.lower(), do_test)
 
 
 for cam_extractor in ['GradCAM', 'GradCAMpp']:
@@ -136,7 +136,7 @@ for cam_extractor in ['GradCAM', 'GradCAMpp']:
         self._test_gradcam(cam_extractor)
         self._test_gradcam_arbitrary_layer(cam_extractor)
 
-    setattr(Tester, "test_" + cam_extractor.lower(), do_test)
+    setattr(CAMCoreTester, "test_" + cam_extractor.lower(), do_test)
 
 
 if __name__ == '__main__':
