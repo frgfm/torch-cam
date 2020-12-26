@@ -15,7 +15,6 @@ Simple way to leverage the class-specific activation of convolutional layers in 
   * [Prerequisites](#prerequisites)
   * [Installation](#installation)
 * [Usage](#usage)
-* [Technical Roadmap](#technical-roadmap)
 * [Documentation](#documentation)
 * [Contributing](#contributing)
 * [Credits](#credits)
@@ -55,20 +54,6 @@ python scripts/cam_example.py --model resnet50 --class-idx 232
 ```
 
 ![gradcam_sample](static/images/cam_example.png)
-
-
-
-
-
-## Technical roadmap
-
-The project is currently under development, here are the objectives for the next releases:
-
-- [x] Parallel CAMs: enable batch processing.
-- [x] Benchmark: compare class activation map computations for different architectures.
-- [ ] Signature improvement: retrieve automatically the specific required layer names.
-- [ ] Refined RPN: create a region proposal network using CAM.
-- [ ] Task transfer: turn a well-trained classifier into an object detector.
 
 
 
