@@ -4,6 +4,7 @@
 CAM visualization
 """
 
+import math
 import argparse
 from io import BytesIO
 
@@ -63,7 +64,9 @@ def main(args):
     for extractor in cam_extractors:
         extractor._hooks_enabled = False
 
-    fig, axes = plt.subplots(1, len(cam_extractors), figsize=(7, 2))
+    num_rows = 2
+    num_cols = math.ceil(len(cam_extractors) / num_rows)
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(6, 4))
     for idx, extractor in enumerate(cam_extractors):
         extractor._hooks_enabled = True
         model.zero_grad()
@@ -74,6 +77,7 @@ def main(args):
 
         # Use the hooked data to compute activation map
         activation_map = extractor(class_idx, scores).cpu()
+
         # Clean data
         extractor.clear_hooks()
         extractor._hooks_enabled = False
@@ -83,9 +87,13 @@ def main(args):
         # Plot the result
         result = overlay_mask(pil_img, heatmap)
 
-        axes[idx].imshow(result)
-        axes[idx].axis('off')
-        axes[idx].set_title(extractor.__class__.__name__, size=8)
+        axes[idx // num_cols][idx % num_cols].imshow(result)
+        axes[idx // num_cols][idx % num_cols].set_title(extractor.__class__.__name__, size=8)
+
+    # Clear axes
+    for row_idx in range(len(axes)):
+        for col_idx in range(len(axes[0])):
+            axes[row_idx][col_idx].axis('off')
 
     plt.tight_layout()
     if args.savefig:
