@@ -66,7 +66,7 @@ def main(args):
 
     num_rows = 2
     num_cols = math.ceil(len(cam_extractors) / num_rows)
-    fig, axes = plt.subplots(num_rows, num_cols, figsize=(6, 4))
+    _, axes = plt.subplots(num_rows, num_cols, figsize=(6, 4))
     for idx, extractor in enumerate(cam_extractors):
         extractor._hooks_enabled = True
         model.zero_grad()
@@ -91,9 +91,9 @@ def main(args):
         axes[idx // num_cols][idx % num_cols].set_title(extractor.__class__.__name__, size=8)
 
     # Clear axes
-    for row_idx in range(len(axes)):
-        for col_idx in range(len(axes[0])):
-            axes[row_idx][col_idx].axis('off')
+    for row in axes:
+        for ax in row:
+            ax.axis('off')
 
     plt.tight_layout()
     if args.savefig:
