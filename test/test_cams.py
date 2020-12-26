@@ -140,7 +140,7 @@ class CAMUtilsTester(unittest.TestCase):
         self.assertEqual(cams.utils.locate_linear_layer(mod), '2')
 
 
-for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']:
+for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']:
     def do_test(self, cam_extractor=cam_extractor):
         self._test_cam(cam_extractor)
 
