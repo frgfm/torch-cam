@@ -4,6 +4,7 @@ from io import BytesIO
 import requests
 import torch
 from PIL import Image
+from torch import nn
 from torchvision.models import mobilenet_v2, resnet18
 from torchvision.transforms.functional import normalize, resize, to_tensor
 
@@ -20,7 +21,7 @@ def _forward(model, input_tensor):
     return scores
 
 
-class Tester(unittest.TestCase):
+class CAMCoreTester(unittest.TestCase):
     def _verify_cam(self, cam):
         # Simple verifications
         self.assertIsInstance(cam, torch.Tensor)
@@ -68,40 +69,17 @@ class Tester(unittest.TestCase):
     def _test_cam(self, name):
         # Get a pretrained model
         model = resnet18(pretrained=False).eval()
-        conv_layer = 'layer4'
-        input_layer = 'conv1'
-        fc_layer = 'fc'
-
-        # Hook the corresponding layer in the model
-        extractor = cams.__dict__[name](model, conv_layer, fc_layer if name == 'CAM' else input_layer)
-
-        self._test_extractor(extractor, model)
-
-    def _test_cam_arbitrary_layer(self, name):
-
-        model = resnet18(pretrained=False).eval()
         conv_layer = 'layer4.1.relu'
-        input_layer = 'conv1'
-        fc_layer = 'fc'
-
-        # Hook the corresponding layer in the model
-        extractor = cams.__dict__[name](model, conv_layer, fc_layer if name == 'CAM' else input_layer)
-
-        self._test_extractor(extractor, model)
-
-    def _test_gradcam(self, name):
-
-        # Get a pretrained model
-        model = mobilenet_v2(pretrained=False)
-        conv_layer = 'features'
 
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
 
-        self._test_extractor(extractor, model)
+        with torch.no_grad():
+            self._test_extractor(extractor, model)
 
-    def _test_gradcam_arbitrary_layer(self, name):
+    def _test_gradcam(self, name):
 
+        # Get a pretrained model
         model = mobilenet_v2(pretrained=False)
         conv_layer = 'features.17.conv.3'
 
@@ -113,30 +91,68 @@ class Tester(unittest.TestCase):
     def test_smooth_gradcampp(self):
 
         # Get a pretrained model
-        model = mobilenet_v2(pretrained=False)
-        conv_layer = 'features'
-        input_layer = 'features'
+        model = mobilenet_v2(pretrained=False).eval()
 
         # Hook the corresponding layer in the model
-        extractor = cams.SmoothGradCAMpp(model, conv_layer, input_layer)
+        extractor = cams.SmoothGradCAMpp(model)
 
         self._test_extractor(extractor, model)
+
+
+class CAMUtilsTester(unittest.TestCase):
+
+    @staticmethod
+    def _get_custom_module():
+
+        mod = nn.Sequential(
+            nn.Sequential(
+                nn.Conv2d(3, 8, 3, 1),
+                nn.ReLU(),
+                nn.Conv2d(8, 16, 3, 1),
+                nn.ReLU(),
+                nn.AdaptiveAvgPool2d((1, 1))
+            ),
+            nn.Flatten(1),
+            nn.Linear(16, 1)
+        )
+        return mod
+
+    def test_locate_candidate_layer(self):
+
+        # ResNet-18
+        mod = resnet18().eval()
+        self.assertEqual(cams.utils.locate_candidate_layer(mod), 'layer4')
+
+        # Custom model
+        mod = self._get_custom_module()
+
+        self.assertEqual(cams.utils.locate_candidate_layer(mod), '0.3')
+        # Check that the model is switched back to its origin mode afterwards
+        self.assertTrue(mod.training)
+
+    def test_locate_linear_layer(self):
+
+        # ResNet-18
+        mod = resnet18().eval()
+        self.assertEqual(cams.utils.locate_linear_layer(mod), 'fc')
+
+        # Custom model
+        mod = self._get_custom_module()
+        self.assertEqual(cams.utils.locate_linear_layer(mod), '2')
 
 
 for cam_extractor in ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']:
     def do_test(self, cam_extractor=cam_extractor):
         self._test_cam(cam_extractor)
-        self._test_cam_arbitrary_layer(cam_extractor)
 
-    setattr(Tester, "test_" + cam_extractor.lower(), do_test)
+    setattr(CAMCoreTester, "test_" + cam_extractor.lower(), do_test)
 
 
 for cam_extractor in ['GradCAM', 'GradCAMpp']:
     def do_test(self, cam_extractor=cam_extractor):
         self._test_gradcam(cam_extractor)
-        self._test_gradcam_arbitrary_layer(cam_extractor)
 
-    setattr(Tester, "test_" + cam_extractor.lower(), do_test)
+    setattr(CAMCoreTester, "test_" + cam_extractor.lower(), do_test)
 
 
 if __name__ == '__main__':

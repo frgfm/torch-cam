@@ -1,10 +1,10 @@
 #!usr/bin/python
-# -*- coding: utf-8 -*-
 
 """
 CAM visualization
 """
 
+import math
 import argparse
 from io import BytesIO
 
@@ -18,18 +18,18 @@ from torchvision.transforms.functional import normalize, resize, to_tensor, to_p
 from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM, ISCAM
 from torchcam.utils import overlay_mask
 
-VGG_CONFIG = {_vgg: dict(input_layer='features', conv_layer='features')
+VGG_CONFIG = {_vgg: dict(conv_layer='features')
               for _vgg in models.vgg.__dict__.keys()}
 
-RESNET_CONFIG = {_resnet: dict(input_layer='conv1', conv_layer='layer4', fc_layer='fc')
+RESNET_CONFIG = {_resnet: dict(conv_layer='layer4', fc_layer='fc')
                  for _resnet in models.resnet.__dict__.keys()}
 
-DENSENET_CONFIG = {_densenet: dict(input_layer='features', conv_layer='features', fc_layer='classifier')
+DENSENET_CONFIG = {_densenet: dict(conv_layer='features', fc_layer='classifier')
                    for _densenet in models.densenet.__dict__.keys()}
 
 MODEL_CONFIG = {
     **VGG_CONFIG, **RESNET_CONFIG, **DENSENET_CONFIG,
-    'mobilenet_v2': dict(input_layer='features', conv_layer='features')
+    'mobilenet_v2': dict(conv_layer='features')
 }
 
 
@@ -43,7 +43,6 @@ def main(args):
     # Pretrained imagenet model
     model = models.__dict__[args.model](pretrained=True).eval().to(device=device)
     conv_layer = MODEL_CONFIG[args.model]['conv_layer']
-    input_layer = MODEL_CONFIG[args.model]['input_layer']
     fc_layer = MODEL_CONFIG[args.model]['fc_layer']
 
     # Image
@@ -57,15 +56,17 @@ def main(args):
 
     # Hook the corresponding layer in the model
     cam_extractors = [CAM(model, conv_layer, fc_layer), GradCAM(model, conv_layer),
-                      GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer, input_layer),
-                      ScoreCAM(model, conv_layer, input_layer), SSCAM(model, conv_layer, input_layer),
-                      ISCAM(model, conv_layer, input_layer)]
+                      GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer),
+                      ScoreCAM(model, conv_layer), SSCAM(model, conv_layer),
+                      ISCAM(model, conv_layer)]
 
     # Don't trigger all hooks
     for extractor in cam_extractors:
         extractor._hooks_enabled = False
 
-    fig, axes = plt.subplots(1, len(cam_extractors), figsize=(7, 2))
+    num_rows = 2
+    num_cols = math.ceil(len(cam_extractors) / num_rows)
+    _, axes = plt.subplots(num_rows, num_cols, figsize=(6, 4))
     for idx, extractor in enumerate(cam_extractors):
         extractor._hooks_enabled = True
         model.zero_grad()
@@ -76,6 +77,7 @@ def main(args):
 
         # Use the hooked data to compute activation map
         activation_map = extractor(class_idx, scores).cpu()
+
         # Clean data
         extractor.clear_hooks()
         extractor._hooks_enabled = False
@@ -85,9 +87,13 @@ def main(args):
         # Plot the result
         result = overlay_mask(pil_img, heatmap)
 
-        axes[idx].imshow(result)
-        axes[idx].axis('off')
-        axes[idx].set_title(extractor.__class__.__name__, size=8)
+        axes[idx // num_cols][idx % num_cols].imshow(result)
+        axes[idx // num_cols][idx % num_cols].set_title(extractor.__class__.__name__, size=8)
+
+    # Clear axes
+    for row in axes:
+        for ax in row:
+            ax.axis('off')
 
     plt.tight_layout()
     if args.savefig:

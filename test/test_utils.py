@@ -6,7 +6,7 @@ from PIL import Image
 from torchcam import utils
 
 
-class Tester(unittest.TestCase):
+class UtilsTester(unittest.TestCase):
     def test_overlay_mask(self):
 
         img = Image.fromarray(np.zeros((4, 4, 3)).astype(np.uint8))
