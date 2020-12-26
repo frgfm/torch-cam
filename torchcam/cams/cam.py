@@ -274,6 +274,9 @@ class ScoreCAM(_CAM):
 
         # Disable hook updates
         self._hooks_enabled = False
+        # Switch to eval
+        origin_mode = self.model.training
+        self.model.eval()
         # Process by chunk (GPU RAM limitation)
         for idx in range(math.ceil(weights.shape[0] / self.bs)):
 
@@ -284,6 +287,8 @@ class ScoreCAM(_CAM):
 
         # Reenable hook updates
         self._hooks_enabled = True
+        # Put back the model in the correct mode
+        self.model.training = origin_mode
 
         return weights
 
@@ -372,6 +377,9 @@ class SSCAM(ScoreCAM):
 
         # Disable hook updates
         self._hooks_enabled = False
+        # Switch to eval
+        origin_mode = self.model.training
+        self.model.eval()
 
         for _idx in range(self.num_samples):
             noisy_m = self._input * (upsampled_a +
@@ -389,6 +397,8 @@ class SSCAM(ScoreCAM):
 
         # Reenable hook updates
         self._hooks_enabled = True
+        # Put back the model in the correct mode
+        self.model.training = origin_mode
 
         return weights
 
@@ -475,6 +485,9 @@ class ISCAM(ScoreCAM):
         self._hooks_enabled = False
         fmap = torch.zeros((upsampled_a.shape[0], *self._input.shape[1:]),
                            dtype=upsampled_a.dtype, device=upsampled_a.device)
+        # Switch to eval
+        origin_mode = self.model.training
+        self.model.eval()
 
         for _idx in range(self.num_samples):
             fmap += (_idx + 1) / self.num_samples * self._input * upsampled_a
@@ -489,5 +502,7 @@ class ISCAM(ScoreCAM):
 
         # Reenable hook updates
         self._hooks_enabled = True
+        # Put back the model in the correct mode
+        self.model.training = origin_mode
 
         return weights
