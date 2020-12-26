@@ -1,6 +1,7 @@
+import logging
 import torch
 from torch import Tensor
-from typing import Optional
+from typing import Optional, Tuple
 
 from .cam import _CAM
 
@@ -12,16 +13,18 @@ class _GradCAM(_CAM):
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
+        target_layer: name of the target layer
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: torch.nn.Module,
-        conv_layer: str
+        target_layer: Optional[str] = None,
+        input_shape: Tuple[int, ...] = (3, 224, 224),
     ) -> None:
 
-        super().__init__(model, conv_layer)
+        super().__init__(model, target_layer, input_shape)
         # Init hook
         self.hook_g: Optional[Tensor] = None
         # Ensure ReLU is applied before normalization
@@ -29,7 +32,7 @@ class _GradCAM(_CAM):
         # Model output is used by the extractor
         self._score_used = True
         # Backward hook
-        self.hook_handles.append(self.submodule_dict[conv_layer].register_backward_hook(self._hook_g))
+        self.hook_handles.append(self.submodule_dict[self.target_layer].register_backward_hook(self._hook_g))
 
     def _hook_g(self, module: torch.nn.Module, input: Tensor, output: Tensor) -> None:
         """Gradient hook"""
@@ -67,7 +70,7 @@ class GradCAM(_GradCAM):
         w_k^{(c)} = \\frac{1}{H \\cdot W} \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W
         \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`,
     and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
 
@@ -81,7 +84,8 @@ class GradCAM(_GradCAM):
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
+        target_layer: name of the target layer
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
@@ -109,7 +113,7 @@ class GradCAMpp(_GradCAM):
         w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot
         ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`,
     :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,
     and :math:`\\alpha_k^{(c)}(i, j)` being defined as:
@@ -132,7 +136,8 @@ class GradCAMpp(_GradCAM):
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
+        target_layer: name of the target layer
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
@@ -166,7 +171,7 @@ class SmoothGradCAMpp(_GradCAM):
         w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot
         ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`,
     :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,
     and :math:`\\alpha_k^{(c)}(i, j)` being defined as:
@@ -197,24 +202,27 @@ class SmoothGradCAMpp(_GradCAM):
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
+        target_layer: name of the target layer
+        num_samples: number of samples to use for smoothing
+        std: standard deviation of the noise
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: torch.nn.Module,
-        conv_layer: str,
-        first_layer: str,
+        target_layer: Optional[str] = None,
         num_samples: int = 4,
-        std: float = 0.3
+        std: float = 0.3,
+        input_shape: Tuple[int, ...] = (3, 224, 224),
     ) -> None:
 
-        super().__init__(model, conv_layer)
+        super().__init__(model, target_layer, input_shape)
         # Model scores is not used by the extractor
         self._score_used = False
 
         # Input hook
-        self.hook_handles.append(self.submodule_dict[first_layer].register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
         # Noise distribution
         self.num_samples = num_samples
         self.std = std

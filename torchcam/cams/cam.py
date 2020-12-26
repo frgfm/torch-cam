@@ -1,9 +1,12 @@
 import math
+import logging
 import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
-from typing import Optional, List
+from typing import Optional, List, Tuple
+
+from .utils import locate_candidate_layer, locate_linear_layer
 
 __all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISSCAM']
 
@@ -13,26 +16,38 @@ class _CAM:
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
+        target_layer: name of the target layer
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: nn.Module,
-        conv_layer: str
+        target_layer: Optional[str] = None,
+        input_shape: Tuple[int, ...] = (3, 224, 224),
     ) -> None:
 
         # Obtain a mapping from module name to module instance for each layer in the model
         self.submodule_dict = dict(model.named_modules())
 
-        if conv_layer not in self.submodule_dict.keys():
-            raise ValueError(f"Unable to find submodule {conv_layer} in the model")
+        # If the layer is not specified, try automatic resolution
+        if target_layer is None:
+            target_layer = locate_candidate_layer(model, input_shape)
+            # Warn the user of the choice
+            if isinstance(target_layer, str):
+                logging.warning(f"no value was provided for `target_layer`, thus set to '{target_layer}'.")
+            else:
+                raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
+
+        if target_layer not in self.submodule_dict.keys():
+            raise ValueError(f"Unable to find submodule {target_layer} in the model")
+        self.target_layer = target_layer
         self.model = model
         # Init hooks
         self.hook_a: Optional[Tensor] = None
         self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
         # Forward hook
-        self.hook_handles.append(self.submodule_dict[conv_layer].register_forward_hook(self._hook_a))
+        self.hook_handles.append(self.submodule_dict[target_layer].register_forward_hook(self._hook_a))
         # Enable hooks
         self._hooks_enabled = True
         # Should ReLU be used before normalization
@@ -129,7 +144,7 @@ class CAM(_CAM):
     .. math::
         L^{(c)}_{CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`,
     and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k` in the fully
     connected layer..
@@ -144,18 +159,29 @@ class CAM(_CAM):
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
+        target_layer: name of the target layer
         fc_layer: name of the fully convolutional layer
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: nn.Module,
-        conv_layer: str,
-        fc_layer: str
+        target_layer: Optional[str] = None,
+        fc_layer: Optional[str] = None,
+        input_shape: Tuple[int, ...] = (3, 224, 224),
     ) -> None:
 
-        super().__init__(model, conv_layer)
+        super().__init__(model, target_layer, input_shape)
+
+        # If the layer is not specified, try automatic resolution
+        if fc_layer is None:
+            fc_layer = locate_linear_layer(model)
+            # Warn the user of the choice
+            if isinstance(fc_layer, str):
+                logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_layer}'.")
+            else:
+                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
         # Softmax weight
         self._fc_weights = self.submodule_dict[fc_layer].weight.data
 
@@ -180,7 +206,7 @@ class ScoreCAM(_CAM):
     .. math::
         w_k^{(c)} = softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
     for input :math:`X`, :math:`X_b` is a baseline image,
     and :math:`M_k` is defined as follows:
@@ -195,29 +221,29 @@ class ScoreCAM(_CAM):
         >>> from torchvision.models import resnet18
         >>> from torchcam.cams import ScoreCAM
         >>> model = resnet18(pretrained=True).eval()
-        >>> cam = ScoreCAM(model, 'layer4', 'conv1')
+        >>> cam = ScoreCAM(model, 'layer4')
         >>> with torch.no_grad(): out = model(input_tensor)
         >>> cam(class_idx=100)
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
-        input_layer: name of the first layer
+        target_layer: name of the target layer
         batch_size: batch size used to forward masked inputs
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: nn.Module,
-        conv_layer: str,
-        input_layer: str,
-        batch_size: int = 32
+        target_layer: Optional[str] = None,
+        batch_size: int = 32,
+        input_shape: Tuple[int, ...] = (3, 224, 224),
     ) -> None:
 
-        super().__init__(model, conv_layer)
+        super().__init__(model, target_layer, input_shape)
 
         # Input hook
-        self.hook_handles.append(self.submodule_dict[input_layer].register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
         self.bs = batch_size
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
@@ -280,7 +306,7 @@ class SSCAM(ScoreCAM):
         w_k^{(c)} = \\frac{1}{N} \\sum\\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
 
     where :math:`N` is the number of samples used to smooth the weights,
-    :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
     for input :math:`X`, :math:`X_b` is a baseline image,
     and :math:`M_k` is defined as follows:
@@ -297,30 +323,30 @@ class SSCAM(ScoreCAM):
         >>> from torchvision.models import resnet18
         >>> from torchcam.cams import SSCAM
         >>> model = resnet18(pretrained=True).eval()
-        >>> cam = SSCAM(model, 'layer4', 'conv1')
+        >>> cam = SSCAM(model, 'layer4')
         >>> with torch.no_grad(): out = model(input_tensor)
         >>> cam(class_idx=100)
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
-        input_layer: name of the first layer
+        target_layer: name of the target layer
         batch_size: batch size used to forward masked inputs
         num_samples: number of noisy samples used for weight computation
         std: standard deviation of the noise added to the normalized activation
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: nn.Module,
-        conv_layer: str,
-        input_layer: str,
+        target_layer: Optional[str] = None,
         batch_size: int = 32,
         num_samples: int = 35,
-        std: float = 2.0
+        std: float = 2.0,
+        input_shape: Tuple[int, ...] = (3, 224, 224),
     ) -> None:
 
-        super().__init__(model, conv_layer, input_layer, batch_size)
+        super().__init__(model, target_layer, batch_size, input_shape)
 
         self.num_samples = num_samples
         self.std = std
@@ -385,7 +411,7 @@ class ISSCAM(ScoreCAM):
         w_k^{(c)} = \\sum\\limits_{i=1}^N \\frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
 
     where :math:`N` is the number of samples used to smooth the weights,
-    :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at
+    :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
     for input :math:`X`, :math:`X_b` is a baseline image,
     and :math:`M_k` is defined as follows:
@@ -402,28 +428,28 @@ class ISSCAM(ScoreCAM):
         >>> from torchvision.models import resnet18
         >>> from torchcam.cams import ISSCAM
         >>> model = resnet18(pretrained=True).eval()
-        >>> cam = ISSCAM(model, 'layer4', 'conv1')
+        >>> cam = ISSCAM(model, 'layer4')
         >>> with torch.no_grad(): out = model(input_tensor)
         >>> cam(class_idx=100)
 
     Args:
         model: input model
-        conv_layer: name of the last convolutional layer
-        input_layer: name of the first layer
+        target_layer: name of the target layer
         batch_size: batch size used to forward masked inputs
         num_samples: number of noisy samples used for weight computation
+        input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: nn.Module,
-        conv_layer: str,
-        input_layer: str,
+        target_layer: Optional[str] = None,
         batch_size: int = 32,
-        num_samples: int = 10
+        num_samples: int = 10,
+        input_shape: Tuple[int, ...] = (3, 224, 224),
     ) -> None:
 
-        super().__init__(model, conv_layer, input_layer, batch_size)
+        super().__init__(model, target_layer, batch_size, input_shape)
 
         self.num_samples = num_samples
 
