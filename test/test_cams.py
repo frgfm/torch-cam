@@ -74,12 +74,13 @@ class CAMCoreTester(unittest.TestCase):
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
 
-        self._test_extractor(extractor, model)
+        with torch.no_grad():
+            self._test_extractor(extractor, model)
 
     def _test_gradcam(self, name):
 
         # Get a pretrained model
-        model = mobilenet_v2(pretrained=False).eval()
+        model = mobilenet_v2(pretrained=False)
         conv_layer = 'features.17.conv.3'
 
         # Hook the corresponding layer in the model
