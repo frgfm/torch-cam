@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.cam &mdash; torchcam 0.1.2a0+16e7641-git documentation</title>
+  <title>torchcam.cams.cam &mdash; torchcam 0.1.2a0+71c2756-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.2a0+16e7641
+                0.1.2a0+71c2756
               </div>
             
           
@@ -165,11 +165,14 @@
             
   <h1>Source code for torchcam.cams.cam</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">locate_candidate_layer</span><span class="p">,</span> <span class="n">locate_linear_layer</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CAM&#39;</span><span class="p">,</span> <span class="s1">&#39;ScoreCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;SSCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;ISCAM&#39;</span><span class="p">]</span>
 
@@ -179,26 +182,38 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">conv_layer</span><span class="p">:</span> <span class="nb">str</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="c1"># Obtain a mapping from module name to module instance for each layer in the model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">named_modules</span><span class="p">())</span>
 
-        <span class="k">if</span> <span class="n">conv_layer</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find submodule </span><span class="si">{</span><span class="n">conv_layer</span><span class="si">}</span><span class="s2"> in the model&quot;</span><span class="p">)</span>
+        <span class="c1"># If the layer is not specified, try automatic resolution</span>
+        <span class="k">if</span> <span class="n">target_layer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target_layer</span> <span class="o">=</span> <span class="n">locate_candidate_layer</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
+            <span class="c1"># Warn the user of the choice</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_layer</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no value was provided for `target_layer`, thus set to &#39;</span><span class="si">{</span><span class="n">target_layer</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unable to resolve `target_layer` automatically, please specify its value.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">target_layer</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find submodule </span><span class="si">{</span><span class="n">target_layer</span><span class="si">}</span><span class="s2"> in the model&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span> <span class="o">=</span> <span class="n">target_layer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="c1"># Init hooks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">hooks</span><span class="o">.</span><span class="n">RemovableHandle</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="c1"># Forward hook</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">conv_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_a</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">target_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_a</span><span class="p">))</span>
         <span class="c1"># Enable hooks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="c1"># Should ReLU be used before normalization</span>
@@ -295,7 +310,7 @@
 <span class="sd">    .. math::</span>
 <span class="sd">        L^{(c)}_{CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
 
-<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k` in the fully</span>
 <span class="sd">    connected layer..</span>
@@ -310,18 +325,29 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
 <span class="sd">        fc_layer: name of the fully convolutional layer</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">conv_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">fc_layer</span><span class="p">:</span> <span class="nb">str</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">fc_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
+
+        <span class="c1"># If the layer is not specified, try automatic resolution</span>
+        <span class="k">if</span> <span class="n">fc_layer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fc_layer</span> <span class="o">=</span> <span class="n">locate_linear_layer</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+            <span class="c1"># Warn the user of the choice</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc_layer</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no value was provided for `fc_layer`, thus set to &#39;</span><span class="si">{</span><span class="n">fc_layer</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unable to resolve `fc_layer` automatically, please specify its value.&quot;</span><span class="p">)</span>
         <span class="c1"># Softmax weight</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">fc_layer</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">data</span>
 
@@ -346,7 +372,7 @@
 <span class="sd">    .. math::</span>
 <span class="sd">        w_k^{(c)} = softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))</span>
 
-<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax</span>
 <span class="sd">    for input :math:`X`, :math:`X_b` is a baseline image,</span>
 <span class="sd">    and :math:`M_k` is defined as follows:</span>
@@ -361,29 +387,29 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import ScoreCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ScoreCAM(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; cam = ScoreCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
-<span class="sd">        input_layer: name of the first layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">conv_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">input_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
 
         <span class="c1"># Input hook</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">input_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_input</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_input</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">bs</span> <span class="o">=</span> <span class="n">batch_size</span>
         <span class="c1"># Ensure ReLU is applied to CAM before normalization</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
@@ -414,6 +440,9 @@
 
         <span class="c1"># Disable hook updates</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Switch to eval</span>
+        <span class="n">origin_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
         <span class="c1"># Process by chunk (GPU RAM limitation)</span>
         <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="p">)):</span>
 
@@ -424,6 +453,8 @@
 
         <span class="c1"># Reenable hook updates</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># Put back the model in the correct mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span> <span class="o">=</span> <span class="n">origin_mode</span>
 
         <span class="k">return</span> <span class="n">weights</span>
 
@@ -446,7 +477,7 @@
 <span class="sd">        w_k^{(c)} = \\frac{1}{N} \\sum\\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))</span>
 
 <span class="sd">    where :math:`N` is the number of samples used to smooth the weights,</span>
-<span class="sd">    :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax</span>
 <span class="sd">    for input :math:`X`, :math:`X_b` is a baseline image,</span>
 <span class="sd">    and :math:`M_k` is defined as follows:</span>
@@ -463,30 +494,30 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import SSCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = SSCAM(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; cam = SSCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
-<span class="sd">        input_layer: name of the first layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
 <span class="sd">        num_samples: number of noisy samples used for weight computation</span>
 <span class="sd">        std: standard deviation of the noise added to the normalized activation</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">conv_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">input_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
         <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">35</span><span class="p">,</span>
-        <span class="n">std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+        <span class="n">std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">,</span> <span class="n">input_layer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span> <span class="o">=</span> <span class="n">num_samples</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="o">=</span> <span class="n">std</span>
@@ -512,6 +543,9 @@
 
         <span class="c1"># Disable hook updates</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Switch to eval</span>
+        <span class="n">origin_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
 
         <span class="k">for</span> <span class="n">_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">):</span>
             <span class="n">noisy_m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">*</span> <span class="p">(</span><span class="n">upsampled_a</span> <span class="o">+</span>
@@ -529,6 +563,8 @@
 
         <span class="c1"># Reenable hook updates</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># Put back the model in the correct mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span> <span class="o">=</span> <span class="n">origin_mode</span>
 
         <span class="k">return</span> <span class="n">weights</span>
 
@@ -551,7 +587,7 @@
 <span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^N \\frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))</span>
 
 <span class="sd">    where :math:`N` is the number of samples used to smooth the weights,</span>
-<span class="sd">    :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax</span>
 <span class="sd">    for input :math:`X`, :math:`X_b` is a baseline image,</span>
 <span class="sd">    and :math:`M_k` is defined as follows:</span>
@@ -568,28 +604,28 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import ISSCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ISCAM(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; cam = ISCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
-<span class="sd">        input_layer: name of the first layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
 <span class="sd">        num_samples: number of noisy samples used for weight computation</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">conv_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">input_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
-        <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+        <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">,</span> <span class="n">input_layer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span> <span class="o">=</span> <span class="n">num_samples</span>
 
@@ -615,6 +651,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">fmap</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">upsampled_a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]),</span>
                            <span class="n">dtype</span><span class="o">=</span><span class="n">upsampled_a</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">upsampled_a</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="c1"># Switch to eval</span>
+        <span class="n">origin_mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
 
         <span class="k">for</span> <span class="n">_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">):</span>
             <span class="n">fmap</span> <span class="o">+=</span> <span class="p">(</span><span class="n">_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">*</span> <span class="n">upsampled_a</span>
@@ -629,6 +668,8 @@
 
         <span class="c1"># Reenable hook updates</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># Put back the model in the correct mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span> <span class="o">=</span> <span class="n">origin_mode</span>
 
         <span class="k">return</span> <span class="n">weights</span></div>
 </pre></div>

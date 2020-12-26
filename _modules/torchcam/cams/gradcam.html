@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.2a0+16e7641-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.2a0+71c2756-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.2a0+16e7641
+                0.1.2a0+71c2756
               </div>
             
           
@@ -166,7 +166,7 @@
   <h1>Source code for torchcam.cams.gradcam</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 
 <span class="kn">from</span> <span class="nn">.cam</span> <span class="kn">import</span> <span class="n">_CAM</span>
 
@@ -178,16 +178,18 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">conv_layer</span><span class="p">:</span> <span class="nb">str</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
         <span class="c1"># Init hook</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Ensure ReLU is applied before normalization</span>
@@ -195,7 +197,7 @@
         <span class="c1"># Model output is used by the extractor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="c1"># Backward hook</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">conv_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_backward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_g</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_backward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_g</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_hook_g</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Gradient hook&quot;&quot;&quot;</span>
@@ -233,7 +235,7 @@
 <span class="sd">        w_k^{(c)} = \\frac{1}{H \\cdot W} \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W</span>
 <span class="sd">        \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}</span>
 
-<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
 
@@ -247,7 +249,8 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>  <span class="c1"># type: ignore[override]</span>
@@ -275,7 +278,7 @@
 <span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot</span>
 <span class="sd">        ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)</span>
 
-<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,</span>
 <span class="sd">    and :math:`\\alpha_k^{(c)}(i, j)` being defined as:</span>
@@ -298,7 +301,8 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>  <span class="c1"># type: ignore[override]</span>
@@ -332,7 +336,7 @@
 <span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot</span>
 <span class="sd">        ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)</span>
 
-<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the last convolutional layer of the model at</span>
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,</span>
 <span class="sd">    and :math:`\\alpha_k^{(c)}(i, j)` being defined as:</span>
@@ -363,24 +367,27 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        conv_layer: name of the last convolutional layer</span>
+<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        num_samples: number of samples to use for smoothing</span>
+<span class="sd">        std: standard deviation of the noise</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">conv_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">first_layer</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
-        <span class="n">std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span>
+        <span class="n">std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
         <span class="c1"># Model scores is not used by the extractor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="c1"># Input hook</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">first_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_input</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_input</span><span class="p">))</span>
         <span class="c1"># Noise distribution</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span> <span class="o">=</span> <span class="n">num_samples</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="o">=</span> <span class="n">std</span>
