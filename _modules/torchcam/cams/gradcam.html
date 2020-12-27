@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.2a0+71c2756-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.2a0+521b4f9-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.2a0+71c2756
+                0.1.2a0+521b4f9
               </div>
             
           
@@ -361,7 +361,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import SmoothGradCAMpp</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = SmoothGradCAMpp(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; cam = SmoothGradCAMpp(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
