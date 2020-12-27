@@ -58,8 +58,8 @@ class CAMCoreTester(unittest.TestCase):
 
     def _test_cam(self, name):
         # Get a pretrained model
-        model = resnet18(pretrained=False).eval()
-        conv_layer = 'layer4.1.relu'
+        model = mobilenet_v2(pretrained=False).eval()
+        conv_layer = 'features.17.conv.3'
 
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
