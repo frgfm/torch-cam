@@ -11,16 +11,6 @@ from torchvision.transforms.functional import normalize, resize, to_tensor
 from torchcam import cams
 
 
-def _forward(model, input_tensor):
-    if model.training:
-        scores = model(input_tensor)
-    else:
-        with torch.no_grad():
-            scores = model(input_tensor)
-
-    return scores
-
-
 class CAMCoreTester(unittest.TestCase):
     def _verify_cam(self, cam):
         # Simple verifications
@@ -50,11 +40,11 @@ class CAMCoreTester(unittest.TestCase):
         img_tensor = self._get_img_tensor()
 
         # Check that a batch of 2 cannot be accepted
-        _ = _forward(model, torch.stack((img_tensor, img_tensor)))
+        _ = model(torch.stack((img_tensor, img_tensor)))
         self.assertRaises(ValueError, extractor, 0)
 
         # Correct forward
-        scores = _forward(model, img_tensor.unsqueeze(0))
+        scores = model(img_tensor.unsqueeze(0))
 
         # Check incorrect class index
         self.assertRaises(ValueError, extractor, -1)
@@ -80,7 +70,7 @@ class CAMCoreTester(unittest.TestCase):
     def _test_gradcam(self, name):
 
         # Get a pretrained model
-        model = mobilenet_v2(pretrained=False)
+        model = mobilenet_v2(pretrained=False).eval()
         conv_layer = 'features.17.conv.3'
 
         # Hook the corresponding layer in the model
