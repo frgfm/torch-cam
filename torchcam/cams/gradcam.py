@@ -195,7 +195,7 @@ class SmoothGradCAMpp(_GradCAM):
         >>> from torchvision.models import resnet18
         >>> from torchcam.cams import SmoothGradCAMpp
         >>> model = resnet18(pretrained=True).eval()
-        >>> cam = SmoothGradCAMpp(model, 'layer4', 'conv1')
+        >>> cam = SmoothGradCAMpp(model, 'layer4')
         >>> scores = model(input_tensor)
         >>> cam(class_idx=100)
 
