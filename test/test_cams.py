@@ -59,7 +59,7 @@ class CAMCoreTester(unittest.TestCase):
     def _test_cam(self, name):
         # Get a pretrained model
         model = mobilenet_v2(pretrained=False).eval()
-        conv_layer = 'features.17.conv.3'
+        conv_layer = 'features.18.0'
 
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
@@ -71,7 +71,7 @@ class CAMCoreTester(unittest.TestCase):
 
         # Get a pretrained model
         model = mobilenet_v2(pretrained=False).eval()
-        conv_layer = 'features.17.conv.3'
+        conv_layer = 'features.18.0'
 
         # Hook the corresponding layer in the model
         extractor = cams.__dict__[name](model, conv_layer)
