@@ -61,8 +61,12 @@ class CAMCoreTester(unittest.TestCase):
         model = mobilenet_v2(pretrained=False).eval()
         conv_layer = None if name == "CAM" else 'features.16.conv.3'
 
+        kwargs = {}
+        # Speed up testing by reducing the number of samples
+        if name in ['SSCAM', 'ISCAM']:
+            kwargs['num_samples'] = 4
         # Hook the corresponding layer in the model
-        extractor = cams.__dict__[name](model, conv_layer)
+        extractor = cams.__dict__[name](model, conv_layer, **kwargs)
 
         with torch.no_grad():
             self._test_extractor(extractor, model)
