@@ -16,6 +16,7 @@ class CAMCoreTester(unittest.TestCase):
         # Simple verifications
         self.assertIsInstance(cam, torch.Tensor)
         self.assertEqual(cam.shape, (7, 7))
+        self.assertFalse(torch.any(torch.isnan(cam)))
 
     @staticmethod
     def _get_img_tensor():
