@@ -148,7 +148,11 @@ class GradCAMpp(_GradCAM):
         # Alpha coefficient for each pixel
         grad_2 = self.hook_g.pow(2)
         grad_3 = grad_2 * self.hook_g
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * self.hook_a).sum(dim=(2, 3), keepdim=True))
+        # Watch out for NaNs produced by underflow
+        denom = 2 * grad_2 + (grad_3 * self.hook_a).sum(dim=(2, 3), keepdim=True)
+        nan_mask = grad_2 > 0
+        alpha = grad_2
+        alpha[nan_mask].div_(denom[nan_mask])
 
         # Apply pixel coefficient in each weight
         return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(dim=(1, 2))
