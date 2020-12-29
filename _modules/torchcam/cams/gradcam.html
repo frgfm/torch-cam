@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+3456ba9-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+7a95e14-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.3a0+3456ba9
+                0.1.3a0+7a95e14
               </div>
             
           
@@ -314,7 +314,11 @@
         <span class="c1"># Alpha coefficient for each pixel</span>
         <span class="n">grad_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">grad_3</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span>
-        <span class="n">alpha</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">grad_2</span> <span class="o">+</span> <span class="p">(</span><span class="n">grad_3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="c1"># Watch out for NaNs produced by underflow</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">grad_2</span> <span class="o">+</span> <span class="p">(</span><span class="n">grad_3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">grad_2</span>
+        <span class="n">alpha</span><span class="p">[</span><span class="n">nan_mask</span><span class="p">]</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="n">denom</span><span class="p">[</span><span class="n">nan_mask</span><span class="p">])</span>
 
         <span class="c1"># Apply pixel coefficient in each weight</span>
         <span class="k">return</span> <span class="n">alpha</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
