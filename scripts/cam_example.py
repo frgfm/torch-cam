@@ -18,20 +18,6 @@ from torchvision.transforms.functional import normalize, resize, to_tensor, to_p
 from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM, ISCAM
 from torchcam.utils import overlay_mask
 
-VGG_CONFIG = {_vgg: dict(conv_layer='features')
-              for _vgg in models.vgg.__dict__.keys()}
-
-RESNET_CONFIG = {_resnet: dict(conv_layer='layer4', fc_layer='fc')
-                 for _resnet in models.resnet.__dict__.keys()}
-
-DENSENET_CONFIG = {_densenet: dict(conv_layer='features', fc_layer='classifier')
-                   for _densenet in models.densenet.__dict__.keys()}
-
-MODEL_CONFIG = {
-    **VGG_CONFIG, **RESNET_CONFIG, **DENSENET_CONFIG,
-    'mobilenet_v2': dict(conv_layer='features')
-}
-
 
 def main(args):
 
