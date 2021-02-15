@@ -18,20 +18,6 @@ from torchvision.transforms.functional import normalize, resize, to_tensor, to_p
 from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM, ISCAM
 from torchcam.utils import overlay_mask
 
-VGG_CONFIG = {_vgg: dict(conv_layer='features')
-              for _vgg in models.vgg.__dict__.keys()}
-
-RESNET_CONFIG = {_resnet: dict(conv_layer='layer4', fc_layer='fc')
-                 for _resnet in models.resnet.__dict__.keys()}
-
-DENSENET_CONFIG = {_densenet: dict(conv_layer='features', fc_layer='classifier')
-                   for _densenet in models.densenet.__dict__.keys()}
-
-MODEL_CONFIG = {
-    **VGG_CONFIG, **RESNET_CONFIG, **DENSENET_CONFIG,
-    'mobilenet_v2': dict(conv_layer='features')
-}
-
 
 def main(args):
 
@@ -42,8 +28,6 @@ def main(args):
 
     # Pretrained imagenet model
     model = models.__dict__[args.model](pretrained=True).to(device=device)
-    conv_layer = MODEL_CONFIG[args.model]['conv_layer']
-    fc_layer = MODEL_CONFIG[args.model]['fc_layer']
 
     # Image
     if args.img.startswith('http'):
@@ -55,10 +39,11 @@ def main(args):
                            [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
 
     # Hook the corresponding layer in the model
-    cam_extractors = [CAM(model, conv_layer, fc_layer), GradCAM(model, conv_layer),
-                      GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer),
-                      ScoreCAM(model, conv_layer), SSCAM(model, conv_layer),
-                      ISCAM(model, conv_layer)]
+    cam_extractors = [
+        CAM(model),
+        GradCAM(model), GradCAMpp(model), SmoothGradCAMpp(model),
+        ScoreCAM(model), SSCAM(model), ISCAM(model),
+    ]
 
     # Don't trigger all hooks
     for extractor in cam_extractors:
