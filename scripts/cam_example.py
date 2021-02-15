@@ -42,8 +42,6 @@ def main(args):
 
     # Pretrained imagenet model
     model = models.__dict__[args.model](pretrained=True).to(device=device)
-    conv_layer = MODEL_CONFIG[args.model]['conv_layer']
-    fc_layer = MODEL_CONFIG[args.model]['fc_layer']
 
     # Image
     if args.img.startswith('http'):
@@ -55,10 +53,11 @@ def main(args):
                            [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
 
     # Hook the corresponding layer in the model
-    cam_extractors = [CAM(model, conv_layer, fc_layer), GradCAM(model, conv_layer),
-                      GradCAMpp(model, conv_layer), SmoothGradCAMpp(model, conv_layer),
-                      ScoreCAM(model, conv_layer), SSCAM(model, conv_layer),
-                      ISCAM(model, conv_layer)]
+    cam_extractors = [
+        CAM(model),
+        GradCAM(model), GradCAMpp(model), SmoothGradCAMpp(model),
+        ScoreCAM(model), SSCAM(model), ISCAM(model),
+    ]
 
     # Don't trigger all hooks
     for extractor in cam_extractors:
