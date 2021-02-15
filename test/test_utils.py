@@ -18,8 +18,8 @@ class UtilsTester(unittest.TestCase):
         self.assertIsInstance(overlayed, Image.Image)
         # Verify value
         self.assertTrue(np.all(np.asarray(overlayed)[..., 0] == 0))
-        self.assertTrue(np.all(np.asarray(overlayed)[..., 1] == 39))
-        self.assertTrue(np.all(np.asarray(overlayed)[..., 2] == 76))
+        self.assertTrue(np.all(np.asarray(overlayed)[..., 1] == 0))
+        self.assertTrue(np.all(np.asarray(overlayed)[..., 2] == 39))
 
 
 if __name__ == '__main__':
