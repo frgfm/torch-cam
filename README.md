@@ -50,17 +50,18 @@ conda install -c frgfm torchcam
 Torchcam was built both for users wishing to get a better understanding of their CNN models, and for researchers to enjoy a strong implementation base with popular methods. Here is a short snippet illustrating its usage:
 
 ```python
-from torcham.cams import SmoothGradCAMpp
+import torch
+from torchcam.cams import SmoothGradCAMpp
 from torchvision.models import resnet18
 
 img_tensor = torch.rand((1, 3, 224, 224))
 model = resnet18(pretrained=True).eval()
 # Hook your model before the forward pass
-cam_extractor = cam(model)
+cam_extractor = SmoothGradCAMpp(model)
 # By default the last conv layer will be selected
-out = model(input_tensor)
+out = model(img_tensor)
 # Retrieve the CAM
-activation_map = cam_extractor(out.squeeze(0).argmax().item(), scores)
+activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
 ```
 
 
