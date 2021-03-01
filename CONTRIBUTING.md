@@ -8,6 +8,8 @@ Everything you need to know to contribute efficiently to the project.
 
 - [torchcam](https://github.com/frgfm/torch-cam/blob/master/torchcam) - The actual torchcam library
 - [test](https://github.com/frgfm/torch-cam/blob/master/test) - Python unit tests
+- [docs](https://github.com/frgfm/torch-cam/blob/master/docs) - Sphinx documentation building
+- [scripts](https://github.com/frgfm/torch-cam/blob/master/scripts) - Example and utilities scripts
 
 
 
