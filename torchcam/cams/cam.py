@@ -4,7 +4,7 @@ import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
-from typing import Optional, List, Tuple
+from typing import Optional, Tuple
 
 from .core import _CAM
 from .utils import locate_linear_layer

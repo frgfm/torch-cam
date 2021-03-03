@@ -1,4 +1,3 @@
-import pytest
 from torchvision.models import resnet18
 
 from torchcam.cams import utils
