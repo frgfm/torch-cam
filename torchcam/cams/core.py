@@ -121,7 +121,7 @@ class _CAM:
         weights = weights[(...,) + (None,) * (self.hook_a.ndim - 2)]  # type: ignore[operator, union-attr]
 
         # Perform the weighted combination to get the CAM
-        batch_cams = (weights * self.hook_a.squeeze(0)).sum(0)  # type: ignore[union-attr]
+        batch_cams = torch.nansum(weights * self.hook_a.squeeze(0), dim=0)  # type: ignore[union-attr]
 
         if self._relu:
             batch_cams = F.relu(batch_cams, inplace=True)
