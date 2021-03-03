@@ -8,7 +8,7 @@ def test_cam_constructor(mock_img_model):
     model = mock_img_model.eval()
     # Check that wrong target_layer raises an error
     with pytest.raises(ValueError):
-        _ = core._CAM(model, '2')
+        _ = core._CAM(model, '3')
 
 
 def test_cam_precheck(mock_img_model, mock_img_tensor):
