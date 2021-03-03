@@ -1,7 +1,7 @@
 
 # Torchcam: class activation explorer
 
-[![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5124b1dff75e4e9cbb68136516605032)](https://www.codacy.com/manual/frgfm/torch-cam?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade)  ![Build Status](https://github.com/frgfm/torch-cam/workflows/python-package/badge.svg) [![codecov](https://codecov.io/gh/frgfm/torch-cam/branch/master/graph/badge.svg)](https://codecov.io/gh/frgfm/torch-cam) [![Docs](https://img.shields.io/badge/docs-available-blue.svg)](https://frgfm.github.io/torch-cam)  [![Pypi](https://img.shields.io/badge/pypi-v0.1.2-blue.svg)](https://pypi.org/project/torchcam/) 
+[![License](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/25324db1064a4d52b3f44d657c430973)](https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade)  ![Build Status](https://github.com/frgfm/torch-cam/workflows/python-package/badge.svg) [![codecov](https://codecov.io/gh/frgfm/torch-cam/branch/master/graph/badge.svg)](https://codecov.io/gh/frgfm/torch-cam) [![Docs](https://img.shields.io/badge/docs-available-blue.svg)](https://frgfm.github.io/torch-cam)  [![Pypi](https://img.shields.io/badge/pypi-v0.1.2-blue.svg)](https://pypi.org/project/torchcam/) 
 
 Simple way to leverage the class-specific activation of convolutional layers in PyTorch.
 
