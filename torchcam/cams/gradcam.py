@@ -278,5 +278,5 @@ class SmoothGradCAMpp(_GradCAM):
         # Apply pixel coefficient in each weight
         return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(num_samples={self.num_samples}, std={self.std})"
+    def extra_repr(self) -> str:
+        return f"target_layer='{self.target_layer}', num_samples={self.num_samples}, std={self.std}"

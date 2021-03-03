@@ -132,5 +132,8 @@ class _CAM:
 
         return batch_cams
 
+    def extra_repr(self) -> str:
+        return f"target_layer='{self.target_layer}'"
+
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(target_layer='{self.target_layer}')"
+        return f"{self.__class__.__name__}({self.extra_repr()})"
