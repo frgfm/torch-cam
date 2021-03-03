@@ -70,9 +70,7 @@ class _CAM:
         """CAM normalization"""
         spatial_dims = cams.ndim if spatial_dims is None else spatial_dims
         cams.sub_(cams.flatten(start_dim=-spatial_dims).min(-1).values[(...,) + (None,) * spatial_dims])
-        # Safeguard for division by zero
-        denom = cams.flatten(start_dim=-spatial_dims).max(-1).values[(...,) + (None,) * spatial_dims]
-        cams[denom != 0] = cams[denom != 0].div_(denom[denom != 0])
+        cams.div_(cams.flatten(start_dim=-spatial_dims).max(-1).values[(...,) + (None,) * spatial_dims])
 
         return cams
 
