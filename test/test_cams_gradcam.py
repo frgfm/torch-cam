@@ -47,3 +47,12 @@ def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_
     scores = model(mock_video_tensor)
     # Use the hooked data to compute activation map
     _verify_cam(extractor(scores[0].argmax().item(), scores), output_size)
+
+
+def test_smoothgradcampp_repr():
+    model = mobilenet_v2(pretrained=False).eval()
+
+    # Hook the corresponding layer in the model
+    extractor = gradcam.SmoothGradCAMpp(model, 'features.18.0')
+
+    assert repr(extractor) == "SmoothGradCAMpp(target_layer='features.18.0', num_samples=4, std=0.3)"
