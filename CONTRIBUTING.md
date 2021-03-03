@@ -46,7 +46,7 @@ Use Github [issues](https://github.com/frgfm/torch-cam/issues) for feature reque
 In order to run the same unit tests as the CI workflows, you can run unittests locally:
 
 ```shell
-coverage run -m unittest discover test/
+pytest test/
 ```
 
 #### Lint verification
