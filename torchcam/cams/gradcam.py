@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 from typing import Optional, Tuple
 
-from .cam import _CAM
+from .core import _CAM
 
 __all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp']
 
