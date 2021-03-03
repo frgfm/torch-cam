@@ -2,7 +2,7 @@ import torch
 from torch import Tensor
 from typing import Optional, Tuple
 
-from .cam import _CAM
+from .core import _CAM
 
 __all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp']
 
@@ -94,7 +94,7 @@ class GradCAM(_GradCAM):
         # Backpropagate
         self._backprop(scores, class_idx)
         # Global average pool the gradients over spatial dimensions
-        return self.hook_g.squeeze(0).mean(dim=(1, 2))
+        return self.hook_g.squeeze(0).flatten(1).mean(-1)
 
 
 class GradCAMpp(_GradCAM):
@@ -149,13 +149,14 @@ class GradCAMpp(_GradCAM):
         grad_2 = self.hook_g.pow(2)
         grad_3 = grad_2 * self.hook_g
         # Watch out for NaNs produced by underflow
-        denom = 2 * grad_2 + (grad_3 * self.hook_a).sum(dim=(2, 3), keepdim=True)
+        spatial_dims = self.hook_a.ndim - 2  # type: ignore[union-attr]
+        denom = 2 * grad_2 + (grad_3 * self.hook_a).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims]
         nan_mask = grad_2 > 0
         alpha = grad_2
         alpha[nan_mask].div_(denom[nan_mask])
 
         # Apply pixel coefficient in each weight
-        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(dim=(1, 2))
+        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
 
 
 class SmoothGradCAMpp(_GradCAM):
@@ -271,10 +272,11 @@ class SmoothGradCAMpp(_GradCAM):
         grad_3.div_(self.num_samples)
 
         # Alpha coefficient for each pixel
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).sum(dim=(2, 3), keepdim=True))
+        spatial_dims = self.hook_a.ndim - 2
+        alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims])
 
         # Apply pixel coefficient in each weight
-        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).sum(dim=(1, 2))
+        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(num_samples={self.num_samples}, std={self.std})"
+    def extra_repr(self) -> str:
+        return f"target_layer='{self.target_layer}', num_samples={self.num_samples}, std={self.std}"

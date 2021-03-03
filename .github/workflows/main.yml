@@ -57,7 +57,7 @@ jobs:
 
       - name: Run unittests
         run: |
-          coverage run -m unittest discover test/
+          coverage run -m pytest test/
           coverage xml
 
       - name: Upload coverage to Codecov
