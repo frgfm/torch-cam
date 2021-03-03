@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+f15c982-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+badd19f-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.3a0+f15c982
+                0.1.3a0+badd19f
               </div>
             
           
@@ -168,7 +168,7 @@
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 
-<span class="kn">from</span> <span class="nn">.cam</span> <span class="kn">import</span> <span class="n">_CAM</span>
+<span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;GradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;SmoothGradCAMpp&#39;</span><span class="p">]</span>
 
@@ -260,7 +260,7 @@
         <span class="c1"># Backpropagate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
         <span class="c1"># Global average pool the gradients over spatial dimensions</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="GradCAMpp"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.GradCAMpp">[docs]</a><span class="k">class</span> <span class="nc">GradCAMpp</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
@@ -315,13 +315,14 @@
         <span class="n">grad_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
         <span class="n">grad_3</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span>
         <span class="c1"># Watch out for NaNs produced by underflow</span>
-        <span class="n">denom</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">grad_2</span> <span class="o">+</span> <span class="p">(</span><span class="n">grad_3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">spatial_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span>  <span class="c1"># type: ignore[union-attr]</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">grad_2</span> <span class="o">+</span> <span class="p">(</span><span class="n">grad_3</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[(</span><span class="o">...</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">spatial_dims</span><span class="p">]</span>
         <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">&gt;</span> <span class="mi">0</span>
         <span class="n">alpha</span> <span class="o">=</span> <span class="n">grad_2</span>
         <span class="n">alpha</span><span class="p">[</span><span class="n">nan_mask</span><span class="p">]</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="n">denom</span><span class="p">[</span><span class="n">nan_mask</span><span class="p">])</span>
 
         <span class="c1"># Apply pixel coefficient in each weight</span>
-        <span class="k">return</span> <span class="n">alpha</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span></div>
+        <span class="k">return</span> <span class="n">alpha</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="SmoothGradCAMpp"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.SmoothGradCAMpp">[docs]</a><span class="k">class</span> <span class="nc">SmoothGradCAMpp</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
@@ -437,13 +438,14 @@
         <span class="n">grad_3</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">)</span>
 
         <span class="c1"># Alpha coefficient for each pixel</span>
-        <span class="n">alpha</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">grad_2</span> <span class="o">+</span> <span class="p">(</span><span class="n">grad_3</span> <span class="o">*</span> <span class="n">init_fmap</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">spatial_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">grad_2</span> <span class="o">+</span> <span class="p">(</span><span class="n">grad_3</span> <span class="o">*</span> <span class="n">init_fmap</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[(</span><span class="o">...</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">spatial_dims</span><span class="p">])</span>
 
         <span class="c1"># Apply pixel coefficient in each weight</span>
-        <span class="k">return</span> <span class="n">alpha</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">alpha</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+    <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;target_layer=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span><span class="si">}</span><span class="s2">&#39;, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">&quot;</span></div>
 </pre></div>
 
            </div>
