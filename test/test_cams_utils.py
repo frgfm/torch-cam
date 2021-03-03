@@ -16,6 +16,7 @@ def test_locate_candidate_layer(mock_img_model):
     # Check that the model is switched back to its origin mode afterwards
     assert mod.training
 
+
 def test_locate_linear_layer(mock_img_model):
 
     # ResNet-18

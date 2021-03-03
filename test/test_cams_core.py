@@ -16,7 +16,7 @@ def test_cam_precheck(mock_img_model, mock_img_tensor):
         with pytest.raises(ValueError):
             extractor(0)
         # Correct forward
-        scores = model(mock_img_tensor)
+        _ = model(mock_img_tensor)
 
         # Check incorrect class index
         with pytest.raises(ValueError):

@@ -3,6 +3,7 @@ from PIL import Image
 
 from torchcam import utils
 
+
 def test_overlay_mask():
 
     img = Image.fromarray(np.zeros((4, 4, 3)).astype(np.uint8))

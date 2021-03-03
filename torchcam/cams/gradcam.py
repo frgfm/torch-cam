@@ -149,7 +149,7 @@ class GradCAMpp(_GradCAM):
         grad_2 = self.hook_g.pow(2)
         grad_3 = grad_2 * self.hook_g
         # Watch out for NaNs produced by underflow
-        spatial_dims = self.hook_a.ndim - 2
+        spatial_dims = self.hook_a.ndim - 2  # type: ignore[union-attr]
         denom = 2 * grad_2 + (grad_3 * self.hook_a).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims]
         nan_mask = grad_2 > 0
         alpha = grad_2
@@ -157,6 +157,7 @@ class GradCAMpp(_GradCAM):
 
         # Apply pixel coefficient in each weight
         return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
+
 
 class SmoothGradCAMpp(_GradCAM):
     """Implements a class activation map extractor as described in `"Smooth Grad-CAM++: An Enhanced Inference Level

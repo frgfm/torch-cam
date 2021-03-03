@@ -117,7 +117,8 @@ class _CAM:
         """
 
         # Get map weight & unsqueeze it
-        weights = self._get_weights(class_idx, scores)[(...,) + (None,) * (self.hook_a.ndim - 2)]
+        weights = self._get_weights(class_idx, scores)
+        weights = weights[(...,) + (None,) * (self.hook_a.ndim - 2)]  # type: ignore[operator, union-attr]
 
         # Perform the weighted combination to get the CAM
         batch_cams = (weights * self.hook_a.squeeze(0)).sum(0)  # type: ignore[union-attr]
