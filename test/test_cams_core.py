@@ -4,6 +4,13 @@ import torch
 from torchcam.cams import core
 
 
+def test_cam_constructor(mock_img_model):
+    model = mock_img_model.eval()
+    # Check that wrong target_layer raises an error
+    with pytest.raises(ValueError):
+        _ = core._CAM(model, '2')
+
+
 def test_cam_precheck(mock_img_model, mock_img_tensor):
     model = mock_img_model.eval()
     extractor = core._CAM(model, '0.3')
