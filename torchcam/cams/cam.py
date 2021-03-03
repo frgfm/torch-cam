@@ -137,11 +137,13 @@ class ScoreCAM(_CAM):
 
         # Normalize the activation
         self.hook_a: Tensor
-        upsampled_a = self._normalize(self.hook_a)
+        upsampled_a = self._normalize(self.hook_a, self.hook_a.ndim - 2)
 
         # Upsample it to input_size
         # 1 * O * M * N
-        upsampled_a = F.interpolate(upsampled_a, self._input.shape[-2:], mode='bilinear', align_corners=False)
+        spatial_dims = self._input.ndim - 2
+        interpolation_mode = 'bilinear' if spatial_dims == 2 else 'trilinear' if spatial_dims == 3 else 'nearest'
+        upsampled_a = F.interpolate(upsampled_a, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
 
         # Use it as a mask
         # O * I * H * W
@@ -240,11 +242,13 @@ class SSCAM(ScoreCAM):
 
         # Normalize the activation
         self.hook_a: Tensor
-        upsampled_a = self._normalize(self.hook_a)
+        upsampled_a = self._normalize(self.hook_a, self.hook_a.ndim - 2)
 
         # Upsample it to input_size
         # 1 * O * M * N
-        upsampled_a = F.interpolate(upsampled_a, self._input.shape[-2:], mode='bilinear', align_corners=False)
+        spatial_dims = self._input.ndim - 2
+        interpolation_mode = 'bilinear' if spatial_dims == 2 else 'trilinear' if spatial_dims == 3 else 'nearest'
+        upsampled_a = F.interpolate(upsampled_a, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
 
         # Use it as a mask
         # O * I * H * W
@@ -346,11 +350,13 @@ class ISCAM(ScoreCAM):
 
         # Normalize the activation
         self.hook_a: Tensor
-        upsampled_a = self._normalize(self.hook_a)
+        upsampled_a = self._normalize(self.hook_a, self.hook_a.ndim - 2)
 
         # Upsample it to input_size
         # 1 * O * M * N
-        upsampled_a = F.interpolate(upsampled_a, self._input.shape[-2:], mode='bilinear', align_corners=False)
+        spatial_dims = self._input.ndim - 2
+        interpolation_mode = 'bilinear' if spatial_dims == 2 else 'trilinear' if spatial_dims == 3 else 'nearest'
+        upsampled_a = F.interpolate(upsampled_a, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
 
         # Use it as a mask
         # O * I * H * W
