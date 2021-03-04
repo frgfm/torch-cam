@@ -319,6 +319,7 @@ class XGradCAM(_GradCAM):
     def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
         """Computes the weight coefficients of the hooked activation maps"""
 
+        self.hook_a: Tensor
         self.hook_g: Tensor
         # Backpropagate
         self._backprop(scores, class_idx)
