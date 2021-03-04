@@ -18,6 +18,7 @@ def _verify_cam(activation_map, output_size):
         ["GradCAM", 'features.18.0', (7, 7)],
         ["GradCAMpp", 'features.18.0', (7, 7)],
         ["SmoothGradCAMpp", None, (7, 7)],
+        ["XGradCAM", None, (7, 7)],
     ],
 )
 def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
@@ -37,6 +38,7 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
         ["GradCAM", '0.3', (8, 16, 16)],
         ["GradCAMpp", '0.3', (8, 16, 16)],
         ["SmoothGradCAMpp", '0.3', (8, 16, 16)],
+        ["XGradCAM", '0.3', (8, 16, 16)],
     ],
 )
 def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_video_tensor):

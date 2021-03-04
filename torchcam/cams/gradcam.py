@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 
 from .core import _CAM
 
-__all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp']
+__all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp', 'XGradCAM']
 
 
 class _GradCAM(_CAM):
@@ -280,3 +280,48 @@ class SmoothGradCAMpp(_GradCAM):
 
     def extra_repr(self) -> str:
         return f"target_layer='{self.target_layer}', num_samples={self.num_samples}, std={self.std}"
+
+
+class XGradCAM(_GradCAM):
+    """Implements a class activation map extractor as described in `"Axiom-based Grad-CAM: Towards Accurate
+    Visualization and Explanation of CNNs" <https://arxiv.org/pdf/2008.02312.pdf>`_.
+
+    The localization map is computed as follows:
+
+    .. math::
+        L^{(c)}_{XGrad-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+
+    with the coefficient :math:`w_k^{(c)}` being defined as:
+
+    .. math::
+        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W
+        \\Big( \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} \\cdot
+        \\frac{A_k(i, j)}{\\sum\\limits_{m=1}^H \\sum\\limits_{n=1}^W A_k(m, n)} \\Big)
+
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
+    position :math:`(x, y)`,
+    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
+
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import XGradCAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = XGradCAM(model, 'layer4')
+        >>> scores = model(input_tensor)
+        >>> cam(class_idx=100, scores=scores)
+
+    Args:
+        model: input model
+        target_layer: name of the target layer
+        input_shape: shape of the expected input tensor excluding the batch dimension
+    """
+
+    def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
+        """Computes the weight coefficients of the hooked activation maps"""
+
+        self.hook_a: Tensor
+        self.hook_g: Tensor
+        # Backpropagate
+        self._backprop(scores, class_idx)
+
+        return (self.hook_g * self.hook_a).squeeze(0).flatten(1).sum(-1) / self.hook_a.squeeze(0).flatten(1).sum(-1)
