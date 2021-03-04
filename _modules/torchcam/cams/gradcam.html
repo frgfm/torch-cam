@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+351df6a-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+d5dd7a4-git documentation</title>
   
 
   
@@ -60,7 +60,7 @@
             
             
               <div class="version">
-                0.1.3a0+351df6a
+                0.1.3a0+d5dd7a4
               </div>
             
           
@@ -170,7 +170,7 @@
 
 <span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;GradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;SmoothGradCAMpp&#39;</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;GradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;SmoothGradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;XGradCAM&#39;</span><span class="p">]</span>
 
 
 <span class="k">class</span> <span class="nc">_GradCAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
@@ -446,6 +446,51 @@
 
     <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;target_layer=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span><span class="si">}</span><span class="s2">&#39;, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+
+<div class="viewcode-block" id="XGradCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.XGradCAM">[docs]</a><span class="k">class</span> <span class="nc">XGradCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Axiom-based Grad-CAM: Towards Accurate</span>
+<span class="sd">    Visualization and Explanation of CNNs&quot; &lt;https://arxiv.org/pdf/2008.02312.pdf&gt;`_.</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{XGrad-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W</span>
+<span class="sd">        \\Big( \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} \\cdot</span>
+<span class="sd">        \\frac{A_k(i, j)}{\\sum\\limits_{m=1}^H \\sum\\limits_{n=1}^W A_k(m, n)} \\Big)</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.cams import XGradCAM</span>
+<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">        &gt;&gt;&gt; cam = XGradCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">:</span> <span class="n">Tensor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">:</span> <span class="n">Tensor</span>
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
 </pre></div>
 
            </div>
