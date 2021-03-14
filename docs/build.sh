@@ -29,7 +29,7 @@ function deploy_doc(){
 # You can find the commit for each tag on https://github.com/frgfm/torch-cam/tags
 if [ -d build ]; then rm -Rf build; fi
 cp -r source/_static .
-git fetch --all --tags
+git fetch --all --tags --unshallow
 deploy_doc "" latest
 deploy_doc "7be0b4f" v0.1.0
 deploy_doc "a95d680" v0.1.1
