@@ -71,7 +71,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 #
 html_theme_options = {
     'collapse_navigation': False,
-    'display_version': True,
+    'display_version': False,
     'logo_only': False,
     'analytics_id': 'UA-148140560-4',
 }
@@ -82,8 +82,6 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_context = {
-    'css_files': [
-        '_static/css/custom_theme.css'
-    ],
-}
+def setup(app):
+    app.add_css_file('css/custom_theme.css')
+    app.add_js_file('js/custom.js')
