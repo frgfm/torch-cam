@@ -79,7 +79,7 @@ def main(args):
         # The indexing below means first image in batch
         heatmap = to_pil_image(activation_map, mode='F')
         # Plot the result
-        result = overlay_mask(pil_img, heatmap)
+        result = overlay_mask(pil_img, heatmap, alpha=args.alpha)
 
         ax = axes[idx // num_cols][idx % num_cols] if num_rows > 1 else axes[idx] if num_cols > 1 else axes
 
@@ -105,6 +105,7 @@ if __name__ == '__main__':
     parser.add_argument("--device", type=str, default=None, help='Default device to perform computation on')
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
     parser.add_argument("--method", type=str, default=None, help="CAM method to use")
+    parser.add_argument("--alpha", type=float, default=0.7, help="Transparency of the heatmap")
     args = parser.parse_args()
 
     main(args)
