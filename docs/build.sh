@@ -11,7 +11,7 @@ function deploy_doc(){
         if [ "$2" == "latest" ]; then
             echo "Pushing master"
             sphinx-build source _build -a && mkdir build && mkdir build/$2 && cp -a _build/* build/$2/
-        elif [ -d build/$2 ]; then
+        elif ssh -oStrictHostKeyChecking=no $doc "[ -d build/$2 ]"; then
             echo "Directory" $2 "already exists"
         else
             echo "Pushing version" $2
