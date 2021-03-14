@@ -15,13 +15,13 @@ function deploy_doc(){
             echo "Directory" $2 "already exists"
         else
             echo "Pushing version" $2
-            cp -r _static source/
+            cp -r _static source/ && cp conf.py source/
             sphinx-build source _build -a
             mkdir build/$2 && cp -a _build/* build/$2/
         fi
     else
         echo "Pushing stable"
-        cp -r _static source/
+        cp -r _static source/ && cp conf.py source/
         sphinx-build source build -a
     fi
 }
@@ -29,6 +29,7 @@ function deploy_doc(){
 # You can find the commit for each tag on https://github.com/frgfm/torch-cam/tags
 if [ -d build ]; then rm -Rf build; fi
 cp -r source/_static .
+cp source/conf.py .
 git fetch --all --tags --unshallow
 deploy_doc "" latest
 deploy_doc "7be0b4f" v0.1.0
