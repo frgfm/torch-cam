@@ -15,7 +15,7 @@ import torch
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
 
-from torchcam.cams import CAM, GradCAM, GradCAMpp, SmoothGradCAMpp, ScoreCAM, SSCAM, ISCAM
+from torchcam import cams
 from torchcam.utils import overlay_mask
 
 
@@ -40,18 +40,25 @@ def main(args):
     img_tensor = normalize(to_tensor(resize(pil_img, (224, 224))),
                            [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
 
+    if isinstance(args.method, str):
+        methods = [args.method]
+    else:
+        methods = [
+            'CAM',
+            'GradCAM', 'GradCAMpp', 'SmoothGradCAMpp',
+            'ScoreCAM', 'SSCAM', 'ISCAM',
+            'XGradCAM',
+        ]
     # Hook the corresponding layer in the model
-    cam_extractors = [
-        CAM(model),
-        GradCAM(model), GradCAMpp(model), SmoothGradCAMpp(model),
-        ScoreCAM(model), SSCAM(model), ISCAM(model),
-    ]
+    cam_extractors = [cams.__dict__[name](model) for name in methods]
 
     # Don't trigger all hooks
     for extractor in cam_extractors:
         extractor._hooks_enabled = False
 
-    num_rows = 2
+    # Max 6 images per row
+    num_rows = math.ceil(len(cam_extractors) / 6)
+    # Homogenize number of elements in each row
     num_cols = math.ceil(len(cam_extractors) / num_rows)
     _, axes = plt.subplots(num_rows, num_cols, figsize=(6, 4))
     for idx, extractor in enumerate(cam_extractors):
@@ -72,15 +79,14 @@ def main(args):
         # The indexing below means first image in batch
         heatmap = to_pil_image(activation_map, mode='F')
         # Plot the result
-        result = overlay_mask(pil_img, heatmap)
+        result = overlay_mask(pil_img, heatmap, alpha=args.alpha)
 
-        axes[idx // num_cols][idx % num_cols].imshow(result)
-        axes[idx // num_cols][idx % num_cols].set_title(extractor.__class__.__name__, size=8)
+        ax = axes[idx // num_cols][idx % num_cols] if num_rows > 1 else axes[idx] if num_cols > 1 else axes
 
-    # Clear axes
-    for row in axes:
-        for ax in row:
-            ax.axis('off')
+        ax.imshow(result)
+        ax.set_title(extractor.__class__.__name__, size=8)
+        # Clear axes
+        ax.axis('off')
 
     plt.tight_layout()
     if args.savefig:
@@ -98,6 +104,8 @@ if __name__ == '__main__':
     parser.add_argument("--class-idx", type=int, default=232, help='Index of the class to inspect')
     parser.add_argument("--device", type=str, default=None, help='Default device to perform computation on')
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
+    parser.add_argument("--method", type=str, default=None, help="CAM method to use")
+    parser.add_argument("--alpha", type=float, default=0.7, help="Transparency of the heatmap")
     args = parser.parse_args()
 
     main(args)
