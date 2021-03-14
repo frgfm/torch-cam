@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.1.3a0+b75ae8f-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.1.1a0+a95d680-git documentation</title>
   
 
   
@@ -24,7 +24,6 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script src="_static/js/custom.js"></script>
         <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
@@ -34,6 +33,7 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato" type="text/css" />
   <link rel="stylesheet" href="_static/css/custom_theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -58,6 +58,13 @@
           
           </a>
 
+          
+            
+            
+              <div class="version">
+                0.1.1a0+a95d680
+              </div>
+            
           
 
           
@@ -167,14 +174,14 @@
 <p>Methods related to activation-based class activation maps.</p>
 <dl class="py class">
 <dt id="torchcam.cams.CAM">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">CAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">fc_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#CAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.CAM" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">CAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em>, <em class="sig-param"><span class="n">fc_layer</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#CAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.CAM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1512.04150.pdf">“Learning Deep Features for Discriminative
 Localization”</a>.</p>
 <p>The Class Activation Map (CAM) is defined for image classification models that have global pooling at the end
 of the visual feature extraction block. The localization map is computed as follows:</p>
 <div class="math notranslate nohighlight">
 \[L^{(c)}_{CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
-<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
+<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>,
 and <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> is the weight corresponding to class <span class="math notranslate nohighlight">\(c\)</span> for unit <span class="math notranslate nohighlight">\(k\)</span> in the fully
 connected layer..</p>
@@ -192,10 +199,9 @@ connected layer..</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>fc_layer</strong> – name of the fully convolutional layer</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+<li><p><strong>fc_layer</strong> (<em>str</em>) – name of the fully convolutional layer</p></li>
 </ul>
 </dd>
 </dl>
@@ -203,7 +209,7 @@ connected layer..</p>
 
 <dl class="py class">
 <dt id="torchcam.cams.ScoreCAM">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">ScoreCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">32</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#ScoreCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.ScoreCAM" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">ScoreCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em>, <em class="sig-param"><span class="n">input_layer</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="o">=</span><span class="default_value">32</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#ScoreCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.ScoreCAM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1910.01279.pdf">“Score-CAM:
 Score-Weighted Visual Explanations for Convolutional Neural Networks”</a>.</p>
 <p>The localization map is computed as follows:</p>
@@ -212,7 +218,7 @@ Score-Weighted Visual Explanations for Convolutional Neural Networks”</a>.</p>
 <p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
 <div class="math notranslate nohighlight">
 \[w_k^{(c)} = softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
-<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
+<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
 for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
 and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
@@ -224,7 +230,7 @@ and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as foll
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">ScoreCAM</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">ScoreCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">ScoreCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </pre></div>
@@ -234,10 +240,10 @@ and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as foll
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>batch_size</strong> – batch size used to forward masked inputs</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+<li><p><strong>input_layer</strong> (<em>str</em>) – name of the first layer</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – batch size used to forward masked inputs</p></li>
 </ul>
 </dd>
 </dl>
@@ -245,7 +251,7 @@ and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as foll
 
 <dl class="py class">
 <dt id="torchcam.cams.SSCAM">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">SSCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">32</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">35</span></em>, <em class="sig-param"><span class="n">std</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">2.0</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#SSCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.SSCAM" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">SSCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em>, <em class="sig-param"><span class="n">input_layer</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="o">=</span><span class="default_value">32</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="o">=</span><span class="default_value">35</span></em>, <em class="sig-param"><span class="n">std</span><span class="o">=</span><span class="default_value">2.0</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#SSCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.SSCAM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/2006.14255.pdf">“SS-CAM: Smoothed Score-CAM for
 Sharper Visual Feature Localization”</a>.</p>
 <p>The localization map is computed as follows:</p>
@@ -255,7 +261,7 @@ Sharper Visual Feature Localization”</a>.</p>
 <div class="math notranslate nohighlight">
 \[w_k^{(c)} = \frac{1}{N} \sum\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
 <p>where <span class="math notranslate nohighlight">\(N\)</span> is the number of samples used to smooth the weights,
-<span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
+<span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
 for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
 and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
@@ -269,7 +275,7 @@ with a standard deviation of <span class="math notranslate nohighlight">\(\sigma
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">SSCAM</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">SSCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">SSCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </pre></div>
@@ -279,58 +285,12 @@ with a standard deviation of <span class="math notranslate nohighlight">\(\sigma
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>batch_size</strong> – batch size used to forward masked inputs</p></li>
-<li><p><strong>num_samples</strong> – number of noisy samples used for weight computation</p></li>
-<li><p><strong>std</strong> – standard deviation of the noise added to the normalized activation</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py class">
-<dt id="torchcam.cams.ISCAM">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">ISCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">batch_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">32</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">10</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/cam.html#ISCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.ISCAM" title="Permalink to this definition">¶</a></dt>
-<dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/2010.03023.pdf">“IS-CAM: Integrated Score-CAM for axiomatic-based
-explanations”</a>.</p>
-<p>The localization map is computed as follows:</p>
-<div class="math notranslate nohighlight">
-\[L^{(c)}_{ISS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
-<p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
-<div class="math notranslate nohighlight">
-\[w_k^{(c)} = \sum\limits_{i=1}^N \frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
-<p>where <span class="math notranslate nohighlight">\(N\)</span> is the number of samples used to smooth the weights,
-<span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
-position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
-for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
-and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
-<div class="math notranslate nohighlight">
-\[M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
-\delta\Bigg) \odot X\]</div>
-<p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication, <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation,
-<span class="math notranslate nohighlight">\(\delta \sim \mathcal{N}(0, \sigma^2)\)</span> is the random noise that follows a 0-mean gaussian distribution
-with a standard deviation of <span class="math notranslate nohighlight">\(\sigma\)</span>.</p>
-<dl>
-<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">ISSCAM</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">ISCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>batch_size</strong> – batch size used to forward masked inputs</p></li>
-<li><p><strong>num_samples</strong> – number of noisy samples used for weight computation</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
+<li><p><strong>input_layer</strong> (<em>str</em>) – name of the first layer</p></li>
+<li><p><strong>batch_size</strong> (<em>int</em><em>, </em><em>optional</em>) – batch size used to forward masked inputs</p></li>
+<li><p><strong>num_samples</strong> (<em>int</em><em>, </em><em>optional</em>) – number of noisy samples used for weight computation</p></li>
+<li><p><strong>std</strong> (<em>float</em><em>, </em><em>optional</em>) – standard deviation of the noise added to the normalized activation</p></li>
 </ul>
 </dd>
 </dl>
@@ -342,7 +302,7 @@ with a standard deviation of <span class="math notranslate nohighlight">\(\sigma
 <p>Methods related to gradient-based class activation maps.</p>
 <dl class="py class">
 <dt id="torchcam.cams.GradCAM">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">GradCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#GradCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.GradCAM" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">GradCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#GradCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.GradCAM" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1610.02391.pdf">“Grad-CAM: Visual Explanations from Deep Networks
 via Gradient-based Localization”</a>.</p>
 <p>The localization map is computed as follows:</p>
@@ -352,7 +312,7 @@ via Gradient-based Localization”</a>.</p>
 <div class="math notranslate nohighlight">
 \[w_k^{(c)} = \frac{1}{H \cdot W} \sum\limits_{i=1}^H \sum\limits_{j=1}^W
 \frac{\partial Y^{(c)}}{\partial A_k(i, j)}\]</div>
-<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
+<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>,
 and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax.</p>
 <dl>
@@ -360,7 +320,7 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">GradCAM</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">GradCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -369,9 +329,8 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
 </ul>
 </dd>
 </dl>
@@ -379,7 +338,7 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 
 <dl class="py class">
 <dt id="torchcam.cams.GradCAMpp">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">GradCAMpp</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#GradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.GradCAMpp" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">GradCAMpp</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#GradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.GradCAMpp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1710.11063.pdf">“Grad-CAM++: Improved Visual Explanations for
 Deep Convolutional Networks”</a>.</p>
 <p>The localization map is computed as follows:</p>
@@ -389,7 +348,7 @@ Deep Convolutional Networks”</a>.</p>
 <div class="math notranslate nohighlight">
 \[w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot
 ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)\]</div>
-<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
+<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>,
 <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax,
 and <span class="math notranslate nohighlight">\(\alpha_k^{(c)}(i, j)\)</span> being defined as:</p>
@@ -404,7 +363,7 @@ and <span class="math notranslate nohighlight">\(\alpha_k^{(c)}(i, j)\)</span> b
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">GradCAMpp</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">GradCAMpp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -413,9 +372,8 @@ and <span class="math notranslate nohighlight">\(\alpha_k^{(c)}(i, j)\)</span> b
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
 </ul>
 </dd>
 </dl>
@@ -423,7 +381,7 @@ and <span class="math notranslate nohighlight">\(\alpha_k^{(c)}(i, j)\)</span> b
 
 <dl class="py class">
 <dt id="torchcam.cams.SmoothGradCAMpp">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">SmoothGradCAMpp</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">4</span></em>, <em class="sig-param"><span class="n">std</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.3</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#SmoothGradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.SmoothGradCAMpp" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">SmoothGradCAMpp</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span></em>, <em class="sig-param"><span class="n">conv_layer</span></em>, <em class="sig-param"><span class="n">first_layer</span></em>, <em class="sig-param"><span class="n">num_samples</span><span class="o">=</span><span class="default_value">4</span></em>, <em class="sig-param"><span class="n">std</span><span class="o">=</span><span class="default_value">0.3</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#SmoothGradCAMpp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.SmoothGradCAMpp" title="Permalink to this definition">¶</a></dt>
 <dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/1908.01224.pdf">“Smooth Grad-CAM++: An Enhanced Inference Level
 Visualization Technique for Deep Convolutional Neural Network Models”</a>
 with a personal correction to the paper (alpha coefficient numerator).</p>
@@ -434,7 +392,7 @@ with a personal correction to the paper (alpha coefficient numerator).</p>
 <div class="math notranslate nohighlight">
 \[w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot
 ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)\]</div>
-<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
+<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the last convolutional layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>,
 <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax,
 and <span class="math notranslate nohighlight">\(\alpha_k^{(c)}(i, j)\)</span> being defined as:</p>
@@ -455,8 +413,8 @@ which is actually <span class="math notranslate nohighlight">\(\frac{1}{n} \sum\
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">SmoothGradCAMpp</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">SmoothGradCAMpp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">SmoothGradCAMpp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">,</span> <span class="s1">&#39;conv1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span> <span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -465,49 +423,8 @@ which is actually <span class="math notranslate nohighlight">\(\frac{1}{n} \sum\
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>num_samples</strong> – number of samples to use for smoothing</p></li>
-<li><p><strong>std</strong> – standard deviation of the noise</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py class">
-<dt id="torchcam.cams.XGradCAM">
-<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">XGradCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#XGradCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.XGradCAM" title="Permalink to this definition">¶</a></dt>
-<dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/2008.02312.pdf">“Axiom-based Grad-CAM: Towards Accurate
-Visualization and Explanation of CNNs”</a>.</p>
-<p>The localization map is computed as follows:</p>
-<div class="math notranslate nohighlight">
-\[L^{(c)}_{XGrad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
-<p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
-<div class="math notranslate nohighlight">
-\[w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W
-\Big( \frac{\partial Y^{(c)}}{\partial A_k(i, j)} \cdot
-\frac{A_k(i, j)}{\sum\limits_{m=1}^H \sum\limits_{n=1}^W A_k(m, n)} \Big)\]</div>
-<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
-position <span class="math notranslate nohighlight">\((x, y)\)</span>,
-and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax.</p>
-<dl>
-<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">XGradCAM</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">XGradCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
-</pre></div>
-</div>
-</dd>
-</dl>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – name of the target layer</p></li>
-<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
+<li><p><strong>model</strong> (<em>torch.nn.Module</em>) – input model</p></li>
+<li><p><strong>conv_layer</strong> (<em>str</em>) – name of the last convolutional layer</p></li>
 </ul>
 </dd>
 </dl>
@@ -536,7 +453,7 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020-2021, François-Guillaume Fernandez
+        &copy; Copyright 2020, François-Guillaume Fernandez
 
     </p>
   </div>

@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.utils &mdash; torchcam 0.1.3a0+b75ae8f-git documentation</title>
+  <title>torchcam.utils &mdash; torchcam 0.1.1a0+a95d680-git documentation</title>
   
 
   
@@ -24,7 +24,6 @@
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
-        <script src="_static/js/custom.js"></script>
         <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
@@ -34,6 +33,7 @@
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato" type="text/css" />
   <link rel="stylesheet" href="_static/css/custom_theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -57,6 +57,13 @@
           
           </a>
 
+          
+            
+            
+              <div class="version">
+                0.1.1a0+a95d680
+              </div>
+            
           
 
           
@@ -163,19 +170,22 @@
 <h1>torchcam.utils<a class="headerlink" href="#torchcam-utils" title="Permalink to this headline">¶</a></h1>
 <dl class="py function">
 <dt id="torchcam.utils.overlay_mask">
-<code class="sig-prename descclassname">torchcam.utils.</code><code class="sig-name descname">overlay_mask</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span><span class="p">:</span> <span class="n">PIL.Image.Image</span></em>, <em class="sig-param"><span class="n">mask</span><span class="p">:</span> <span class="n">PIL.Image.Image</span></em>, <em class="sig-param"><span class="n">colormap</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'jet'</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.7</span></em><span class="sig-paren">)</span> &#x2192; PIL.Image.Image<a class="reference internal" href="_modules/torchcam/utils.html#overlay_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.utils.overlay_mask" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">torchcam.utils.</code><code class="sig-name descname">overlay_mask</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span></em>, <em class="sig-param"><span class="n">mask</span></em>, <em class="sig-param"><span class="n">colormap</span><span class="o">=</span><span class="default_value">'jet'</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="o">=</span><span class="default_value">0.7</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/utils.html#overlay_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.utils.overlay_mask" title="Permalink to this definition">¶</a></dt>
 <dd><p>Overlay a colormapped mask on a background image</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>img</strong> – background image</p></li>
-<li><p><strong>mask</strong> – mask to be overlayed in grayscale</p></li>
-<li><p><strong>colormap</strong> – colormap to be applied on the mask</p></li>
-<li><p><strong>alpha</strong> – transparency of the background image</p></li>
+<li><p><strong>img</strong> (<em>PIL.Image.Image</em>) – background image</p></li>
+<li><p><strong>mask</strong> (<em>PIL.Image.Image</em>) – mask to be overlayed in grayscale</p></li>
+<li><p><strong>colormap</strong> (<em>str</em><em>, </em><em>optional</em>) – colormap to be applied on the mask</p></li>
+<li><p><strong>alpha</strong> (<em>float</em><em>, </em><em>optional</em>) – transparency of the background image</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>overlayed image</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>PIL.Image.Image</p>
 </dd>
 </dl>
 </dd></dl>
@@ -200,7 +210,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2020-2021, François-Guillaume Fernandez
+        &copy; Copyright 2020, François-Guillaume Fernandez
 
     </p>
   </div>
