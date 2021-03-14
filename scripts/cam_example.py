@@ -32,6 +32,8 @@ def main(args):
     # Image
     if args.img.startswith('http'):
         img_path = BytesIO(requests.get(args.img).content)
+    else:
+        img_path = args.img
     pil_img = Image.open(img_path, mode='r').convert('RGB')
 
     # Preprocess image
