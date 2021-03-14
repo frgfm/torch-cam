@@ -12,16 +12,16 @@ import sphinx_rtd_theme
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../..'))
 import torchcam
 
 # -- Project information -----------------------------------------------------
 
 master_doc = 'index'
 project = 'torchcam'
-copyright = '2020, François-Guillaume Fernandez'
+copyright = '2020-2021, François-Guillaume Fernandez'
 author = 'François-Guillaume Fernandez'
 
 # The full version, including alpha/beta/rc tags
@@ -39,11 +39,7 @@ extensions = [
 	'sphinx.ext.napoleon',
 	'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
 ]
 
 napoleon_use_ivar = True
@@ -75,7 +71,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 #
 html_theme_options = {
     'collapse_navigation': False,
-    'display_version': True,
+    'display_version': False,
     'logo_only': False,
     'analytics_id': 'UA-148140560-4',
 }
@@ -86,9 +82,6 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-html_context = {
-    'css_files': [
-        'https://fonts.googleapis.com/css?family=Lato',
-        '_static/css/custom_theme.css'
-    ],
-}
+def setup(app):
+    app.add_css_file('css/custom_theme.css')
+    app.add_js_file('js/custom.js')

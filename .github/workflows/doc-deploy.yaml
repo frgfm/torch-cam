@@ -31,8 +31,7 @@ jobs:
           pip install -r docs/requirements.txt
 
       - name: Build documentation
-        run: |
-          sphinx-build docs/source docs/build -a
+        run: cd docs && bash build.sh
 
       - name: Install SSH Client 🔑
         uses: webfactory/ssh-agent@v0.4.1
