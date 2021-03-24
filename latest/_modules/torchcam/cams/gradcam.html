@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+f8e4dd2-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.1.3a0+b1c6100-git documentation</title>
   
 
   
@@ -189,8 +189,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="c1"># Model output is used by the extractor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># cf. https://github.com/pytorch/pytorch/pull/46163</span>
+        <span class="n">bw_hook</span> <span class="o">=</span> <span class="s1">&#39;register_full_backward_hook&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">__version__</span> <span class="o">&gt;=</span> <span class="s1">&#39;1.8.0&#39;</span> <span class="k">else</span> <span class="s1">&#39;register_backward_hook&#39;</span>
         <span class="c1"># Backward hook</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_backward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_g</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span><span class="p">],</span> <span class="n">bw_hook</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_g</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_hook_g</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Gradient hook&quot;&quot;&quot;</span>
