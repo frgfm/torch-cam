@@ -30,8 +30,10 @@ class _GradCAM(_CAM):
         self._relu = True
         # Model output is used by the extractor
         self._score_used = True
+        # cf. https://github.com/pytorch/pytorch/pull/46163
+        bw_hook = 'register_full_backward_hook' if torch.__version__ >= '1.8.0' else 'register_backward_hook'
         # Backward hook
-        self.hook_handles.append(self.submodule_dict[self.target_layer].register_backward_hook(self._hook_g))
+        self.hook_handles.append(getattr(self.submodule_dict[self.target_layer], bw_hook)(self._hook_g))
 
     def _hook_g(self, module: torch.nn.Module, input: Tensor, output: Tensor) -> None:
         """Gradient hook"""
