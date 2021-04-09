@@ -10,7 +10,7 @@ import subprocess
 
 from setuptools import find_packages, setup
 
-version = '0.1.3a0'
+version = '0.2.0a0'
 sha = 'Unknown'
 package_name = 'torchcam'
 
@@ -40,9 +40,9 @@ with open('README.md') as f:
     readme = f.read()
 
 requirements = [
-    'torch>=1.1.0',
+    'torch>=1.5.1',
     'numpy>=1.14.0',
-    'pillow>=5.0.0',
+    'pillow>=7.0.0',
     'matplotlib>=3.0.0'
 ]
 

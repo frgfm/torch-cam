@@ -19,7 +19,7 @@ requirements:
     - python>=3.6
 
   run:
-    - pytorch >=1.1.0
+    - pytorch >=1.5.1
     - numpy
     - pillow
     - matplotlib
