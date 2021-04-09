@@ -3,7 +3,7 @@
 Installation
 ************
 
-This library requires Python 3.6 or newer.
+This library requires Python 3.6 or higher.
 
 Via Python Package
 ==================

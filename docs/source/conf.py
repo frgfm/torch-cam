@@ -40,6 +40,7 @@ extensions = [
 	'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
+    'sphinxemoji.sphinxemoji',  # cf. https://sphinxemojicodes.readthedocs.io/en/stable/
 ]
 
 napoleon_use_ivar = True
