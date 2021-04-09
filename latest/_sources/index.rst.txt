@@ -23,10 +23,3 @@ The :mod:`torchcam` package gives PyTorch users the possibility to visualize the
 
 .. automodule:: torchcam
    :members:
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
