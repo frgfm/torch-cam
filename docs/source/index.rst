@@ -10,8 +10,8 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
 
 This project is meant for :
 
-* |:zap:| **for exploration**: easily assess the influence of spatial features on your model's outputs
-* |:woman_scientist:| **for research**: quickly implement your own ideas for new CAM methods
+* |:zap:| **exploration**: easily assess the influence of spatial features on your model's outputs
+* |:woman_scientist:| **research**: quickly implement your own ideas for new CAM methods
 
 
 .. toctree::
