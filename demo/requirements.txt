@@ -1,0 +1,3 @@
+torchcam
+streamlit>=0.65.0
+torchvision>=0.8.0
