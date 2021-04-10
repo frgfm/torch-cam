@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.2.1a0+0df80bf-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.2.1a0+d359d20-git documentation</title>
   
 
   
@@ -92,8 +92,9 @@
 <p><span class="caption-text">Package Documentation</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">torchcam.cams</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#cam">CAM</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#grad-cam">Grad-CAM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#class-activation-map">Class activation map</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#activation-based-methods">Activation-based methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gradient-based-methods">Gradient-based methods</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="utils.html">torchcam.utils</a></li>
@@ -163,8 +164,19 @@
             
   <section id="torchcam-cams">
 <h1>torchcam.cams<a class="headerlink" href="#torchcam-cams" title="Permalink to this headline">¶</a></h1>
-<section id="cam">
-<h2>CAM<a class="headerlink" href="#cam" title="Permalink to this headline">¶</a></h2>
+<section id="class-activation-map">
+<h2>Class activation map<a class="headerlink" href="#class-activation-map" title="Permalink to this headline">¶</a></h2>
+<p>The class activation map gives you the importance of each region of a feature map on a model’s output.
+More specifically, a class activation map is relative to:</p>
+<ul class="simple">
+<li><p>the layer at which it is computed (e.g. the N-th layer of your model)</p></li>
+<li><p>the model’s classification output (e.g. the raw logits of the model)</p></li>
+<li><p>the class index to focus on</p></li>
+</ul>
+<p>With TorchCAM, the target layer is selected when you create your CAM extractor. You will need to pass the model logits to the extractor and a class index for it to do its magic!</p>
+</section>
+<section id="activation-based-methods">
+<h2>Activation-based methods<a class="headerlink" href="#activation-based-methods" title="Permalink to this headline">¶</a></h2>
 <p>Methods related to activation-based class activation maps.</p>
 <dl class="py class">
 <dt id="torchcam.cams.CAM">
@@ -338,8 +350,8 @@ with a standard deviation of <span class="math notranslate nohighlight">\(\sigma
 </dd></dl>
 
 </section>
-<section id="grad-cam">
-<h2>Grad-CAM<a class="headerlink" href="#grad-cam" title="Permalink to this headline">¶</a></h2>
+<section id="gradient-based-methods">
+<h2>Gradient-based methods<a class="headerlink" href="#gradient-based-methods" title="Permalink to this headline">¶</a></h2>
 <p>Methods related to gradient-based class activation maps.</p>
 <dl class="py class">
 <dt id="torchcam.cams.GradCAM">
@@ -470,6 +482,44 @@ which is actually <span class="math notranslate nohighlight">\(\frac{1}{n} \sum\
 <li><p><strong>target_layer</strong> – name of the target layer</p></li>
 <li><p><strong>num_samples</strong> – number of samples to use for smoothing</p></li>
 <li><p><strong>std</strong> – standard deviation of the noise</p></li>
+<li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="torchcam.cams.XGradCAM">
+<em class="property">class </em><code class="sig-prename descclassname">torchcam.cams.</code><code class="sig-name descname">XGradCAM</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">model</span><span class="p">:</span> <span class="n">torch.nn.modules.module.Module</span></em>, <em class="sig-param"><span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">, </span><span class="p">…</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">(3, 224, 224)</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/cams/gradcam.html#XGradCAM"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.cams.XGradCAM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implements a class activation map extractor as described in <a class="reference external" href="https://arxiv.org/pdf/2008.02312.pdf">“Axiom-based Grad-CAM: Towards Accurate
+Visualization and Explanation of CNNs”</a>.</p>
+<p>The localization map is computed as follows:</p>
+<div class="math notranslate nohighlight">
+\[L^{(c)}_{XGrad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
+<p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
+<div class="math notranslate nohighlight">
+\[w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W
+\Big( \frac{\partial Y^{(c)}}{\partial A_k(i, j)} \cdot
+\frac{A_k(i, j)}{\sum\limits_{m=1}^H \sum\limits_{n=1}^W A_k(m, n)} \Big)\]</div>
+<p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
+position <span class="math notranslate nohighlight">\((x, y)\)</span>,
+and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax.</p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">XGradCAM</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">XGradCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – input model</p></li>
+<li><p><strong>target_layer</strong> – name of the target layer</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
 </ul>
 </dd>

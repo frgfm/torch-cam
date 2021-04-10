@@ -1,7 +1,18 @@
-Torchcam documentation
-=======================
+TorchCAM: class activation explorer
+===================================
 
-The :mod:`torchcam` package gives PyTorch users the possibility to visualize the spatial influence on classification outputs.
+TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs.
+
+
+.. image:: https://github.com/frgfm/torch-cam/releases/download/v0.1.2/base_snippet.png
+   :alt: code_snippet
+   :align: center
+
+This project is meant for :
+
+* |:zap:| **exploration**: easily assess the influence of spatial features on your model's outputs
+* |:woman_scientist:| **research**: quickly implement your own ideas for new CAM methods
+
 
 .. toctree::
    :maxdepth: 2
@@ -19,10 +30,3 @@ The :mod:`torchcam` package gives PyTorch users the possibility to visualize the
 
 .. automodule:: torchcam
    :members:
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`

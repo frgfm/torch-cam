@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Torchcam documentation &mdash; torchcam 0.2.1a0+0df80bf-git documentation</title>
+  <title>TorchCAM: class activation explorer &mdash; torchcam 0.2.1a0+d359d20-git documentation</title>
   
 
   
@@ -91,8 +91,9 @@
 <p><span class="caption-text">Package Documentation</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="cams.html">torchcam.cams</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="cams.html#cam">CAM</a></li>
-<li class="toctree-l2"><a class="reference internal" href="cams.html#grad-cam">Grad-CAM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cams.html#class-activation-map">Class activation map</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cams.html#activation-based-methods">Activation-based methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cams.html#gradient-based-methods">Gradient-based methods</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="utils.html">torchcam.utils</a></li>
@@ -141,7 +142,7 @@
     
       <li><a href="#">Docs</a> &raquo;</li>
         
-      <li>Torchcam documentation</li>
+      <li>TorchCAM: class activation explorer</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -160,9 +161,15 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <section id="torchcam-documentation">
-<h1>Torchcam documentation<a class="headerlink" href="#torchcam-documentation" title="Permalink to this headline">¶</a></h1>
-<p>The <a class="reference internal" href="#module-torchcam" title="torchcam"><code class="xref py py-mod docutils literal notranslate"><span class="pre">torchcam</span></code></a> package gives PyTorch users the possibility to visualize the spatial influence on classification outputs.</p>
+  <section id="torchcam-class-activation-explorer">
+<h1>TorchCAM: class activation explorer<a class="headerlink" href="#torchcam-class-activation-explorer" title="Permalink to this headline">¶</a></h1>
+<p>TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs.</p>
+<img alt="code_snippet" class="align-center" src="https://github.com/frgfm/torch-cam/releases/download/v0.1.2/base_snippet.png" />
+<p>This project is meant for :</p>
+<ul class="simple">
+<li><p>⚡ <strong>exploration</strong>: easily assess the influence of spatial features on your model’s outputs</p></li>
+<li><p>👩‍🔬 <strong>research</strong>: quickly implement your own ideas for new CAM methods</p></li>
+</ul>
 <div class="toctree-wrapper compound">
 <p><span class="caption-text">Getting Started</span></p>
 <ul>
@@ -182,13 +189,6 @@
 </ul>
 </div>
 <span class="target" id="module-torchcam"></span></section>
-<section id="indices-and-tables">
-<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
-<ul class="simple">
-<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
-<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
-</ul>
-</section>
 
 
            </div>
