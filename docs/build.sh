@@ -34,5 +34,6 @@ git fetch --all --tags --unshallow
 deploy_doc "" latest
 deploy_doc "7be0b4f" v0.1.0
 deploy_doc "a95d680" v0.1.1
-deploy_doc "521b4f9" # v0.1.2 Latest stable release
+deploy_doc "521b4f9" v0.1.2
+deploy_doc "eb9427e" # v0.2.0 Latest stable release
 rm -rf _build _static _conf.py
