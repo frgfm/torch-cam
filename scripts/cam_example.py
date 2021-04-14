@@ -56,12 +56,15 @@ def main(args):
     for extractor in cam_extractors:
         extractor._hooks_enabled = False
 
-    # Max 6 images per row
-    num_rows = math.ceil(len(cam_extractors) / 6)
     # Homogenize number of elements in each row
-    num_cols = math.ceil(len(cam_extractors) / num_rows)
-    _, axes = plt.subplots(num_rows, num_cols, figsize=(6, 4))
-    for idx, extractor in enumerate(cam_extractors):
+    num_cols = math.ceil((len(cam_extractors) + 1) / args.rows)
+    _, axes = plt.subplots(args.rows, num_cols, figsize=(6, 4))
+    # Display input
+    ax = axes[0][0] if args.rows > 1 else axes[0] if num_cols > 1 else axes
+    ax.imshow(pil_img)
+    ax.set_title("Input", size=8)
+
+    for idx, extractor in zip(range(1, len(cam_extractors) + 1), cam_extractors):
         extractor._hooks_enabled = True
         model.zero_grad()
         scores = model(img_tensor.unsqueeze(0))
@@ -81,12 +84,22 @@ def main(args):
         # Plot the result
         result = overlay_mask(pil_img, heatmap, alpha=args.alpha)
 
-        ax = axes[idx // num_cols][idx % num_cols] if num_rows > 1 else axes[idx] if num_cols > 1 else axes
+        ax = axes[idx // num_cols][idx % num_cols] if args.rows > 1 else axes[idx] if num_cols > 1 else axes
 
         ax.imshow(result)
         ax.set_title(extractor.__class__.__name__, size=8)
-        # Clear axes
-        ax.axis('off')
+
+    # Clear axes
+    if num_cols > 1:
+        for _axes in axes:
+            if args.rows > 1:
+                for ax in _axes:
+                    ax.axis('off')
+            else:
+                _axes.axis('off')
+
+    else:
+        axes.axis('off')
 
     plt.tight_layout()
     if args.savefig:
@@ -106,6 +119,7 @@ if __name__ == '__main__':
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
     parser.add_argument("--method", type=str, default=None, help="CAM method to use")
     parser.add_argument("--alpha", type=float, default=0.7, help="Transparency of the heatmap")
+    parser.add_argument("--rows", type=int, default=1, help="Number of rows for the layout")
     args = parser.parse_args()
 
     main(args)
