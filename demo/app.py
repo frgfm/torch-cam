@@ -1,3 +1,4 @@
+import requests
 import streamlit as st
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -11,6 +12,9 @@ from torchcam.utils import overlay_mask
 
 CAM_METHODS = ["CAM", "GradCAM", "GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "SSCAM", "ISCAM", "XGradCAM"]
 TV_MODELS = ["resnet18", "resnet50", "mobilenet_v2", "mobilenet_v3_small", "mobilenet_v3_large"]
+LABEL_MAP = requests.get(
+    "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
+).json()
 
 
 def main():
@@ -41,21 +45,24 @@ def main():
         cols[0].image(img, use_column_width=True)
 
     # Model selection
-    st.sidebar.title("Model selection")
+    st.sidebar.title("Setup")
     tv_model = st.sidebar.selectbox("Classification model", TV_MODELS)
-    target_layer = st.sidebar.text_input("Target layer", "")
-
-    st.sidebar.title("Method selection")
-    cam_method = st.sidebar.selectbox("CAM method", CAM_METHODS)
-
+    default_layer = ""
     if tv_model is not None:
         with st.spinner('Loading model...'):
             model = models.__dict__[tv_model](pretrained=True).eval()
+        default_layer = cams.utils.locate_candidate_layer(model, (3, 224, 224))
 
+    target_layer = st.sidebar.text_input("Target layer", default_layer)
+    cam_method = st.sidebar.selectbox("CAM method", CAM_METHODS)
+    if cam_method is not None:
         cam_extractor = cams.__dict__[cam_method](
             model,
             target_layer=target_layer if len(target_layer) > 0 else None
         )
+
+    class_choices = [f"{idx + 1} - {class_name}" for idx, class_name in enumerate(LABEL_MAP)]
+    class_selection = st.sidebar.selectbox("Class selection", ["Predicted class (argmax)"] + class_choices)
 
     # For newline
     st.sidebar.write('\n')
@@ -63,7 +70,7 @@ def main():
     if st.sidebar.button("Compute CAM"):
 
         if uploaded_file is None:
-            st.sidebar.write("Please upload an image")
+            st.sidebar.error("Please upload an image first")
 
         else:
             with st.spinner('Analyzing...'):
@@ -73,8 +80,13 @@ def main():
 
                 # Forward the image to the model
                 out = model(img_tensor.unsqueeze(0))
+                # Select the target class
+                if class_selection == "Predicted class (argmax)":
+                    class_idx = out.squeeze(0).argmax().item()
+                else:
+                    class_idx = LABEL_MAP.index(class_selection.rpartition(" - ")[-1])
                 # Retrieve the CAM
-                activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
+                activation_map = cam_extractor(class_idx, out)
                 # Plot the raw heatmap
                 fig, ax = plt.subplots()
                 ax.imshow(activation_map.numpy())

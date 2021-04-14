@@ -144,7 +144,7 @@ You can then easily run your app in your default browser by running:
 streamlit run demo/app.py
 ```
 
-![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/torchcam_demo.png)
+![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/torchcam_demo.png)
 
 ### Example script
 
