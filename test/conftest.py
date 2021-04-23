@@ -57,3 +57,17 @@ def mock_img_model():
         nn.Flatten(1),
         nn.Linear(16, 1)
     )
+
+@pytest.fixture(scope="session")
+def mock_fullyconv_model():
+    return nn.Sequential(
+        nn.Sequential(
+            nn.Conv2d(3, 8, 3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(8, 16, 3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1))
+        ),
+        nn.Conv2d(16, 1, 1),
+        nn.Flatten(1)
+    )
