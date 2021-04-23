@@ -36,6 +36,7 @@ def test_img_cams(cam_name, target_layer, num_samples, output_size, mock_img_ten
         # Use the hooked data to compute activation map
         _verify_cam(extractor(scores[0].argmax().item(), scores), output_size)
 
+
 def test_cam_conv1x1(mock_fullyconv_model):
     extractor = cam.CAM(mock_fullyconv_model, fc_layer='1')
     with torch.no_grad():

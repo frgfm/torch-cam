@@ -58,6 +58,7 @@ def mock_img_model():
         nn.Linear(16, 1)
     )
 
+
 @pytest.fixture(scope="session")
 def mock_fullyconv_model():
     return nn.Sequential(
