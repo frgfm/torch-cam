@@ -60,8 +60,8 @@ class CAM(_CAM):
                 logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_layer}'.")
             else:
                 raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
-        # Softmax weight
-        self._fc_weights = self.submodule_dict[fc_layer].weight.data
+        # Softmax weight (squeeze to accomodate replacement by Conv1x1)
+        self._fc_weights = self.submodule_dict[fc_layer].weight.data.squeeze()
 
     def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
         """Computes the weight coefficients of the hooked activation maps"""
