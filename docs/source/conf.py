@@ -1,3 +1,8 @@
+# Copyright (C) 2020-2021, François-Guillaume Fernandez.
+
+# This program is licensed under the Apache License version 2.
+# See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
