@@ -1,13 +1,13 @@
 name: demo
 
 on:
-  workflow_run:
-    workflows: ["builds"]
-    types: [completed]
+  push:
+    branches: master
+  pull_request:
+    branches: master
 
 jobs:
   cam-example:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
