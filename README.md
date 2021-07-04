@@ -165,7 +165,7 @@ If you wish to cite this project, feel free to use this [BibTeX](http://www.bibt
 
 ```bibtex
 @misc{torcham2020,
-    title={DocTR: Document Text Recognition},
+    title={TorchCAM: class activation explorer},
     author={François-Guillaume Fernandez},
     year={2020},
     month={March},
