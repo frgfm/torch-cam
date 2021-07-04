@@ -25,8 +25,9 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('**/*.py') }}
+          key: ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('scripts/requirements.txt') }}-${{ hashFiles('**/*.py') }}
           restore-keys: |
+            ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('scripts/requirements.txt') }}-
             ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-
             ${{ runner.os }}-pkg-deps-${{ matrix.python }}-
             ${{ runner.os }}-pkg-deps-
@@ -35,6 +36,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e . --upgrade
+          pip install -r scripts/requirements.txt
 
       - name: Run analysis script
         run: python scripts/cam_example.py --model resnet18 --class-idx 232 --noblock
