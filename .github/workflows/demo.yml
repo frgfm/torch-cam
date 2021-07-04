@@ -41,4 +41,4 @@ jobs:
       - name: Run demo app
         run: |
           screen -dm streamlit run demo/app.py --server.port 8080
-          sleep 5 && nc -vz localhost 8080
+          sleep 10 && nc -vz localhost 8080
