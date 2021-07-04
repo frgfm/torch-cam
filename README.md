@@ -5,7 +5,7 @@
 
 Simple way to leverage the class-specific activation of convolutional layers in PyTorch.
 
-![gradcam_sample](static/images/cam_example.png)
+![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example.png)
 
 
 
@@ -154,7 +154,7 @@ An example script is provided for you to benchmark the heatmaps produced by mult
 python scripts/cam_example.py --model resnet18 --class-idx 232
 ```
 
-![gradcam_sample](static/images/cam_example.png)
+![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example.png)
 
 All script arguments can be checked using `python scripts/cam_example.py --help`
 
