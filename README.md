@@ -159,6 +159,22 @@ python scripts/cam_example.py --model resnet18 --class-idx 232
 All script arguments can be checked using `python scripts/cam_example.py --help`
 
 
+## Citation
+
+If you wish to cite this project, feel free to use this [BibTeX](http://www.bibtex.org/) reference:
+
+```bibtex
+@misc{torcham2020,
+    title={DocTR: Document Text Recognition},
+    author={François-Guillaume Fernandez},
+    year={2020},
+    month={March},
+    publisher = {GitHub},
+    howpublished = {\url{https://github.com/frgfm/torch-cam}}
+}
+```
+
+
 
 ## Contributing
 
