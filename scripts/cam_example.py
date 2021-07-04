@@ -107,7 +107,7 @@ def main(args):
     plt.tight_layout()
     if args.savefig:
         plt.savefig(args.savefig, dpi=200, transparent=True, bbox_inches='tight', pad_inches=0)
-    plt.show()
+    plt.show(block=not args.noblock)
 
 
 if __name__ == '__main__':
@@ -123,6 +123,7 @@ if __name__ == '__main__':
     parser.add_argument("--method", type=str, default=None, help="CAM method to use")
     parser.add_argument("--alpha", type=float, default=0.7, help="Transparency of the heatmap")
     parser.add_argument("--rows", type=int, default=1, help="Number of rows for the layout")
+    parser.add_argument("--noblock", dest="noblock", help="Disables blocking visualization", action="store_true")
     args = parser.parse_args()
 
     main(args)
