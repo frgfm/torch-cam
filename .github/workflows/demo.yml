@@ -7,7 +7,7 @@ on:
     branches: master
 
 jobs:
-  cam-example:
+  streamlit:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
