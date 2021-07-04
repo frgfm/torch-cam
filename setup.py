@@ -44,7 +44,7 @@ with open('README.md') as f:
 requirements = [
     'torch>=1.5.1',
     'numpy>=1.14.0',
-    'pillow>=7.0.0',
+    'pillow>=7.0.0,<8.3.0',
     'matplotlib>=3.0.0'
 ]
 

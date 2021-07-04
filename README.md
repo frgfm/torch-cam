@@ -1,11 +1,11 @@
 
 # TorchCAM: class activation explorer
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/25324db1064a4d52b3f44d657c430973)](https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade)  ![Build Status](https://github.com/frgfm/torch-cam/workflows/python-package/badge.svg) [![codecov](https://codecov.io/gh/frgfm/torch-cam/branch/master/graph/badge.svg)](https://codecov.io/gh/frgfm/torch-cam) [![Docs](https://img.shields.io/badge/docs-available-blue.svg)](https://frgfm.github.io/torch-cam)  [![Pypi](https://img.shields.io/badge/pypi-v0.2.0-blue.svg)](https://pypi.org/project/torchcam/) 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/25324db1064a4d52b3f44d657c430973)](https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade)  ![Build Status](https://github.com/frgfm/torch-cam/workflows/tests/badge.svg) [![codecov](https://codecov.io/gh/frgfm/torch-cam/branch/master/graph/badge.svg)](https://codecov.io/gh/frgfm/torch-cam) [![Docs](https://img.shields.io/badge/docs-available-blue.svg)](https://frgfm.github.io/torch-cam)  [![Pypi](https://img.shields.io/badge/pypi-v0.2.0-blue.svg)](https://pypi.org/project/torchcam/) 
 
 Simple way to leverage the class-specific activation of convolutional layers in PyTorch.
 
-![gradcam_sample](static/images/cam_example.png)
+![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example.png)
 
 
 
@@ -154,9 +154,25 @@ An example script is provided for you to benchmark the heatmaps produced by mult
 python scripts/cam_example.py --model resnet18 --class-idx 232
 ```
 
-![gradcam_sample](static/images/cam_example.png)
+![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example.png)
 
 All script arguments can be checked using `python scripts/cam_example.py --help`
+
+
+## Citation
+
+If you wish to cite this project, feel free to use this [BibTeX](http://www.bibtex.org/) reference:
+
+```bibtex
+@misc{torcham2020,
+    title={TorchCAM: class activation explorer},
+    author={François-Guillaume Fernandez},
+    year={2020},
+    month={March},
+    publisher = {GitHub},
+    howpublished = {\url{https://github.com/frgfm/torch-cam}}
+}
+```
 
 
 

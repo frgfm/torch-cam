@@ -25,13 +25,13 @@ As a contributor, you will only have to ensure coverage of your code by adding a
 
 
 
-## Issues
+## Issues
 
 Use Github [issues](https://github.com/frgfm/torch-cam/issues) for feature requests, or bug reporting. When doing so, use issue templates whenever possible and provide enough information for other contributors to jump in.
 
 
 
-## Developping torchcam
+## Developping torchcam
 
 
 ### Commits

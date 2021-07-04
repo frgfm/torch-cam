@@ -1,11 +1,10 @@
-name: pypi-publish
+name: release
 
 on:
   release:
-    types: [published, edited]
+    types: [published]
 
 jobs:
-
   pypi-publish:
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: pypi-publish
     steps:
+      - uses: actions/checkout@v2
       - name: Set up Python 3.7
         uses: actions/setup-python@v1
         with:
