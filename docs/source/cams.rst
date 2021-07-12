@@ -43,3 +43,5 @@ Methods related to gradient-based class activation maps.
 .. autoclass:: SmoothGradCAMpp
 
 .. autoclass:: XGradCAM
+
+.. autoclass:: LayerCAM
