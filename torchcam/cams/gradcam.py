@@ -341,12 +341,12 @@ class LayerCAM(_GradCAM):
     The localization map is computed as follows:
 
     .. math::
-        L^{(c)}_{Layer-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+        L^{(c)}_{Layer-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)}(x, y) \\cdot A_k(x, y)\\Big)
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient :math:`w_k^{(c)}(x, y)` being defined as:
 
     .. math::
-        w_k^{(c)} = ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)
+        w_k^{(c)}(x, y) = ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}(x, y)\\Big)
 
     where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`,
