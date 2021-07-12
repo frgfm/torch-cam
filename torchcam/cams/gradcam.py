@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 
 from .core import _CAM
 
-__all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp', 'XGradCAM']
+__all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp', 'XGradCAM', 'LayerCAM']
 
 
 class _GradCAM(_CAM):
@@ -278,11 +278,11 @@ class SmoothGradCAMpp(_GradCAM):
         grad_2.div_(self.num_samples)
         grad_3.div_(self.num_samples)
 
-        # Alpha coefficient for each pixel
+        # Alpha coefficient for each pixel
         spatial_dims = self.hook_a.ndim - 2
         alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims])
 
-        # Apply pixel coefficient in each weight
+        # Apply pixel coefficient in each weight
         return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
 
     def extra_repr(self) -> str:
@@ -332,3 +332,45 @@ class XGradCAM(_GradCAM):
         self._backprop(scores, class_idx)
 
         return (self.hook_g * self.hook_a).squeeze(0).flatten(1).sum(-1) / self.hook_a.squeeze(0).flatten(1).sum(-1)
+
+
+class LayerCAM(_GradCAM):
+    """Implements a class activation map extractor as described in `"LayerCAM: Exploring Hierarchical Class Activation
+    Maps for Localization" <http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf>`_.
+
+    The localization map is computed as follows:
+
+    .. math::
+        L^{(c)}_{Layer-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)}(x, y) \\cdot A_k(x, y)\\Big)
+
+    with the coefficient :math:`w_k^{(c)}(x, y)` being defined as:
+
+    .. math::
+        w_k^{(c)}(x, y) = ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}(x, y)\\Big)
+
+    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
+    position :math:`(x, y)`,
+    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
+
+    Example::
+        >>> from torchvision.models import resnet18
+        >>> from torchcam.cams import LayerCAM
+        >>> model = resnet18(pretrained=True).eval()
+        >>> cam = LayerCAM(model, 'layer4')
+        >>> scores = model(input_tensor)
+        >>> cam(class_idx=100, scores=scores)
+
+    Args:
+        model: input model
+        target_layer: name of the target layer
+        input_shape: shape of the expected input tensor excluding the batch dimension
+    """
+
+    def _get_weights(self, class_idx: int, scores: Tensor) -> Tensor:  # type: ignore[override]
+        """Computes the weight coefficients of the hooked activation maps"""
+
+        self.hook_g: Tensor
+        # Backpropagate
+        self._backprop(scores, class_idx)
+
+        return torch.relu(self.hook_g).squeeze(0)

@@ -50,7 +50,7 @@ def main(args):
             'CAM',
             'GradCAM', 'GradCAMpp', 'SmoothGradCAMpp',
             'ScoreCAM', 'SSCAM', 'ISCAM',
-            'XGradCAM',
+            'XGradCAM', 'LayerCAM'
         ]
     # Hook the corresponding layer in the model
     cam_extractors = [cams.__dict__[name](model) for name in methods]
