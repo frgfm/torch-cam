@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.2.1a0+56f9949-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.2.1a0+0eb3300-git documentation</title>
   
 
   
@@ -169,7 +169,7 @@
 
 <span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;GradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;SmoothGradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;XGradCAM&#39;</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;GradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;SmoothGradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;XGradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;LayerCAM&#39;</span><span class="p">]</span>
 
 
 <span class="k">class</span> <span class="nc">_GradCAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
@@ -438,11 +438,11 @@
         <span class="n">grad_2</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">)</span>
         <span class="n">grad_3</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">)</span>
 
-        <span class="c1"># Alpha coefficient for each pixel</span>
+        <span class="c1"># Alpha coefficient for each pixel</span>
         <span class="n">spatial_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span>
         <span class="n">alpha</span> <span class="o">=</span> <span class="n">grad_2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">grad_2</span> <span class="o">+</span> <span class="p">(</span><span class="n">grad_3</span> <span class="o">*</span> <span class="n">init_fmap</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[(</span><span class="o">...</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">spatial_dims</span><span class="p">])</span>
 
-        <span class="c1"># Apply pixel coefficient in each weight</span>
+        <span class="c1"># Apply pixel coefficient in each weight</span>
         <span class="k">return</span> <span class="n">alpha</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -492,6 +492,48 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LayerCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.LayerCAM">[docs]</a><span class="k">class</span> <span class="nc">LayerCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;LayerCAM: Exploring Hierarchical Class Activation</span>
+<span class="sd">    Maps for Localization&quot; &lt;http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf&gt;`_.</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{Layer-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)}(x, y) \\cdot A_k(x, y)\\Big)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}(x, y)` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)}(x, y) = ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}(x, y)\\Big)</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.cams import LayerCAM</span>
+<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">        &gt;&gt;&gt; cam = LayerCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">:</span> <span class="n">Tensor</span>
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
 </pre></div>
 
            </div>
