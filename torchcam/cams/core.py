@@ -123,7 +123,8 @@ class _CAM:
 
         # Get map weight & unsqueeze it
         weights = self._get_weights(class_idx, scores)
-        weights = weights[(...,) + (None,) * (self.hook_a.ndim - weights.ndim - 1)]  # type: ignore[operator, union-attr]
+        missing_dims = self.hook_a.ndim - weights.ndim - 1  # type: ignore[union-attr]
+        weights = weights[(...,) + (None,) * missing_dims]
 
         # Perform the weighted combination to get the CAM
         batch_cams = torch.nansum(weights * self.hook_a.squeeze(0), dim=0)  # type: ignore[union-attr]
