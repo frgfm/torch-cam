@@ -119,6 +119,7 @@ This project is developed and maintained by the repo owner, but the implementati
 - [SS-CAM](https://arxiv.org/abs/2006.14255): SmoothGrad mechanism coupled with Score-CAM.
 - [IS-CAM](https://arxiv.org/abs/2010.03023): integration-based variant of Score-CAM.
 - [XGrad-CAM](https://arxiv.org/abs/2008.02312): improved version of Grad-CAM in terms of sensitivity and conservation.
+- [Layer-CAM](http://mftp.mmcheng.net/Papers/21TIP_LayerCAM.pdf): Grad-CAM alternative leveraging pixel-wise contribution of the gradient to the activation.
 
 
 
