@@ -27,10 +27,19 @@ Steps to reproduce the behavior:
 
 ## Environment
 
-Please describe your environement so that the bug can be easily reproduced:
+Please copy and paste the output from our
+[environment collection script](https://raw.githubusercontent.com/frgfm/torch-cam/master/scripts/collect_env.py)
+(or fill out the checklist below manually).
+
+You can get the script and run it with:
+```
+wget https://raw.githubusercontent.com/frgfm/torch-cam/master/scripts/collect_env.py
+# For security purposes, please check the contents of collect_env.py before running it.
+python collect_env.py
+```
 
  - Torchcam Version (e.g., 0.1.1):
- - PyTorch Version (e.g., 1.7):
+ - PyTorch Version (e.g., 1.8.0):
  - OS (e.g., Linux):
  - How you installed Torchcam (`conda`, `pip`, source):
  - Python version:
