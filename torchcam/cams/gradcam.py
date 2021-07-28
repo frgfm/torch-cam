@@ -5,7 +5,7 @@
 
 import torch
 from torch import Tensor
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 from .core import _CAM
 
@@ -26,9 +26,10 @@ class _GradCAM(_CAM):
         model: torch.nn.Module,
         target_layer: Optional[str] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
+        **kwargs: Any,
     ) -> None:
 
-        super().__init__(model, target_layer, input_shape)
+        super().__init__(model, target_layer, input_shape, **kwargs)
         # Init hook
         self.hook_g: Optional[Tensor] = None
         # Ensure ReLU is applied before normalization
@@ -44,7 +45,8 @@ class _GradCAM(_CAM):
 
     def _hook_g(self, module: torch.nn.Module, input: Tensor, output: Tensor) -> None:
         """Gradient hook"""
-        output.register_hook(self._store_grad)
+        if self._hooks_enabled:
+            self.hook_handles.append(output.register_hook(self._store_grad))
 
     def _backprop(self, scores: Tensor, class_idx: int) -> None:
         """Backpropagate the loss for a specific output class"""
@@ -227,9 +229,10 @@ class SmoothGradCAMpp(_GradCAM):
         num_samples: int = 4,
         std: float = 0.3,
         input_shape: Tuple[int, ...] = (3, 224, 224),
+        **kwargs: Any,
     ) -> None:
 
-        super().__init__(model, target_layer, input_shape)
+        super().__init__(model, target_layer, input_shape, **kwargs)
         # Model scores is not used by the extractor
         self._score_used = False
 

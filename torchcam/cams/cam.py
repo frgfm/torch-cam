@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 from .core import _CAM
 from .utils import locate_linear_layer
@@ -53,9 +53,10 @@ class CAM(_CAM):
         target_layer: Optional[str] = None,
         fc_layer: Optional[str] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
+        **kwargs: Any,
     ) -> None:
 
-        super().__init__(model, target_layer, input_shape)
+        super().__init__(model, target_layer, input_shape, **kwargs)
 
         # If the layer is not specified, try automatic resolution
         if fc_layer is None:
@@ -124,9 +125,10 @@ class ScoreCAM(_CAM):
         target_layer: Optional[str] = None,
         batch_size: int = 32,
         input_shape: Tuple[int, ...] = (3, 224, 224),
+        **kwargs: Any,
     ) -> None:
 
-        super().__init__(model, target_layer, input_shape)
+        super().__init__(model, target_layer, input_shape, **kwargs)
 
         # Input hook
         self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
@@ -237,9 +239,10 @@ class SSCAM(ScoreCAM):
         num_samples: int = 35,
         std: float = 2.0,
         input_shape: Tuple[int, ...] = (3, 224, 224),
+        **kwargs: Any,
     ) -> None:
 
-        super().__init__(model, target_layer, batch_size, input_shape)
+        super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
         self.num_samples = num_samples
         self.std = std
@@ -347,9 +350,10 @@ class ISCAM(ScoreCAM):
         batch_size: int = 32,
         num_samples: int = 10,
         input_shape: Tuple[int, ...] = (3, 224, 224),
+        **kwargs: Any,
     ) -> None:
 
-        super().__init__(model, target_layer, batch_size, input_shape)
+        super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
         self.num_samples = num_samples
 
