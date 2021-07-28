@@ -22,6 +22,7 @@ class _CAM:
         model: input model
         target_layer: name of the target layer
         input_shape: shape of the expected input tensor excluding the batch dimension
+        enable_hooks: should hooks be enabled by default
     """
 
     def __init__(
@@ -29,6 +30,7 @@ class _CAM:
         model: nn.Module,
         target_layer: Optional[str] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
+        enable_hooks: bool = True,
     ) -> None:
 
         # Obtain a mapping from module name to module instance for each layer in the model
@@ -53,7 +55,7 @@ class _CAM:
         # Forward hook
         self.hook_handles.append(self.submodule_dict[target_layer].register_forward_hook(self._hook_a))
         # Enable hooks
-        self._hooks_enabled = True
+        self._hooks_enabled = enable_hooks
         # Should ReLU be used before normalization
         self._relu = False
         # Model output is used by the extractor

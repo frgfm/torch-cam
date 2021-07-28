@@ -53,11 +53,7 @@ def main(args):
             'XGradCAM', 'LayerCAM'
         ]
     # Hook the corresponding layer in the model
-    cam_extractors = [cams.__dict__[name](model) for name in methods]
-
-    # Don't trigger all hooks
-    for extractor in cam_extractors:
-        extractor._hooks_enabled = False
+    cam_extractors = [cams.__dict__[name](model, enable_hooks=False) for name in methods]
 
     # Homogenize number of elements in each row
     num_cols = math.ceil((len(cam_extractors) + 1) / args.rows)
@@ -121,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument("--device", type=str, default=None, help='Default device to perform computation on')
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
     parser.add_argument("--method", type=str, default=None, help="CAM method to use")
-    parser.add_argument("--alpha", type=float, default=0.7, help="Transparency of the heatmap")
+    parser.add_argument("--alpha", type=float, default=0.5, help="Transparency of the heatmap")
     parser.add_argument("--rows", type=int, default=1, help="Number of rows for the layout")
     parser.add_argument("--noblock", dest="noblock", help="Disables blocking visualization", action="store_true")
     args = parser.parse_args()

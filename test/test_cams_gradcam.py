@@ -5,6 +5,7 @@
 
 import pytest
 import torch
+from torch import nn
 from torchvision.models import mobilenet_v2
 
 from torchcam.cams import gradcam
@@ -36,6 +37,23 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
     scores = model(mock_img_tensor)
     # Use the hooked data to compute activation map
     _verify_cam(extractor(scores[0].argmax().item(), scores), output_size)
+
+    # Inplace model
+    model = nn.Sequential(
+        nn.Conv2d(3, 8, 3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(8, 8, 3, padding=1),
+        nn.ReLU(inplace=True),
+        nn.AdaptiveAvgPool2d((1, 1)),
+        nn.Flatten(1),
+        nn.Linear(8, 10)
+    )
+
+    # Hook before the inplace ops
+    extractor = gradcam.__dict__[cam_name](model, '2')
+    scores = model(mock_img_tensor)
+    # Use the hooked data to compute activation map
+    _verify_cam(extractor(scores[0].argmax().item(), scores), (224, 224))
 
 
 @pytest.mark.parametrize(
