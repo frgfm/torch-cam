@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.gradcam &mdash; torchcam 0.2.1a0+9c94bd4-git documentation</title>
+  <title>torchcam.cams.gradcam &mdash; torchcam 0.2.1a0+2769630-git documentation</title>
   
 
   
@@ -165,7 +165,7 @@
 
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span>
 
 <span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
 
@@ -186,24 +186,27 @@
         <span class="n">model</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
         <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="c1"># Init hook</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Ensure ReLU is applied before normalization</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="c1"># Model output is used by the extractor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="c1"># cf. https://github.com/pytorch/pytorch/pull/46163</span>
-        <span class="n">bw_hook</span> <span class="o">=</span> <span class="s1">&#39;register_full_backward_hook&#39;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">__version__</span> <span class="o">&gt;=</span> <span class="s1">&#39;1.8.0&#39;</span> <span class="k">else</span> <span class="s1">&#39;register_backward_hook&#39;</span>
-        <span class="c1"># Backward hook</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span><span class="p">],</span> <span class="n">bw_hook</span><span class="p">)(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_g</span><span class="p">))</span>
+        <span class="c1"># Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">target_layer</span><span class="p">]</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_g</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_store_grad</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grad</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span> <span class="o">=</span> <span class="n">grad</span><span class="o">.</span><span class="n">data</span>
 
     <span class="k">def</span> <span class="nf">_hook_g</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Gradient hook&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_grad</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">_backprop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="sd">&quot;&quot;&quot;Backpropagate the loss for a specific output class&quot;&quot;&quot;</span>
@@ -386,9 +389,10 @@
         <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
         <span class="n">std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span>
         <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="c1"># Model scores is not used by the extractor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">False</span>
 
