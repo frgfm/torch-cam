@@ -53,11 +53,7 @@ def main(args):
             'XGradCAM', 'LayerCAM'
         ]
     # Hook the corresponding layer in the model
-    cam_extractors = [cams.__dict__[name](model) for name in methods]
-
-    # Don't trigger all hooks
-    for extractor in cam_extractors:
-        extractor._hooks_enabled = False
+    cam_extractors = [cams.__dict__[name](model, enable_hooks=False) for name in methods]
 
     # Homogenize number of elements in each row
     num_cols = math.ceil((len(cam_extractors) + 1) / args.rows)
