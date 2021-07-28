@@ -35,15 +35,16 @@ class _GradCAM(_CAM):
         self._relu = True
         # Model output is used by the extractor
         self._score_used = True
-        # cf. https://github.com/pytorch/pytorch/pull/46163
-        bw_hook = 'register_full_backward_hook' if torch.__version__ >= '1.8.0' else 'register_backward_hook'
-        # Backward hook
-        self.hook_handles.append(getattr(self.submodule_dict[self.target_layer], bw_hook)(self._hook_g))
+        # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
+        self.hook_handles.append(self.submodule_dict[self.target_layer].register_forward_hook(self._hook_g))
+
+    def _store_grad(self, grad: Tensor) -> None:
+        if self._hooks_enabled:
+            self.hook_g = grad.data
 
     def _hook_g(self, module: torch.nn.Module, input: Tensor, output: Tensor) -> None:
         """Gradient hook"""
-        if self._hooks_enabled:
-            self.hook_g = output[0].data
+        output.register_hook(self._store_grad)
 
     def _backprop(self, scores: Tensor, class_idx: int) -> None:
         """Backpropagate the loss for a specific output class"""
