@@ -9,7 +9,7 @@ from typing import Optional, Tuple, Any
 
 from .core import _CAM
 
-__all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp', 'XGradCAM', 'LayerCAM']
+__all__ = ["GradCAM", "GradCAMpp", "SmoothGradCAMpp", "XGradCAM", "LayerCAM"]
 
 
 class _GradCAM(_CAM):
@@ -37,7 +37,7 @@ class _GradCAM(_CAM):
         # Model output is used by the extractor
         self._score_used = True
         # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
-        self.hook_handles.append(self.submodule_dict[self.target_layer].register_forward_hook(self._hook_g))
+        self.hook_handles.append(self.target_layer.register_forward_hook(self._hook_g))
 
     def _store_grad(self, grad: Tensor) -> None:
         if self._hooks_enabled:
@@ -52,7 +52,9 @@ class _GradCAM(_CAM):
         """Backpropagate the loss for a specific output class"""
 
         if self.hook_a is None:
-            raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
+            raise TypeError(
+                "Inputs need to be forwarded in the model for the conv features to be hooked"
+            )
 
         # Backpropagate to get the gradients on the hooked layer
         loss = scores[:, class_idx].sum()
@@ -155,18 +157,26 @@ class GradCAMpp(_GradCAM):
         self.hook_g: Tensor
         # Backpropagate
         self._backprop(scores, class_idx)
-        # Alpha coefficient for each pixel
+        #  Alpha coefficient for each pixel
         grad_2 = self.hook_g.pow(2)
         grad_3 = grad_2 * self.hook_g
         # Watch out for NaNs produced by underflow
         spatial_dims = self.hook_a.ndim - 2  # type: ignore[union-attr]
-        denom = 2 * grad_2 + (grad_3 * self.hook_a).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims]
+        denom = (
+            2 * grad_2
+            + (grad_3 * self.hook_a).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims]
+        )
         nan_mask = grad_2 > 0
         alpha = grad_2
         alpha[nan_mask].div_(denom[nan_mask])
 
-        # Apply pixel coefficient in each weight
-        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
+        #  Apply pixel coefficient in each weight
+        return (
+            alpha.squeeze_(0)
+            .mul_(torch.relu(self.hook_g.squeeze(0)))
+            .flatten(1)
+            .sum(-1)
+        )
 
 
 class SmoothGradCAMpp(_GradCAM):
@@ -260,12 +270,14 @@ class SmoothGradCAMpp(_GradCAM):
         self._ihook_enabled = False
         # Keep initial activation
         init_fmap = self.hook_a.clone()
-        # Initialize our gradient estimates
+        #  Initialize our gradient estimates
         grad_2, grad_3 = torch.zeros_like(self.hook_a), torch.zeros_like(self.hook_a)
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
-            noisy_input = self._input + self._distrib.sample(self._input.size()).to(device=self._input.device)
+            noisy_input = self._input + self._distrib.sample(self._input.size()).to(
+                device=self._input.device
+            )
             # Forward & Backward
             out = self.model(noisy_input)
             self.model.zero_grad()
@@ -284,10 +296,18 @@ class SmoothGradCAMpp(_GradCAM):
 
         # Alpha coefficient for each pixel
         spatial_dims = self.hook_a.ndim - 2
-        alpha = grad_2 / (2 * grad_2 + (grad_3 * init_fmap).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims])
+        alpha = grad_2 / (
+            2 * grad_2
+            + (grad_3 * init_fmap).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims]
+        )
 
         # Apply pixel coefficient in each weight
-        return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
+        return (
+            alpha.squeeze_(0)
+            .mul_(torch.relu(self.hook_g.squeeze(0)))
+            .flatten(1)
+            .sum(-1)
+        )
 
     def extra_repr(self) -> str:
         return f"target_layer='{self.target_layer}', num_samples={self.num_samples}, std={self.std}"
@@ -335,7 +355,9 @@ class XGradCAM(_GradCAM):
         # Backpropagate
         self._backprop(scores, class_idx)
 
-        return (self.hook_g * self.hook_a).squeeze(0).flatten(1).sum(-1) / self.hook_a.squeeze(0).flatten(1).sum(-1)
+        return (self.hook_g * self.hook_a).squeeze(0).flatten(1).sum(
+            -1
+        ) / self.hook_a.squeeze(0).flatten(1).sum(-1)
 
 
 class LayerCAM(_GradCAM):

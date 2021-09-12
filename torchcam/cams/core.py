@@ -8,11 +8,11 @@ import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 from .utils import locate_candidate_layer
 
-__all__ = ['_CAM']
+__all__ = ["_CAM"]
 
 
 class _CAM:
@@ -28,7 +28,7 @@ class _CAM:
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[str] = None,
+        target_layer: Optional[Union[str, nn.Module]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         enable_hooks: bool = True,
     ) -> None:
@@ -41,19 +41,29 @@ class _CAM:
             target_layer = locate_candidate_layer(model, input_shape)
             # Warn the user of the choice
             if isinstance(target_layer, str):
-                logging.warning(f"no value was provided for `target_layer`, thus set to '{target_layer}'.")
+                logging.warning(
+                    f"no value was provided for `target_layer`, thus set to '{target_layer}'."
+                )
+                target_layer = self.submodule_dict[target_layer]
             else:
-                raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
+                raise ValueError(
+                    "unable to resolve `target_layer` automatically, please specify its value."
+                )
+        # find the corresponding nn.Module if we pass a 'str'
+        elif isinstance(target_layer, str):
+            if target_layer not in self.submodule_dict.keys():
+                raise ValueError(
+                    f"Unable to find submodule {target_layer} in the model"
+                )
+            target_layer = self.submodule_dict[target_layer]
 
-        if target_layer not in self.submodule_dict.keys():
-            raise ValueError(f"Unable to find submodule {target_layer} in the model")
         self.target_layer = target_layer
         self.model = model
         # Init hooks
         self.hook_a: Optional[Tensor] = None
         self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
         # Forward hook
-        self.hook_handles.append(self.submodule_dict[target_layer].register_forward_hook(self._hook_a))
+        self.hook_handles.append(self.target_layer.register_forward_hook(self._hook_a))
         # Enable hooks
         self._hooks_enabled = enable_hooks
         # Should ReLU be used before normalization
@@ -76,8 +86,16 @@ class _CAM:
     def _normalize(cams: Tensor, spatial_dims: Optional[int] = None) -> Tensor:
         """CAM normalization"""
         spatial_dims = cams.ndim if spatial_dims is None else spatial_dims
-        cams.sub_(cams.flatten(start_dim=-spatial_dims).min(-1).values[(...,) + (None,) * spatial_dims])
-        cams.div_(cams.flatten(start_dim=-spatial_dims).max(-1).values[(...,) + (None,) * spatial_dims])
+        cams.sub_(
+            cams.flatten(start_dim=-spatial_dims)
+            .min(-1)
+            .values[(...,) + (None,) * spatial_dims]
+        )
+        cams.div_(
+            cams.flatten(start_dim=-spatial_dims)
+            .max(-1)
+            .values[(...,) + (None,) * spatial_dims]
+        )
 
         return cams
 
@@ -90,20 +108,28 @@ class _CAM:
 
         # Check that forward has already occurred
         if not isinstance(self.hook_a, Tensor):
-            raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")
+            raise AssertionError(
+                "Inputs need to be forwarded in the model for the conv features to be hooked"
+            )
         # Check batch size
         if self.hook_a.shape[0] != 1:
-            raise ValueError(f"expected a 1-sized batch to be hooked. Received: {self.hook_a.shape[0]}")
+            raise ValueError(
+                f"expected a 1-sized batch to be hooked. Received: {self.hook_a.shape[0]}"
+            )
 
         # Check class_idx value
         if not isinstance(class_idx, int) or class_idx < 0:
             raise ValueError("Incorrect `class_idx` argument value")
 
-        # Check scores arg
+        #  Check scores arg
         if self._score_used and not isinstance(scores, torch.Tensor):
-            raise ValueError("model output scores is required to be passed to compute CAMs")
+            raise ValueError(
+                "model output scores is required to be passed to compute CAMs"
+            )
 
-    def __call__(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> Tensor:
+    def __call__(
+        self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True
+    ) -> Tensor:
 
         # Integrity check
         self._precheck(class_idx, scores)
@@ -111,7 +137,9 @@ class _CAM:
         # Compute CAM
         return self.compute_cams(class_idx, scores, normalized)
 
-    def compute_cams(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> Tensor:
+    def compute_cams(
+        self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True
+    ) -> Tensor:
         """Compute the CAM for a specific output class
 
         Args:
