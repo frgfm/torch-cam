@@ -23,6 +23,7 @@ def _verify_cam(activation_map, output_size):
     [
         ["GradCAM", 'features.18.0', (7, 7)],
         ["GradCAMpp", 'features.18.0', (7, 7)],
+        ["SmoothGradCAMpp", lambda m: m.features[18][0], (7, 7)],
         ["SmoothGradCAMpp", 'features.18.0', (7, 7)],
         ["XGradCAM", 'features.18.0', (7, 7)],
         ["LayerCAM", 'features.18.0', (7, 7)],
@@ -31,6 +32,7 @@ def _verify_cam(activation_map, output_size):
 def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
     model = mobilenet_v2(pretrained=False).eval()
 
+    target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
     extractor = gradcam.__dict__[cam_name](model, target_layer)
 

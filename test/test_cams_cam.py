@@ -22,6 +22,7 @@ def _verify_cam(activation_map, output_size):
     [
         ["CAM", None, None, (7, 7)],
         ["ScoreCAM", 'features.16.conv.3', None, (7, 7)],
+        ["ScoreCAM", lambda m: m.features[16].conv[3], None, (7, 7)],
         ["SSCAM", 'features.16.conv.3', 4, (7, 7)],
         ["ISCAM", 'features.16.conv.3', 4, (7, 7)],
     ],
@@ -33,6 +34,7 @@ def test_img_cams(cam_name, target_layer, num_samples, output_size, mock_img_ten
     if isinstance(num_samples, int):
         kwargs['num_samples'] = num_samples
 
+    target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
     extractor = cam.__dict__[cam_name](model, target_layer, **kwargs)
 
