@@ -8,7 +8,7 @@ import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 from .utils import locate_candidate_layer
 
@@ -20,7 +20,7 @@ class _CAM:
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
         enable_hooks: should hooks be enabled by default
     """
@@ -28,7 +28,7 @@ class _CAM:
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[str] = None,
+        target_layer: Optional[Union[nn.Module, str]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         enable_hooks: bool = True,
     ) -> None:
@@ -36,24 +36,36 @@ class _CAM:
         # Obtain a mapping from module name to module instance for each layer in the model
         self.submodule_dict = dict(model.named_modules())
 
-        # If the layer is not specified, try automatic resolution
-        if target_layer is None:
-            target_layer = locate_candidate_layer(model, input_shape)
+        if isinstance(target_layer, str):
+            target_name = target_layer
+        elif isinstance(target_layer, nn.Module):
+            # Find the location of the module
+            _found = False
+            for k, v in self.submodule_dict.items():
+                if id(v) == id(target_layer):
+                    target_name = k
+                    _found = True
+                    break
+            if not _found:
+                raise ValueError("unable to locate `target_layer` module inside the specified model.")
+        elif target_layer is None:
+            # If the layer is not specified, try automatic resolution
+            target_name = locate_candidate_layer(model, input_shape)  # type: ignore[assignment]
             # Warn the user of the choice
-            if isinstance(target_layer, str):
+            if isinstance(target_name, str):
                 logging.warning(f"no value was provided for `target_layer`, thus set to '{target_layer}'.")
             else:
                 raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
 
-        if target_layer not in self.submodule_dict.keys():
-            raise ValueError(f"Unable to find submodule {target_layer} in the model")
-        self.target_layer = target_layer
+        if target_name not in self.submodule_dict.keys():
+            raise ValueError(f"Unable to find submodule {target_name} in the model")
+        self.target_name = target_name
         self.model = model
         # Init hooks
         self.hook_a: Optional[Tensor] = None
         self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
         # Forward hook
-        self.hook_handles.append(self.submodule_dict[target_layer].register_forward_hook(self._hook_a))
+        self.hook_handles.append(self.submodule_dict[target_name].register_forward_hook(self._hook_a))
         # Enable hooks
         self._hooks_enabled = enable_hooks
         # Should ReLU be used before normalization
@@ -141,7 +153,7 @@ class _CAM:
         return batch_cams
 
     def extra_repr(self) -> str:
-        return f"target_layer='{self.target_layer}'"
+        return f"target_layer='{self.target_name}'"
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.extra_repr()})"

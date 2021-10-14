@@ -9,7 +9,7 @@ import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Union
 
 from .core import _CAM
 from .utils import locate_linear_layer
@@ -42,32 +42,44 @@ class CAM(_CAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
-        fc_layer: name of the fully convolutional layer
+        target_layer: either the target layer itself or its name
+        fc_layer: either the fully connected layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[str] = None,
-        fc_layer: Optional[str] = None,
+        target_layer: Optional[Union[nn.Module, str]] = None,
+        fc_layer: Optional[Union[nn.Module, str]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
 
         super().__init__(model, target_layer, input_shape, **kwargs)
 
+        if isinstance(fc_layer, str):
+            fc_name = fc_layer
+        # Find the location of the module
+        elif isinstance(fc_layer, nn.Module):
+            _found = False
+            for k, v in self.submodule_dict.items():
+                if id(v) == id(fc_layer):
+                    fc_name = k
+                    _found = True
+                    break
+            if not _found:
+                raise ValueError("unable to locate `fc_layer` module inside the specified model.")
         # If the layer is not specified, try automatic resolution
-        if fc_layer is None:
-            fc_layer = locate_linear_layer(model)
+        elif fc_layer is None:
+            fc_name = locate_linear_layer(model)  # type: ignore[assignment]
             # Warn the user of the choice
-            if isinstance(fc_layer, str):
+            if isinstance(fc_name, str):
                 logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_layer}'.")
             else:
                 raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
         # Softmax weight
-        self._fc_weights = self.submodule_dict[fc_layer].weight.data
+        self._fc_weights = self.submodule_dict[fc_name].weight.data
         # squeeze to accomodate replacement by Conv1x1
         if self._fc_weights.ndim > 2:
             self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
@@ -114,7 +126,7 @@ class ScoreCAM(_CAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         batch_size: batch size used to forward masked inputs
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
@@ -224,7 +236,7 @@ class SSCAM(ScoreCAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         batch_size: batch size used to forward masked inputs
         num_samples: number of noisy samples used for weight computation
         std: standard deviation of the noise added to the normalized activation
@@ -337,7 +349,7 @@ class ISCAM(ScoreCAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         batch_size: batch size used to forward masked inputs
         num_samples: number of noisy samples used for weight computation
         input_shape: shape of the expected input tensor excluding the batch dimension
