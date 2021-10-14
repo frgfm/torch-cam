@@ -18,21 +18,26 @@ def _verify_cam(activation_map, output_size):
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, num_samples, output_size",
+    "cam_name, target_layer, fc_layer, num_samples, output_size",
     [
-        ["CAM", None, None, (7, 7)],
-        ["ScoreCAM", 'features.16.conv.3', None, (7, 7)],
-        ["ScoreCAM", lambda m: m.features[16].conv[3], None, (7, 7)],
-        ["SSCAM", 'features.16.conv.3', 4, (7, 7)],
-        ["ISCAM", 'features.16.conv.3', 4, (7, 7)],
+        ["CAM", None, None, None, (7, 7)],
+        ["CAM", None, 'classifier.1', None, (7, 7)],
+        ["CAM", None, lambda m: m.classifier[1], None, (7, 7)],
+        ["ScoreCAM", 'features.16.conv.3', None, None, (7, 7)],
+        ["ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7)],
+        ["SSCAM", 'features.16.conv.3', None, 4, (7, 7)],
+        ["ISCAM", 'features.16.conv.3', None, 4, (7, 7)],
     ],
 )
-def test_img_cams(cam_name, target_layer, num_samples, output_size, mock_img_tensor):
+def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, mock_img_tensor):
     model = mobilenet_v2(pretrained=False).eval()
     kwargs = {}
     # Speed up testing by reducing the number of samples
     if isinstance(num_samples, int):
         kwargs['num_samples'] = num_samples
+
+    if fc_layer is not None:
+        kwargs['fc_layer'] = fc_layer(model) if callable(fc_layer) else fc_layer
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
