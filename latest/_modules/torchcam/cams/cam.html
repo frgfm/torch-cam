@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.cam &mdash; torchcam 0.2.1a0+81f5d70-git documentation</title>
+  <title>torchcam.cams.cam &mdash; torchcam 0.2.1a0+5b034b8-git documentation</title>
   
 
   
@@ -169,7 +169,7 @@
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
 <span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">locate_linear_layer</span>
@@ -202,32 +202,44 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        target_layer: name of the target layer</span>
-<span class="sd">        fc_layer: name of the fully convolutional layer</span>
+<span class="sd">        target_layer: either the target layer itself or its name</span>
+<span class="sd">        fc_layer: either the fully connected layer itself or its name</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
-        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">fc_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">fc_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc_layer</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">fc_name</span> <span class="o">=</span> <span class="n">fc_layer</span>
+        <span class="c1"># Find the location of the module</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc_layer</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+            <span class="n">_found</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="nb">id</span><span class="p">(</span><span class="n">fc_layer</span><span class="p">):</span>
+                    <span class="n">fc_name</span> <span class="o">=</span> <span class="n">k</span>
+                    <span class="n">_found</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">_found</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unable to locate `fc_layer` module inside the specified model.&quot;</span><span class="p">)</span>
         <span class="c1"># If the layer is not specified, try automatic resolution</span>
-        <span class="k">if</span> <span class="n">fc_layer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">fc_layer</span> <span class="o">=</span> <span class="n">locate_linear_layer</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fc_layer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fc_name</span> <span class="o">=</span> <span class="n">locate_linear_layer</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>  <span class="c1"># type: ignore[assignment]</span>
             <span class="c1"># Warn the user of the choice</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc_layer</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
                 <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no value was provided for `fc_layer`, thus set to &#39;</span><span class="si">{</span><span class="n">fc_layer</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unable to resolve `fc_layer` automatically, please specify its value.&quot;</span><span class="p">)</span>
         <span class="c1"># Softmax weight</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">fc_layer</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">fc_name</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">data</span>
         <span class="c1"># squeeze to accomodate replacement by Conv1x1</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
@@ -274,7 +286,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        target_layer: either the target layer itself or its name</span>
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -384,7 +396,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        target_layer: either the target layer itself or its name</span>
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
 <span class="sd">        num_samples: number of noisy samples used for weight computation</span>
 <span class="sd">        std: standard deviation of the noise added to the normalized activation</span>
@@ -497,7 +509,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
-<span class="sd">        target_layer: name of the target layer</span>
+<span class="sd">        target_layer: either the target layer itself or its name</span>
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
 <span class="sd">        num_samples: number of noisy samples used for weight computation</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
