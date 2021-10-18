@@ -4,8 +4,9 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
 import torch
+from torch import nn
 from torch import Tensor
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Union
 
 from .core import _CAM
 
@@ -17,14 +18,14 @@ class _GradCAM(_CAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
     def __init__(
         self,
-        model: torch.nn.Module,
-        target_layer: Optional[str] = None,
+        model: nn.Module,
+        target_layer: Optional[Union[nn.Module, str]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
@@ -37,13 +38,13 @@ class _GradCAM(_CAM):
         # Model output is used by the extractor
         self._score_used = True
         # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
-        self.hook_handles.append(self.submodule_dict[self.target_layer].register_forward_hook(self._hook_g))
+        self.hook_handles.append(self.submodule_dict[self.target_name].register_forward_hook(self._hook_g))
 
     def _store_grad(self, grad: Tensor) -> None:
         if self._hooks_enabled:
             self.hook_g = grad.data
 
-    def _hook_g(self, module: torch.nn.Module, input: Tensor, output: Tensor) -> None:
+    def _hook_g(self, module: nn.Module, input: Tensor, output: Tensor) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
             self.hook_handles.append(output.register_hook(self._store_grad))
@@ -93,7 +94,7 @@ class GradCAM(_GradCAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
@@ -145,7 +146,7 @@ class GradCAMpp(_GradCAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
@@ -216,7 +217,7 @@ class SmoothGradCAMpp(_GradCAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         num_samples: number of samples to use for smoothing
         std: standard deviation of the noise
         input_shape: shape of the expected input tensor excluding the batch dimension
@@ -224,8 +225,8 @@ class SmoothGradCAMpp(_GradCAM):
 
     def __init__(
         self,
-        model: torch.nn.Module,
-        target_layer: Optional[str] = None,
+        model: nn.Module,
+        target_layer: Optional[Union[nn.Module, str]] = None,
         num_samples: int = 4,
         std: float = 0.3,
         input_shape: Tuple[int, ...] = (3, 224, 224),
@@ -245,7 +246,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Specific input hook updater
         self._ihook_enabled = True
 
-    def _store_input(self, module: torch.nn.Module, input: Tensor) -> None:
+    def _store_input(self, module: nn.Module, input: Tensor) -> None:
         """Store model input tensor"""
 
         if self._ihook_enabled:
@@ -290,7 +291,7 @@ class SmoothGradCAMpp(_GradCAM):
         return alpha.squeeze_(0).mul_(torch.relu(self.hook_g.squeeze(0))).flatten(1).sum(-1)
 
     def extra_repr(self) -> str:
-        return f"target_layer='{self.target_layer}', num_samples={self.num_samples}, std={self.std}"
+        return f"target_layer='{self.target_name}', num_samples={self.num_samples}, std={self.std}"
 
 
 class XGradCAM(_GradCAM):
@@ -323,7 +324,7 @@ class XGradCAM(_GradCAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
@@ -366,7 +367,7 @@ class LayerCAM(_GradCAM):
 
     Args:
         model: input model
-        target_layer: name of the target layer
+        target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
