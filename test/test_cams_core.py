@@ -15,6 +15,10 @@ def test_cam_constructor(mock_img_model):
     with pytest.raises(ValueError):
         _ = core._CAM(model, '3')
 
+    # Wrong type
+    with pytest.raises(TypeError):
+        _ = core._CAM(model, 3)
+
 
 def test_cam_precheck(mock_img_model, mock_img_tensor):
     model = mock_img_model.eval()
