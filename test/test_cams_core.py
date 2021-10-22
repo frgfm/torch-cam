@@ -17,7 +17,7 @@ def test_cam_constructor(mock_img_model):
 
     # Wrong type
     with pytest.raises(TypeError):
-        _ = cam._CAM(model, 3)
+        _ = core._CAM(model, 3)
 
 
 def test_cam_precheck(mock_img_model, mock_img_tensor):
