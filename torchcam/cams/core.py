@@ -56,6 +56,8 @@ class _CAM:
                 logging.warning(f"no value was provided for `target_layer`, thus set to '{target_layer}'.")
             else:
                 raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
+        else:
+            raise TypeError("invalid argument type for `target_layer`")
 
         if target_name not in self.submodule_dict.keys():
             raise ValueError(f"Unable to find submodule {target_name} in the model")
