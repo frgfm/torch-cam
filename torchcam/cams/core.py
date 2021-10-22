@@ -53,7 +53,7 @@ class _CAM:
             target_name = locate_candidate_layer(model, input_shape)  # type: ignore[assignment]
             # Warn the user of the choice
             if isinstance(target_name, str):
-                logging.warning(f"no value was provided for `target_layer`, thus set to '{target_layer}'.")
+                logging.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
             else:
                 raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
 
