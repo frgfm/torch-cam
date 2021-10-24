@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.2.1a0+d868702-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.2.1a0+80bfbff-git documentation</title>
   
 
   
@@ -206,7 +206,7 @@ connected layer..</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>fc_layer</strong> – either the fully connected layer itself or its name</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
 </ul>
@@ -248,7 +248,7 @@ and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as foll
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>batch_size</strong> – batch size used to forward masked inputs</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
 </ul>
@@ -293,7 +293,7 @@ with a standard deviation of <span class="math notranslate nohighlight">\(\sigma
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>batch_size</strong> – batch size used to forward masked inputs</p></li>
 <li><p><strong>num_samples</strong> – number of noisy samples used for weight computation</p></li>
 <li><p><strong>std</strong> – standard deviation of the noise added to the normalized activation</p></li>
@@ -340,7 +340,7 @@ with a standard deviation of <span class="math notranslate nohighlight">\(\sigma
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>batch_size</strong> – batch size used to forward masked inputs</p></li>
 <li><p><strong>num_samples</strong> – number of noisy samples used for weight computation</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
@@ -383,7 +383,7 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
 </ul>
 </dd>
@@ -427,7 +427,7 @@ and <span class="math notranslate nohighlight">\(\alpha_k^{(c)}(i, j)\)</span> b
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
 </ul>
 </dd>
@@ -479,7 +479,7 @@ which is actually <span class="math notranslate nohighlight">\(\frac{1}{n} \sum\
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>num_samples</strong> – number of samples to use for smoothing</p></li>
 <li><p><strong>std</strong> – standard deviation of the noise</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
@@ -519,7 +519,7 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
 </ul>
 </dd>
@@ -555,7 +555,7 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>model</strong> – input model</p></li>
-<li><p><strong>target_layer</strong> – either the target layer itself or its name</p></li>
+<li><p><strong>target_layer</strong> – either the target layer itself or its name, or a list of those</p></li>
 <li><p><strong>input_shape</strong> – shape of the expected input tensor excluding the batch dimension</p></li>
 </ul>
 </dd>
