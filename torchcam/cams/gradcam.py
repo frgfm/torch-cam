@@ -7,6 +7,7 @@ from functools import partial
 import torch
 from torch import nn
 from torch import Tensor
+import torch.nn.functional as F
 from typing import Optional, Tuple, Any, Union, List
 
 from .core import _CAM
@@ -371,9 +372,10 @@ class LayerCAM(_GradCAM):
         >>> from torchvision.models import resnet18
         >>> from torchcam.cams import LayerCAM
         >>> model = resnet18(pretrained=True).eval()
-        >>> cam = LayerCAM(model, 'layer4')
+        >>> extractor = LayerCAM(model, 'layer4')
         >>> scores = model(input_tensor)
-        >>> cam(class_idx=100, scores=scores)
+        >>> cams = extractor(class_idx=100, scores=scores)
+        >>> fused_cam = extractor.fuse_cams(cams)
 
     Args:
         model: input model
@@ -388,3 +390,8 @@ class LayerCAM(_GradCAM):
         self._backprop(scores, class_idx)
 
         return [torch.relu(grad).squeeze(0) for grad in self.hook_g]
+
+    @staticmethod
+    def _scale_cams(cams: List[Tensor], gamma: float = 2.) -> List[Tensor]:
+        # cf. Equation 9 in the paper
+        return [torch.tanh(gamma * cam) for cam in cams]

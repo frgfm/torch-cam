@@ -151,7 +151,7 @@ class _CAM:
             normalized: whether the CAM should be normalized
 
         Returns:
-            List[Tensor]: list of class activation maps, one for each hooked layer
+            List[torch.Tensor]: list of class activation maps, one for each hooked layer
         """
 
         # Get map weight & unsqueeze it
@@ -182,3 +182,49 @@ class _CAM:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.extra_repr()})"
+
+    @classmethod
+    def fuse_cams(cls, cams: List[Tensor], target_shape: Optional[Tuple[int, int]] = None) -> Tensor:
+        """Fuse class activation maps from different layers
+
+        Args:
+            cams: the list of activation maps (for the same input)
+            target_shape: expected spatial shape of the fused activation map (default to the biggest spatial shape
+                among input maps)
+
+        Returns:
+            torch.Tensor: fused class activation map
+        """
+
+        if not isinstance(cams, list) or any(not isinstance(elt, Tensor) for elt in cams):
+            raise TypeError("invalid argument type for `cams`")
+
+        if len(cams) == 0:
+            raise ValueError("argument `cams` cannot be an empty list")
+        elif len(cams) == 1:
+            return cams[0]
+        else:
+            # Resize to the biggest CAM if no value was provided for `target_shape`
+            if isinstance(target_shape, tuple):
+                _shape = target_shape
+            else:
+                _shape = tuple(map(max, zip(*[tuple(cam.shape) for cam in cams])))  # type: ignore[assignment]
+            # Scale cams
+            scaled_cams = cls._scale_cams(cams)
+            return cls._fuse_cams(scaled_cams, _shape)
+
+    @staticmethod
+    def _scale_cams(cams: List[Tensor]) -> List[Tensor]:
+        return cams
+
+    @staticmethod
+    def _fuse_cams(cams: List[Tensor], target_shape: Tuple[int, int]) -> Tensor:
+        # Interpolate all CAMs
+        interpolation_mode = 'bilinear' if cams[0].ndim == 2 else 'trilinear' if cams[0].ndim == 3 else 'nearest'
+        scaled_cams = [
+            F.interpolate(cam.unsqueeze(0).unsqueeze(0), target_shape, mode=interpolation_mode, align_corners=False)
+            for cam in cams
+        ]
+
+        # Fuse them
+        return torch.stack(scaled_cams).max(dim=0).values.squeeze(0).squeeze(0)
