@@ -208,7 +208,7 @@ class _CAM:
             if isinstance(target_shape, tuple):
                 _shape = target_shape
             else:
-                _shape = tuple(map(max, zip(*[tuple(cam.shape) for cam in cams])))
+                _shape = tuple(map(max, zip(*[tuple(cam.shape) for cam in cams])))  # ignore: type[assignment]
             return _CAM._fuse_cams(cams, _shape)
 
     @staticmethod
