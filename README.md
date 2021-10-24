@@ -208,10 +208,10 @@ This benchmark was performed over 100 iterations, on a laptop to better reflect 
 You can run this latency benchmark for any CAM method  on your hardware as follows:
 
 ```bash
-python scripts/benchmark_latency.py SmoothGradCAMpp
+python scripts/eval_latency.py SmoothGradCAMpp
 ```
 
-*All script arguments can be checked using `python scripts/benchmark_latency.py --help`*
+*All script arguments can be checked using `python scripts/eval_latency.py --help`*
 
 
 
