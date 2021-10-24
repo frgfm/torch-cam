@@ -89,28 +89,25 @@ def test_smoothgradcampp_repr():
 
 def test_layercam_fuse_cams(mock_img_model):
 
-    model = mock_img_model.eval()
-    extractor = gradcam.LayerCAM(model, '0.3')
-
     with pytest.raises(TypeError):
-        extractor.fuse_cams(torch.zeros((3, 32, 32)))
+        gradcam.LayerCAM.fuse_cams(torch.zeros((3, 32, 32)))
 
     with pytest.raises(ValueError):
-        extractor.fuse_cams([])
+        gradcam.LayerCAM.fuse_cams([])
 
     cams = [torch.rand((32, 32)), torch.rand((16, 16))]
 
     # Single CAM
-    assert torch.equal(cams[0], extractor.fuse_cams(cams[:1]))
+    assert torch.equal(cams[0], gradcam.LayerCAM.fuse_cams(cams[:1]))
 
     # Fusion
-    cam = extractor.fuse_cams(cams)
+    cam = gradcam.LayerCAM.fuse_cams(cams)
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (32, 32)
 
     # Specify target shape
-    cam = extractor.fuse_cams(cams, (16, 16))
+    cam = gradcam.LayerCAM.fuse_cams(cams, (16, 16))
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (16, 16)

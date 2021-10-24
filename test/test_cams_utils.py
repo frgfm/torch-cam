@@ -9,7 +9,7 @@ from torchcam.cams import utils
 
 
 def test_locate_candidate_layer(mock_img_model):
-    # ResNet-18
+    # ResNet-18
     mod = resnet18().eval()
     assert utils.locate_candidate_layer(mod) == 'layer4'
 
