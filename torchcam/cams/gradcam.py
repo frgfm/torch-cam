@@ -371,9 +371,10 @@ class LayerCAM(_GradCAM):
         >>> from torchvision.models import resnet18
         >>> from torchcam.cams import LayerCAM
         >>> model = resnet18(pretrained=True).eval()
-        >>> cam = LayerCAM(model, 'layer4')
+        >>> extractor = LayerCAM(model, 'layer4')
         >>> scores = model(input_tensor)
-        >>> cam(class_idx=100, scores=scores)
+        >>> cams = extractor(class_idx=100, scores=scores)
+        >>> fused_cam = extractor.fuse_cams(cams)
 
     Args:
         model: input model
@@ -388,3 +389,17 @@ class LayerCAM(_GradCAM):
         self._backprop(scores, class_idx)
 
         return [torch.relu(grad).squeeze(0) for grad in self.hook_g]
+
+    @staticmethod
+    def _fuse_cams(cams: List[Tensor], target_shape: Tuple[int, int], gamma: float = 2.) -> Tensor:
+        # cf. Equation 9 in the paper
+        scaled_cams = [torch.tanh(gamma * cam) for cam in cams]
+        # Interpolate all CAMs
+        interpolation_mode = 'bilinear' if cams[0].ndim == 2 else 'trilinear' if cams[0].ndim == 3 else 'nearest'
+        scaled_cams = [
+            F.interpolate(cam.unsqueeze(0), target_shape, mode=interpolation_mode, align_corners=False).squeeze(0)
+            for cam in scaled_cams
+        ]
+
+        # Fuse them
+        return torch.stack(scaled_cams).max(dim=0).values
