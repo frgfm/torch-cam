@@ -32,7 +32,7 @@ def main():
     # For newline
     st.write('\n')
     # Set the columns
-    cols = st.beta_columns((1, 1, 1))
+    cols = st.columns((1, 1, 1))
     cols[0].header("Input image")
     cols[1].header("Raw CAM")
     cols[-1].header("Overlayed CAM")
