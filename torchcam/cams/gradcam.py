@@ -54,9 +54,6 @@ class _GradCAM(_CAM):
     def _backprop(self, scores: Tensor, class_idx: int) -> None:
         """Backpropagate the loss for a specific output class"""
 
-        if any(t is None for t in self.hook_a):
-            raise TypeError("Inputs need to be forwarded in the model for the conv features to be hooked")
-
         # Backpropagate to get the gradients on the hooked layer
         loss = scores[:, class_idx].sum()
         self.model.zero_grad()
