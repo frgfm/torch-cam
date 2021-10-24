@@ -183,7 +183,8 @@ class _CAM:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.extra_repr()})"
 
-    def fuse_cams(self, cams: List[Tensor], target_shape: Optional[Tuple[int, int]] = None) -> Tensor:
+    @classmethod
+    def fuse_cams(cls, cams: List[Tensor], target_shape: Optional[Tuple[int, int]] = None) -> Tensor:
         """Fuse class activation maps from different layers
 
         Args:
@@ -209,8 +210,8 @@ class _CAM:
             else:
                 _shape = tuple(map(max, zip(*[tuple(cam.shape) for cam in cams])))  # type: ignore[assignment]
             # Scale cams
-            scaled_cams = self._scale_cams(cams)
-            return self._fuse_cams(scaled_cams, _shape)
+            scaled_cams = cls._scale_cams(cams)
+            return cls._fuse_cams(scaled_cams, _shape)
 
     @staticmethod
     def _scale_cams(cams: List[Tensor]) -> List[Tensor]:
