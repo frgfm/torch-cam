@@ -10,6 +10,17 @@ from torchvision.models import mobilenet_v2
 from torchcam.cams import cam
 
 
+def test_base_cam_constructor(mock_img_model):
+    model = mobilenet_v2(pretrained=False).eval()
+    # Check that multiple target layers is disabled for base CAM
+    with pytest.raises(TypeError):
+        _ = cam.CAM(model, ['classifier.1'])
+
+    # FC layer checks
+    with pytest.raises(TypeError):
+        _ = cam.CAM(model, fc_layer=3)
+
+
 def _verify_cam(activation_map, output_size):
     # Simple verifications
     assert isinstance(activation_map, torch.Tensor)
