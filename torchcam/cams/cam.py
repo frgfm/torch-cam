@@ -71,7 +71,7 @@ class CAM(_CAM):
             fc_name = locate_linear_layer(model)  # type: ignore[assignment]
             # Warn the user of the choice
             if isinstance(fc_name, str):
-                logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_layer}'.")
+                logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
             else:
                 raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
         else:
