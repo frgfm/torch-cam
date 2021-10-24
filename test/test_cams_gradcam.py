@@ -12,7 +12,7 @@ from torchcam.cams import gradcam
 
 
 def _verify_cam(activation_map, output_size):
-    # Simple verifications
+    # Simple verifications
     assert isinstance(activation_map, torch.Tensor)
     assert activation_map.shape == output_size
     assert not torch.any(torch.isnan(activation_map))
@@ -38,7 +38,7 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
 
     scores = model(mock_img_tensor)
     # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores), output_size)
+    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
 
     # Inplace model
     model = nn.Sequential(
@@ -55,7 +55,7 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
     extractor = gradcam.__dict__[cam_name](model, '2')
     scores = model(mock_img_tensor)
     # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores), (224, 224))
+    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (224, 224))
 
 
 @pytest.mark.parametrize(
@@ -75,7 +75,7 @@ def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_
 
     scores = model(mock_video_tensor)
     # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores), output_size)
+    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
 
 
 def test_smoothgradcampp_repr():
@@ -84,4 +84,4 @@ def test_smoothgradcampp_repr():
     # Hook the corresponding layer in the model
     extractor = gradcam.SmoothGradCAMpp(model, 'features.18.0')
 
-    assert repr(extractor) == "SmoothGradCAMpp(target_layer='features.18.0', num_samples=4, std=0.3)"
+    assert repr(extractor) == "SmoothGradCAMpp(target_layer=['features.18.0'], num_samples=4, std=0.3)"

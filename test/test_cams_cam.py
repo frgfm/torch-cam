@@ -46,7 +46,7 @@ def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, mo
     with torch.no_grad():
         scores = model(mock_img_tensor)
         # Use the hooked data to compute activation map
-        _verify_cam(extractor(scores[0].argmax().item(), scores), output_size)
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
 
 
 def test_cam_conv1x1(mock_fullyconv_model):
@@ -54,7 +54,7 @@ def test_cam_conv1x1(mock_fullyconv_model):
     with torch.no_grad():
         scores = mock_fullyconv_model(torch.rand((1, 3, 32, 32)))
         # Use the hooked data to compute activation map
-        _verify_cam(extractor(scores[0].argmax().item(), scores), (32, 32))
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (32, 32))
 
 
 @pytest.mark.parametrize(
@@ -79,4 +79,4 @@ def test_video_cams(cam_name, target_layer, num_samples, output_size, mock_video
     with torch.no_grad():
         scores = model(mock_video_tensor)
         # Use the hooked data to compute activation map
-        _verify_cam(extractor(scores[0].argmax().item(), scores), output_size)
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
