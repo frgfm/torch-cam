@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams &mdash; torchcam 0.2.1a0+8237aef-git documentation</title>
+  <title>torchcam.cams &mdash; torchcam 0.2.1a0+765692f-git documentation</title>
   
 
   
@@ -557,9 +557,10 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.cams</span> <span class="kn">import</span> <span class="n">LayerCAM</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">resnet18</span><span class="p">(</span><span class="n">pretrained</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="n">LayerCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">extractor</span> <span class="o">=</span> <span class="n">LayerCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;layer4&#39;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cams</span> <span class="o">=</span> <span class="n">extractor</span><span class="p">(</span><span class="n">class_idx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="n">scores</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fused_cam</span> <span class="o">=</span> <span class="n">extractor</span><span class="o">.</span><span class="n">fuse_cams</span><span class="p">(</span><span class="n">cams</span><span class="p">)</span>
 </pre></div>
 </div>
 </dd>
@@ -573,6 +574,27 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 </ul>
 </dd>
 </dl>
+<dl class="py method">
+<dt id="torchcam.cams.LayerCAM.fuse_cams">
+<em class="property">classmethod </em><code class="sig-name descname">fuse_cams</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cams</span><span class="p">:</span> <span class="n">List<span class="p">[</span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">target_shape</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Tuple<span class="p">[</span>int<span class="p">, </span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#torchcam.cams.LayerCAM.fuse_cams" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fuse class activation maps from different layers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cams</strong> – the list of activation maps (for the same input)</p></li>
+<li><p><strong>target_shape</strong> – expected spatial shape of the fused activation map (default to the biggest spatial shape
+among input maps)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>fused class activation map</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>torch.Tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 </section>

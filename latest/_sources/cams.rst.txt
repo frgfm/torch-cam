@@ -45,3 +45,5 @@ Methods related to gradient-based class activation maps.
 .. autoclass:: XGradCAM
 
 .. autoclass:: LayerCAM
+
+    .. automethod:: fuse_cams
