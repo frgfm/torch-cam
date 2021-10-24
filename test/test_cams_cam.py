@@ -22,6 +22,7 @@ def _verify_cam(activation_map, output_size):
     [
         ["CAM", None, None, None, (7, 7)],
         ["CAM", None, 'classifier.1', None, (7, 7)],
+        ["CAM", None, ['classifier.1'], None, (7, 7)],
         ["CAM", None, lambda m: m.classifier[1], None, (7, 7)],
         ["ScoreCAM", 'features.16.conv.3', None, None, (7, 7)],
         ["ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7)],
