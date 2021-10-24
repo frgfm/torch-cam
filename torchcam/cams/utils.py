@@ -23,7 +23,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
         str: the candidate layer for CAM
     """
 
-    # Set module in eval mode
+    # Set module in eval mode
     module_mode = mod.training
     mod.eval()
 

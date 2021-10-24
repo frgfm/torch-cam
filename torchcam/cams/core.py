@@ -130,7 +130,7 @@ class _CAM:
         if not isinstance(class_idx, int) or class_idx < 0:
             raise ValueError("Incorrect `class_idx` argument value")
 
-        # Check scores arg
+        # Check scores arg
         if self._score_used and not isinstance(scores, torch.Tensor):
             raise ValueError("model output scores is required to be passed to compute CAMs")
 
@@ -146,12 +146,12 @@ class _CAM:
         """Compute the CAM for a specific output class
 
         Args:
-            class_idx (int): output class index of the target class whose CAM will be computed
-            scores (torch.Tensor[1, K], optional): forward output scores of the hooked model
-            normalized (bool, optional): whether the CAM should be normalized
+            class_idx: output class index of the target class whose CAM will be computed
+            scores: forward output scores of the hooked model
+            normalized: whether the CAM should be normalized
 
         Returns:
-            torch.Tensor[M, N]: class activation map of hooked conv layer
+            List[Tensor]: list of class activation maps, one for each hooked layer
         """
 
         # Get map weight & unsqueeze it
