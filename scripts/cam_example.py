@@ -109,7 +109,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Saliency Map comparison',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--model", type=str, default='resnet18', help="The name of your training")
+    parser.add_argument("--model", type=str, default='resnet18', help="Name of the architecture")
     parser.add_argument("--img", type=str,
                         default='https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg',
                         help="The image to extract CAM from")
