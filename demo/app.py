@@ -91,7 +91,7 @@ def main():
                 else:
                     class_idx = LABEL_MAP.index(class_selection.rpartition(" - ")[-1])
                 # Retrieve the CAM
-                activation_map = cam_extractor(class_idx, out)
+                activation_map = cam_extractor(class_idx, out)[0]
                 # Plot the raw heatmap
                 fig, ax = plt.subplots()
                 ax.imshow(activation_map.numpy())
