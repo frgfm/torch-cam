@@ -30,7 +30,7 @@ def main(args):
     device = torch.device(args.device)
 
     # Pretrained imagenet model
-    model = models.__dict__[args.model](pretrained=True).to(device=device)
+    model = models.__dict__[args.arch](pretrained=True).to(device=device)
 
     # Image
     if args.img.startswith('http'):
@@ -109,7 +109,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Saliency Map comparison',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--model", type=str, default='resnet18', help="Name of the architecture")
+    parser.add_argument("--arch", type=str, default='resnet18', help="Name of the architecture")
     parser.add_argument("--img", type=str,
                         default='https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg',
                         help="The image to extract CAM from")
