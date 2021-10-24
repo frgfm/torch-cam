@@ -19,6 +19,7 @@ import sphinx_rtd_theme
 #
 import os
 import sys
+from datetime import datetime
 sys.path.insert(0, os.path.abspath('../..'))
 import torchcam
 
@@ -26,7 +27,7 @@ import torchcam
 
 master_doc = 'index'
 project = 'torchcam'
-copyright = '2020-2021, François-Guillaume Fernandez'
+copyright = f"2020-{datetime.now().year}, François-Guillaume Fernandez"
 author = 'François-Guillaume Fernandez'
 
 # The full version, including alpha/beta/rc tags
@@ -46,6 +47,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
     'sphinxemoji.sphinxemoji',  # cf. https://sphinxemojicodes.readthedocs.io/en/stable/
+    'sphinx_copybutton',
 ]
 
 napoleon_use_ivar = True
