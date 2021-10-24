@@ -48,7 +48,7 @@ def main(args):
 
         # Use the hooked data to compute activation map
         start_ts = time.time()
-        cams = cam_extractor(class_idx, scores)
+        _ = cam_extractor(class_idx, scores)
         timings.append(time.time() - start_ts)
 
     _timings = np.array(timings)
