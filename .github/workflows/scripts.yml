@@ -41,7 +41,7 @@ jobs:
       - name: Run analysis script
         run: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock
 
-  benchmark-latency:
+  eval-latency:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -73,4 +73,4 @@ jobs:
           pip install -r scripts/requirements.txt
 
       - name: Run analysis script
-        run: python scripts/benchmark_latency.py --arch resnet18 LayerCAM
+        run: python scripts/eval_latency.py --arch resnet18 LayerCAM
