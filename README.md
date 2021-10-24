@@ -165,7 +165,7 @@ streamlit run demo/app.py
 An example script is provided for you to benchmark the heatmaps produced by multiple CAM approaches on the same image:
 
 ```shell
-python scripts/cam_example.py --model resnet18 --class-idx 232 --rows 2
+python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 ```
 
 ![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example_2rows.png)
