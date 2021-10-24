@@ -180,30 +180,30 @@ You crave for beautiful activation maps, but you don't know whether it fits your
 
 In the table below, you will find a latency benchmark (forward pass not included) for all CAM methods:
 
-| CAM method                                                   | Arch               | Input size    | GPU mean (std)     | CPU mean (std)       |
-| ------------------------------------------------------------ | ------------------ | ------------- | ------------------ | -------------------- |
-| [CAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.CAM) | resnet18           | (3, 224, 224) | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAM) | resnet18           | (3, 224, 224) | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAMpp) | resnet18           | (3, 224, 224) | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SmoothGradCAMpp) | resnet18           | (3, 224, 224) | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ScoreCAM) | resnet18           | (3, 224, 224) | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
-| [SSCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SSCAM) | resnet18           | (3, 224, 224) |                    |                      |
-| [ISCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ISCAM) | resnet18           | (3, 224, 224) |                    |                      |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.XGradCAM) | resnet18           | (3, 224, 224) | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.LayerCAM) | resnet18           | (3, 224, 224) | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
-| [CAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.CAM) | mobilenet_v3_large | (3, 224, 224) | N/A*               | N/A*                 |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAM) | mobilenet_v3_large | (3, 224, 224) | 8.61ms (1.04ms)    | 26.64ms (3.46ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAMpp) | mobilenet_v3_large | (3, 224, 224) | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SmoothGradCAMpp) | mobilenet_v3_large | (3, 224, 224) | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ScoreCAM) | mobilenet_v3_large | (3, 224, 224) | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
-| [SSCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SSCAM) | mobilenet_v3_large | (3, 224, 224) |                    |                      |
-| [ISCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ISCAM) | mobilenet_v3_large | (3, 224, 224) |                    |                      |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.XGradCAM) | mobilenet_v3_large | (3, 224, 224) | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.LayerCAM) | mobilenet_v3_large | (3, 224, 224) | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
+| CAM method                                                   | Arch               | GPU mean (std)     | CPU mean (std)       |
+| ------------------------------------------------------------ | ------------------ | ------------------ | -------------------- |
+| [CAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
+| [SSCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SSCAM) | resnet18           |                    |                      |
+| [ISCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ISCAM) | resnet18           |                    |                      |
+| [XGradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
+| [CAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.CAM) | mobilenet_v3_large | N/A*               | N/A*                 |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAM) | mobilenet_v3_large | 8.61ms (1.04ms)    | 26.64ms (3.46ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
+| [SSCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.SSCAM) | mobilenet_v3_large |                    |                      |
+| [ISCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.ISCAM) | mobilenet_v3_large |                    |                      |
+| [XGradCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/cams.html#torchcam.cams.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
 
 **The base CAM method cannot work with architectures that have multiple fully-connected layers*
 
-This benchmark was performed over 100 iterations, on a laptop to better reflect performances that can be expected by common users. The hardware setup includes an [Intel(R) Core(TM) i7-10750H](https://ark.intel.com/content/www/us/en/ark/products/201837/intel-core-i710750h-processor-12m-cache-up-to-5-00-ghz.html) for the CPU, and a [NVIDIA GeForce RTX 2070 with Max-Q Design](https://www.nvidia.com/fr-fr/geforce/graphics-cards/rtx-2070/) for the GPU.
+This benchmark was performed over 100 iterations on (224, 224) inputs, on a laptop to better reflect performances that can be expected by common users. The hardware setup includes an [Intel(R) Core(TM) i7-10750H](https://ark.intel.com/content/www/us/en/ark/products/201837/intel-core-i710750h-processor-12m-cache-up-to-5-00-ghz.html) for the CPU, and a [NVIDIA GeForce RTX 2070 with Max-Q Design](https://www.nvidia.com/fr-fr/geforce/graphics-cards/rtx-2070/) for the GPU.
 
 You can run this latency benchmark for any CAM method  on your hardware as follows:
 
