@@ -71,7 +71,7 @@ class CAM(_CAM):
             fc_name = locate_linear_layer(model)  # type: ignore[assignment]
             # Warn the user of the choice
             if isinstance(fc_name, str):
-                logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_layer}'.")
+                logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
             else:
                 raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
         else:
@@ -153,21 +153,21 @@ class ScoreCAM(_CAM):
             self._input = input[0].data.clone()
 
     @torch.no_grad()
-    def _get_score_weights(self, masked_input: List[Tensor], class_idx: int) -> List[Tensor]:
+    def _get_score_weights(self, activations: List[Tensor], class_idx: int) -> List[Tensor]:
 
         # Initialize weights
         weights = [
             torch.zeros(t.shape[0], dtype=t.dtype).to(device=t.device)
-            for t in masked_input
+            for t in activations
         ]
 
-        for idx, mask in enumerate(masked_input):
+        for idx, act in enumerate(activations):
             # Process by chunk (GPU RAM limitation)
             for _idx in range(math.ceil(weights[idx].shape[0] / self.bs)):
 
                 _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].shape[0]))
                 # Get the softmax probabilities of the target class
-                weights[idx][_slice] = F.softmax(self.model(mask[_slice]), dim=1)[:, class_idx]
+                weights[idx][_slice] = F.softmax(self.model(act[_slice]), dim=1)[:, class_idx]
 
         return weights
 
@@ -188,7 +188,7 @@ class ScoreCAM(_CAM):
 
         # Use it as a mask
         # O * I * H * W
-        masked_input = [up_a.squeeze(0).unsqueeze(1) * self._input for up_a in upsampled_a]
+        upsampled_a = [up_a.squeeze(0).unsqueeze(1) * self._input for up_a in upsampled_a]
 
         # Disable hook updates
         self._hooks_enabled = False
@@ -196,7 +196,7 @@ class ScoreCAM(_CAM):
         origin_mode = self.model.training
         self.model.eval()
 
-        weights = self._get_score_weights(masked_input, class_idx)
+        weights = self._get_score_weights(upsampled_a, class_idx)
 
         # Reenable hook updates
         self._hooks_enabled = True
@@ -272,18 +272,18 @@ class SSCAM(ScoreCAM):
         self._distrib = torch.distributions.normal.Normal(0, self.std)
 
     @torch.no_grad()
-    def _get_score_weights(self, masked_input: List[Tensor], class_idx: int) -> List[Tensor]:
+    def _get_score_weights(self, activations: List[Tensor], class_idx: int) -> List[Tensor]:
 
         # Initialize weights
         weights = [
             torch.zeros(t.shape[0], dtype=t.dtype).to(device=t.device)
-            for t in masked_input
+            for t in activations
         ]
 
-        for idx, mask in enumerate(masked_input):
+        for idx, act in enumerate(activations):
             # Process by chunk (GPU RAM limitation)
             for _ in range(self.num_samples):
-                noisy_m = self._input * (mask +
+                noisy_m = self._input * (act +
                                          self._distrib.sample(self._input.size()).to(device=self._input.device))
 
                 # Process by chunk (GPU RAM limitation)
@@ -358,16 +358,18 @@ class ISCAM(ScoreCAM):
         self.num_samples = num_samples
 
     @torch.no_grad()
-    def _get_score_weights(self, masked_input: List[Tensor], class_idx: int) -> List[Tensor]:
+    def _get_score_weights(self, activations: List[Tensor], class_idx: int) -> List[Tensor]:
 
         # Initialize weights
         weights = [
             torch.zeros(t.shape[0], dtype=t.dtype).to(device=t.device)
-            for t in masked_input
+            for t in activations
         ]
 
-        for idx, mask in enumerate(masked_input):
-            fmap = torch.zeros((mask.shape[0], *self._input.shape[1:]), dtype=mask.dtype, device=mask.device)
+        for idx, act in enumerate(activations):
+            fmap = torch.zeros((act.shape[0], *self._input.shape[1:]), dtype=act.dtype, device=act.device)
+            # Masked input
+            mask = act * self._input
             # Process by chunk (GPU RAM limitation)
             for sidx in range(self.num_samples):
                 fmap += (sidx + 1) / self.num_samples * self._input * mask
