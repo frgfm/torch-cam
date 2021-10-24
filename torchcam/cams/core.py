@@ -4,6 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
 import logging
+from functools import partial
 import torch
 from torch import Tensor
 from torch import nn
@@ -37,37 +38,39 @@ class _CAM:
         self.submodule_dict = dict(model.named_modules())
 
         if isinstance(target_layer, str):
-            target_name = target_layer
+            target_names = [target_layer]
         elif isinstance(target_layer, nn.Module):
             # Find the location of the module
-            _found = False
-            for k, v in self.submodule_dict.items():
-                if id(v) == id(target_layer):
-                    target_name = k
-                    _found = True
-                    break
-            if not _found:
-                raise ValueError("unable to locate `target_layer` module inside the specified model.")
+            target_names = [self._resolve_layer_name(target_layer)]
+        elif isinstance(target_layer, list):
+            if any(not isinstance(elt, (str, nn.Module)) for elt in target_layer):
+                raise TypeError("invalid argument type for `target_layer`")
+            target_names = [
+                self._resolve_layer_name(layer) if isinstance(layer, nn.Module) else layer
+                for layer in target_layer
+            ]
         elif target_layer is None:
             # If the layer is not specified, try automatic resolution
             target_name = locate_candidate_layer(model, input_shape)  # type: ignore[assignment]
             # Warn the user of the choice
             if isinstance(target_name, str):
                 logging.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
+                target_names = [target_name]
             else:
                 raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
         else:
             raise TypeError("invalid argument type for `target_layer`")
 
-        if target_name not in self.submodule_dict.keys():
-            raise ValueError(f"Unable to find submodule {target_name} in the model")
-        self.target_name = target_name
+        if any(name not in self.submodule_dict.keys() for name in target_names):
+            raise ValueError(f"Unable to find all submodules {target_names} in the model")
+        self.target_names = target_names
         self.model = model
         # Init hooks
-        self.hook_a: Optional[Tensor] = None
+        self.hook_a: List[Tensor] = [None] * len(target_names)  # type: ignore[list-item]
         self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
         # Forward hook
-        self.hook_handles.append(self.submodule_dict[target_name].register_forward_hook(self._hook_a))
+        for idx, name in enumerate(self.target_names):
+            self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_a, idx=idx)))
         # Enable hooks
         self._hooks_enabled = enable_hooks
         # Should ReLU be used before normalization
@@ -75,10 +78,23 @@ class _CAM:
         # Model output is used by the extractor
         self._score_used = False
 
-    def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor) -> None:
+    def _resolve_layer_name(self, target_layer: nn.Module) -> str:
+        """Resolves the name of a given layer inside the hooked model"""
+        _found = False
+        for k, v in self.submodule_dict.items():
+            if id(v) == id(target_layer):
+                target_name = k
+                _found = True
+                break
+        if not _found:
+            raise ValueError("unable to locate module inside the specified model.")
+
+        return target_name
+
+    def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
         """Activation hook"""
         if self._hooks_enabled:
-            self.hook_a = output.data
+            self.hook_a[idx] = output.data
 
     def clear_hooks(self) -> None:
         """Clear model hooks"""
@@ -95,29 +111,30 @@ class _CAM:
 
         return cams
 
-    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> Tensor:
+    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> List[Tensor]:
 
         raise NotImplementedError
 
     def _precheck(self, class_idx: int, scores: Optional[Tensor] = None) -> None:
         """Check for invalid computation cases"""
 
-        # Check that forward has already occurred
-        if not isinstance(self.hook_a, Tensor):
-            raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")
-        # Check batch size
-        if self.hook_a.shape[0] != 1:
-            raise ValueError(f"expected a 1-sized batch to be hooked. Received: {self.hook_a.shape[0]}")
+        for fmap in self.hook_a:
+            # Check that forward has already occurred
+            if not isinstance(fmap, Tensor):
+                raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")
+            # Check batch size
+            if fmap.shape[0] != 1:
+                raise ValueError(f"expected a 1-sized batch to be hooked. Received: {fmap.shape[0]}")
 
         # Check class_idx value
         if not isinstance(class_idx, int) or class_idx < 0:
             raise ValueError("Incorrect `class_idx` argument value")
 
-        # Check scores arg
+        # Check scores arg
         if self._score_used and not isinstance(scores, torch.Tensor):
             raise ValueError("model output scores is required to be passed to compute CAMs")
 
-    def __call__(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> Tensor:
+    def __call__(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> List[Tensor]:
 
         # Integrity check
         self._precheck(class_idx, scores)
@@ -125,37 +142,43 @@ class _CAM:
         # Compute CAM
         return self.compute_cams(class_idx, scores, normalized)
 
-    def compute_cams(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> Tensor:
+    def compute_cams(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> List[Tensor]:
         """Compute the CAM for a specific output class
 
         Args:
-            class_idx (int): output class index of the target class whose CAM will be computed
-            scores (torch.Tensor[1, K], optional): forward output scores of the hooked model
-            normalized (bool, optional): whether the CAM should be normalized
+            class_idx: output class index of the target class whose CAM will be computed
+            scores: forward output scores of the hooked model
+            normalized: whether the CAM should be normalized
 
         Returns:
-            torch.Tensor[M, N]: class activation map of hooked conv layer
+            List[Tensor]: list of class activation maps, one for each hooked layer
         """
 
         # Get map weight & unsqueeze it
         weights = self._get_weights(class_idx, scores)
-        missing_dims = self.hook_a.ndim - weights.ndim - 1  # type: ignore[union-attr]
-        weights = weights[(...,) + (None,) * missing_dims]
 
-        # Perform the weighted combination to get the CAM
-        batch_cams = torch.nansum(weights * self.hook_a.squeeze(0), dim=0)  # type: ignore[union-attr]
+        cams: List[Tensor] = []
 
-        if self._relu:
-            batch_cams = F.relu(batch_cams, inplace=True)
+        for weight, activation in zip(weights, self.hook_a):
+            missing_dims = activation.ndim - weight.ndim - 1  # type: ignore[union-attr]
+            weight = weight[(...,) + (None,) * missing_dims]
 
-        # Normalize the CAM
-        if normalized:
-            batch_cams = self._normalize(batch_cams)
+            # Perform the weighted combination to get the CAM
+            cam = torch.nansum(weight * activation.squeeze(0), dim=0)  # type: ignore[union-attr]
 
-        return batch_cams
+            if self._relu:
+                cam = F.relu(cam, inplace=True)
+
+            # Normalize the CAM
+            if normalized:
+                cam = self._normalize(cam)
+
+            cams.append(cam)
+
+        return cams
 
     def extra_repr(self) -> str:
-        return f"target_layer='{self.target_name}'"
+        return f"target_layer={self.target_names}"
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.extra_repr()})"

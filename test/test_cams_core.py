@@ -15,9 +15,15 @@ def test_cam_constructor(mock_img_model):
     with pytest.raises(ValueError):
         _ = core._CAM(model, '3')
 
-    # Wrong type
+    # Wrong types
     with pytest.raises(TypeError):
         _ = core._CAM(model, 3)
+    with pytest.raises(TypeError):
+        _ = core._CAM(model, [3])
+
+    # Unrelated module
+    with pytest.raises(ValueError):
+        _ = core._CAM(model, torch.nn.ReLU())
 
 
 def test_cam_precheck(mock_img_model, mock_img_tensor):
@@ -70,23 +76,23 @@ def test_cam_clear_hooks(mock_img_model):
 
     assert len(extractor.hook_handles) == 1
     # Check that there is only one hook on the model
-    assert extractor.hook_a is None
+    assert all(act is None for act in extractor.hook_a)
     with torch.no_grad():
         _ = model(torch.rand((1, 3, 32, 32)))
-    assert extractor.hook_a is not None
+    assert all(isinstance(act, torch.Tensor) for act in extractor.hook_a)
 
     # Remove it
     extractor.clear_hooks()
     assert len(extractor.hook_handles) == 0
-    # Check that there is no hook anymore
-    extractor.hook_a = None
+    # Reset the hooked values
+    extractor.hook_a = [None]
     with torch.no_grad():
         _ = model(torch.rand((1, 3, 32, 32)))
-    assert extractor.hook_a is None
+    assert all(act is None for act in extractor.hook_a)
 
 
 def test_cam_repr(mock_img_model):
     model = mock_img_model.eval()
     extractor = core._CAM(model, '0.3')
 
-    assert repr(extractor) == "_CAM(target_layer='0.3')"
+    assert repr(extractor) == "_CAM(target_layer=['0.3'])"

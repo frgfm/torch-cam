@@ -59,7 +59,7 @@ If you want to visualize your heatmap, you only need to cast the CAM to a numpy 
 ```python
 import matplotlib.pyplot as plt
 # Visualize the raw CAM
-plt.imshow(activation_map.numpy()); plt.axis('off'); plt.tight_layout(); plt.show()
+plt.imshow(activation_map[0].numpy()); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
 
 ![raw_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/raw_heatmap.png)
@@ -71,7 +71,7 @@ import matplotlib.pyplot as plt
 from torchcam.utils import overlay_mask
 
 # Resize the CAM and overlay it
-result = overlay_mask(to_pil_image(img), to_pil_image(activation_map, mode='F'), alpha=0.5)
+result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0], mode='F'), alpha=0.5)
 # Display it
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
