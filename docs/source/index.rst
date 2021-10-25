@@ -8,11 +8,14 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
    :alt: code_snippet
    :align: center
 
-This project is meant for :
+
+This project is meant for:
 
 * |:zap:| **exploration**: easily assess the influence of spatial features on your model's outputs
 * |:woman_scientist:| **research**: quickly implement your own ideas for new CAM methods
 
+
+Check out the live demo on `HuggingFace Spaces <https://huggingface.co/spaces/frgfm/torch-cam>`_!
 
 .. toctree::
    :maxdepth: 2
