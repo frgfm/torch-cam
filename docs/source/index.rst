@@ -1,7 +1,7 @@
 TorchCAM: class activation explorer
 ===================================
 
-TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs.
+TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs. Check out the live demo on `HuggingFace Spaces <https://huggingface.co/spaces/frgfm/torch-cam>`_ |:hugging_face:|
 
 
 .. image:: https://github.com/frgfm/torch-cam/releases/download/v0.1.2/base_snippet.png
@@ -14,8 +14,6 @@ This project is meant for:
 * |:zap:| **exploration**: easily assess the influence of spatial features on your model's outputs
 * |:woman_scientist:| **research**: quickly implement your own ideas for new CAM methods
 
-
-Check out the live demo on `HuggingFace Spaces <https://huggingface.co/spaces/frgfm/torch-cam>`_!
 
 .. toctree::
    :maxdepth: 2
