@@ -124,3 +124,6 @@ jobs:
 
       - name: Build documentation
         run: cd docs && bash build.sh
+
+      - name: Documentation sanity check
+        run: test -e docs/build/index.html || exit
