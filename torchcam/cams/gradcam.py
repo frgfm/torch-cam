@@ -66,7 +66,7 @@ class _GradCAM(_CAM):
 
 
 class GradCAM(_GradCAM):
-    """Implements a class activation map extractor as described in `"Grad-CAM: Visual Explanations from Deep Networks
+    r"""Implements a class activation map extractor as described in `"Grad-CAM: Visual Explanations from Deep Networks
     via Gradient-based Localization" <https://arxiv.org/pdf/1610.02391.pdf>`_.
 
     The localization map is computed as follows:
@@ -108,7 +108,7 @@ class GradCAM(_GradCAM):
 
 
 class GradCAMpp(_GradCAM):
-    """Implements a class activation map extractor as described in `"Grad-CAM++: Improved Visual Explanations for
+    r"""Implements a class activation map extractor as described in `"Grad-CAM++: Improved Visual Explanations for
     Deep Convolutional Networks" <https://arxiv.org/pdf/1710.11063.pdf>`_.
 
     The localization map is computed as follows:
@@ -176,7 +176,7 @@ class GradCAMpp(_GradCAM):
 
 
 class SmoothGradCAMpp(_GradCAM):
-    """Implements a class activation map extractor as described in `"Smooth Grad-CAM++: An Enhanced Inference Level
+    r"""Implements a class activation map extractor as described in `"Smooth Grad-CAM++: An Enhanced Inference Level
     Visualization Technique for Deep Convolutional Neural Network Models" <https://arxiv.org/pdf/1908.01224.pdf>`_
     with a personal correction to the paper (alpha coefficient numerator).
 
@@ -305,7 +305,7 @@ class SmoothGradCAMpp(_GradCAM):
 
 
 class XGradCAM(_GradCAM):
-    """Implements a class activation map extractor as described in `"Axiom-based Grad-CAM: Towards Accurate
+    r"""Implements a class activation map extractor as described in `"Axiom-based Grad-CAM: Towards Accurate
     Visualization and Explanation of CNNs" <https://arxiv.org/pdf/2008.02312.pdf>`_.
 
     The localization map is computed as follows:
@@ -351,7 +351,7 @@ class XGradCAM(_GradCAM):
 
 
 class LayerCAM(_GradCAM):
-    """Implements a class activation map extractor as described in `"LayerCAM: Exploring Hierarchical Class Activation
+    r"""Implements a class activation map extractor as described in `"LayerCAM: Exploring Hierarchical Class Activation
     Maps for Localization" <http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf>`_.
 
     The localization map is computed as follows:

@@ -18,7 +18,7 @@ __all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']
 
 
 class CAM(_CAM):
-    """Implements a class activation map extractor as described in `"Learning Deep Features for Discriminative
+    r"""Implements a class activation map extractor as described in `"Learning Deep Features for Discriminative
     Localization" <https://arxiv.org/pdf/1512.04150.pdf>`_.
 
     The Class Activation Map (CAM) is defined for image classification models that have global pooling at the end
@@ -90,7 +90,7 @@ class CAM(_CAM):
 
 
 class ScoreCAM(_CAM):
-    """Implements a class activation map extractor as described in `"Score-CAM:
+    r"""Implements a class activation map extractor as described in `"Score-CAM:
     Score-Weighted Visual Explanations for Convolutional Neural Networks" <https://arxiv.org/pdf/1910.01279.pdf>`_.
 
     The localization map is computed as follows:
@@ -210,7 +210,7 @@ class ScoreCAM(_CAM):
 
 
 class SSCAM(ScoreCAM):
-    """Implements a class activation map extractor as described in `"SS-CAM: Smoothed Score-CAM for
+    r"""Implements a class activation map extractor as described in `"SS-CAM: Smoothed Score-CAM for
     Sharper Visual Feature Localization" <https://arxiv.org/pdf/2006.14255.pdf>`_.
 
     The localization map is computed as follows:
@@ -300,7 +300,7 @@ class SSCAM(ScoreCAM):
 
 
 class ISCAM(ScoreCAM):
-    """Implements a class activation map extractor as described in `"IS-CAM: Integrated Score-CAM for axiomatic-based
+    r"""Implements a class activation map extractor as described in `"IS-CAM: Integrated Score-CAM for axiomatic-based
     explanations" <https://arxiv.org/pdf/2010.03023.pdf>`_.
 
     The localization map is computed as follows:
