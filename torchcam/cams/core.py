@@ -5,11 +5,11 @@
 
 import logging
 from functools import partial
+from typing import List, Optional, Tuple, Union
+
 import torch
-from torch import Tensor
-from torch import nn
 import torch.nn.functional as F
-from typing import Optional, List, Tuple, Union
+from torch import Tensor, nn
 
 from .utils import locate_candidate_layer
 

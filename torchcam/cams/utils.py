@@ -3,11 +3,11 @@
 # This program is licensed under the Apache License version 2.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
-import torch
-from torch import Tensor
-from torch import nn
-from typing import List, Optional, Tuple
 from functools import partial
+from typing import List, Optional, Tuple
+
+import torch
+from torch import Tensor, nn
 
 __all__ = ['locate_candidate_layer', 'locate_linear_layer']
 

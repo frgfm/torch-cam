@@ -3,13 +3,13 @@
 # This program is licensed under the Apache License version 2.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
-import math
 import logging
+import math
+from typing import Any, List, Optional, Tuple, Union
+
 import torch
-from torch import Tensor
-from torch import nn
 import torch.nn.functional as F
-from typing import Optional, Tuple, Any, Union, List
+from torch import Tensor, nn
 
 from .core import _CAM
 from .utils import locate_linear_layer

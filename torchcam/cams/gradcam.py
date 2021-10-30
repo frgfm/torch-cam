@@ -4,11 +4,11 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
 from functools import partial
+from typing import Any, List, Optional, Tuple, Union
+
 import torch
-from torch import nn
-from torch import Tensor
 import torch.nn.functional as F
-from typing import Optional, Tuple, Any, Union, List
+from torch import Tensor, nn
 
 from .core import _CAM
 

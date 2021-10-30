@@ -3,17 +3,17 @@
 # This program is licensed under the Apache License version 2.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
+from io import BytesIO
+
+import matplotlib.pyplot as plt
 import requests
 import streamlit as st
-import matplotlib.pyplot as plt
 from PIL import Image
-from io import BytesIO
 from torchvision import models
-from torchvision.transforms.functional import resize, to_tensor, normalize, to_pil_image
+from torchvision.transforms.functional import normalize, resize, to_pil_image, to_tensor
 
 from torchcam import cams
 from torchcam.utils import overlay_mask
-
 
 CAM_METHODS = ["CAM", "GradCAM", "GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "SSCAM", "ISCAM", "XGradCAM", "LayerCAM"]
 TV_MODELS = ["resnet18", "resnet50", "mobilenet_v2", "mobilenet_v3_small", "mobilenet_v3_large"]
