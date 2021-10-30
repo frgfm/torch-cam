@@ -7,16 +7,16 @@
 CAM visualization
 """
 
-import math
 import argparse
+import math
 from io import BytesIO
 
 import matplotlib.pyplot as plt
 import requests
-from PIL import Image
 import torch
+from PIL import Image
 from torchvision import models
-from torchvision.transforms.functional import normalize, resize, to_tensor, to_pil_image
+from torchvision.transforms.functional import normalize, resize, to_pil_image, to_tensor
 
 from torchcam import cams
 from torchcam.utils import overlay_mask

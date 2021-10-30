@@ -3,11 +3,12 @@
 # This program is licensed under the Apache License version 2.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
+from io import BytesIO
+
 import pytest
 import requests
-from io import BytesIO
-from PIL import Image
 import torch
+from PIL import Image
 from torch import nn
 from torchvision.transforms.functional import normalize, resize, to_tensor
 

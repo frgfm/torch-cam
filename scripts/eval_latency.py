@@ -7,8 +7,9 @@
 CAM latency benchmark
 """
 
-import time
 import argparse
+import time
+
 import numpy as np
 import torch
 from torchvision import models

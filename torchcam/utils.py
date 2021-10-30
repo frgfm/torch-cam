@@ -27,6 +27,10 @@ def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = 'jet', alp
 
     Returns:
         overlayed image
+
+    Raises:
+        TypeError: when the arguments have invalid types
+        ValueError: when the alpha argument has an incorrect value
     """
 
     if not isinstance(img, Image.Image) or not isinstance(mask, Image.Image):
