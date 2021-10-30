@@ -10,6 +10,7 @@ Everything you need to know to contribute efficiently to the project.
 - [test](https://github.com/frgfm/torch-cam/blob/master/test) - Python unit tests
 - [docs](https://github.com/frgfm/torch-cam/blob/master/docs) - Sphinx documentation building
 - [scripts](https://github.com/frgfm/torch-cam/blob/master/scripts) - Example and utilities scripts
+- [demo](https://github.com/mindee/doctr/blob/main/demo) - Small demo app to showcase docTR capabilities 
 
 
 
@@ -57,6 +58,15 @@ To ensure that your incoming PR complies with the lint settings, you need to ins
 flake8 ./
 ```
 This will read the `.flake8` setting file and let you know whether your commits need some adjustments.
+
+#### Import order
+
+In order to ensure there is a common import order convention, run [isort](https://github.com/PyCQA/isort) as follows:
+
+```shell
+isort **/*.py
+```
+This will reorder the imports of your local files.
 
 #### Annotation typing
 
