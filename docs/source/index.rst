@@ -21,6 +21,7 @@ This project is meant for:
    :hidden:
 
    installing
+   notebooks
 
 
 
