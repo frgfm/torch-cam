@@ -63,7 +63,7 @@ def main():
     if cam_method is not None:
         cam_extractor = cams.__dict__[cam_method](
             model,
-            target_layer=target_layer if len(target_layer) > 0 else None
+            target_layer=target_layer.split("+") if len(target_layer) > 0 else None
         )
 
     class_choices = [f"{idx + 1} - {class_name}" for idx, class_name in enumerate(LABEL_MAP)]
@@ -91,7 +91,9 @@ def main():
                 else:
                     class_idx = LABEL_MAP.index(class_selection.rpartition(" - ")[-1])
                 # Retrieve the CAM
-                activation_map = cam_extractor(class_idx, out)[0]
+                act_maps = cam_extractor(class_idx, out)
+                # Fuse the CAMs if there are several
+                activation_map = act_maps[0] if len(act_maps) == 1 else cam_extractor.fuse_cams(act_maps)
                 # Plot the raw heatmap
                 fig, ax = plt.subplots()
                 ax.imshow(activation_map.numpy())
