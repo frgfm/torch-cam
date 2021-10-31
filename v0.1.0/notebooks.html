@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>TorchCAM: class activation explorer &mdash; torchcam 0.2.1a0+caeac26-git documentation</title>
+  <title>TorchCAM Notebooks &mdash; torchcam 0.2.1a0+caeac26-git documentation</title>
   
 
   
@@ -41,7 +41,8 @@
   <link rel="stylesheet" href="_static/css/custom_theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Installation" href="installing.html" /> 
+    <link rel="next" title="torchcam.cams" href="cams.html" />
+    <link rel="prev" title="Installation" href="installing.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -55,7 +56,7 @@
           
 
           
-            <a href="#" class="icon icon-home"> torchcam
+            <a href="index.html" class="icon icon-home"> torchcam
           
 
           
@@ -83,14 +84,14 @@
             
             
               <p><span class="caption-text">Getting Started</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installing.html">Installation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="installing.html#via-python-package">Via Python Package</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installing.html#via-conda">Via Conda</a></li>
 <li class="toctree-l2"><a class="reference internal" href="installing.html#via-git">Via Git</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks.html">TorchCAM Notebooks</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">TorchCAM Notebooks</a></li>
 </ul>
 <p><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -125,7 +126,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="#">torchcam</a>
+          <a href="index.html">torchcam</a>
         
       </nav>
 
@@ -154,15 +155,15 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="#">Docs</a> &raquo;</li>
+      <li><a href="index.html">Docs</a> &raquo;</li>
         
-      <li>TorchCAM: class activation explorer</li>
+      <li>TorchCAM Notebooks</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+            <a href="_sources/notebooks.md.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -175,48 +176,30 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <section id="torchcam-class-activation-explorer">
-<h1>TorchCAM: class activation explorer<a class="headerlink" href="#torchcam-class-activation-explorer" title="Permalink to this headline">¶</a></h1>
-<p>TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs. Check out the live demo on <a class="reference external" href="https://huggingface.co/spaces/frgfm/torch-cam">HuggingFace Spaces</a> 🤗</p>
-<img alt="code_snippet" class="align-center" src="https://github.com/frgfm/torch-cam/releases/download/v0.1.2/base_snippet.png" />
-<p>This project is meant for:</p>
-<ul class="simple">
-<li><p>⚡ <strong>exploration</strong>: easily assess the influence of spatial features on your model’s outputs</p></li>
-<li><p>👩‍🔬 <strong>research</strong>: quickly implement your own ideas for new CAM methods</p></li>
-</ul>
-<div class="toctree-wrapper compound">
-</div>
-<section id="cam-zoo">
-<h2>CAM zoo<a class="headerlink" href="#cam-zoo" title="Permalink to this headline">¶</a></h2>
-<section id="activation-based-methods">
-<h3>Activation-based methods<a class="headerlink" href="#activation-based-methods" title="Permalink to this headline">¶</a></h3>
-<blockquote>
-<div><ul class="simple">
-<li><p>CAM from <a class="reference external" href="https://arxiv.org/pdf/1512.04150.pdf">“Learning Deep Features for Discriminative Localization”</a></p></li>
-<li><p>Score-CAM from <a class="reference external" href="https://arxiv.org/pdf/1910.01279.pdf">“Score-CAM: Score-Weighted Visual Explanations for Convolutional Neural Networks”</a></p></li>
-<li><p>SS-CAM from <a class="reference external" href="https://arxiv.org/pdf/2006.14255.pdf">“SS-CAM: Smoothed Score-CAM for Sharper Visual Feature Localization”</a></p></li>
-<li><p>IS-CAM from <a class="reference external" href="https://arxiv.org/pdf/2010.03023.pdf">“IS-CAM: Integrated Score-CAM for axiomatic-based explanations”</a></p></li>
-</ul>
-</div></blockquote>
-</section>
-<section id="gradient-based-methods">
-<h3>Gradient-based methods<a class="headerlink" href="#gradient-based-methods" title="Permalink to this headline">¶</a></h3>
-<blockquote>
-<div><ul class="simple">
-<li><p>Grad-CAM from <a class="reference external" href="https://arxiv.org/pdf/1610.02391.pdf">“Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization”</a></p></li>
-<li><p>Grad-CAM++ from <a class="reference external" href="https://arxiv.org/pdf/1710.11063.pdf">“Grad-CAM++: Improved Visual Explanations for Deep Convolutional Networks”</a></p></li>
-<li><p>Smooth Grad-CAM++ from <a class="reference external" href="https://arxiv.org/pdf/1908.01224.pdf">“Smooth Grad-CAM++: An Enhanced Inference Level Visualization Technique for Deep Convolutional Neural Network Models”</a></p></li>
-<li><p>X-Grad-CAM from <a class="reference external" href="https://arxiv.org/pdf/2008.02312.pdf">“Axiom-based Grad-CAM: Towards Accurate Visualization and Explanation of CNNs”</a></p></li>
-<li><p>Layer-CAM from <a class="reference external" href="http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf">“LayerCAM: Exploring Hierarchical Class Activation Maps for Localization”</a></p></li>
-</ul>
-</div></blockquote>
-<div class="toctree-wrapper compound">
-</div>
-<div class="toctree-wrapper compound">
-</div>
-</section>
-</section>
-</section>
+  <section id="torchcam-notebooks">
+<h1>TorchCAM Notebooks<a class="headerlink" href="#torchcam-notebooks" title="Permalink to this headline">¶</a></h1>
+<p>Here are some notebooks compiled for users to better leverage the library capabilities:</p>
+<table border="1" class="docutils">
+<thead>
+<tr>
+<th align="left">Notebook</th>
+<th align="left">Description</th>
+<th align="right"></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"><a href="https://github.com/frgfm/torchcam/blob/master/notebooks/quicktour.ipynb">Quicktour</a></td>
+<td align="left">A presentation of the main features of TorchCAM</td>
+<td align="right"><a href="https://colab.research.google.com/github/frgfm/torch-cam/blob/master/notebooks/quicktour.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></td>
+</tr>
+<tr>
+<td align="left"><a href="https://github.com/frgfm/torchcam/blob/master/notebooks/latency_benchmark.ipynb">Latency benchmark</a></td>
+<td align="left">How to benchmark the latency of a CAM method</td>
+<td align="right"><a href="https://colab.research.google.com/github/frgfm/torch-cam/blob/master/notebooks/latency_benchmark.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></td>
+</tr>
+</tbody>
+</table></section>
 
 
            </div>
@@ -226,8 +209,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="installing.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="cams.html" class="btn btn-neutral float-right" title="torchcam.cams" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
+      
+        <a href="installing.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
