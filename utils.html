@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.utils &mdash; torchcam 0.2.0a0+eb9427e-git documentation</title>
+  <title>torchcam.utils &mdash; torchcam 0.2.1a0+d8d722d-git documentation</title>
   
 
   
@@ -41,6 +41,7 @@
   <link rel="stylesheet" href="_static/css/custom_theme.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Changelog" href="changelog.html" />
     <link rel="prev" title="torchcam.cams" href="cams.html" /> 
 </head>
 
@@ -90,8 +91,9 @@
 <li class="toctree-l2"><a class="reference internal" href="installing.html#via-git">Via Git</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">TorchCAM Notebooks</a></li>
 </ul>
-<p><span class="caption-text">Package Documentation</span></p>
+<p><span class="caption-text">Package Reference</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="cams.html">torchcam.cams</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="cams.html#class-activation-map">Class activation map</a></li>
@@ -100,6 +102,16 @@
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">torchcam.utils</a></li>
+</ul>
+<p><span class="caption-text">Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-2-0-2021-04-10">v0.2.0 (2021-04-10)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-1-2-2020-12-27">v0.1.2 (2020-12-27)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-1-1-2020-08-03">v0.1.1 (2020-08-03)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-1-0-2020-03-24">v0.1.0 (2020-03-24)</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -170,6 +182,17 @@
 <dt id="torchcam.utils.overlay_mask">
 <code class="sig-prename descclassname">torchcam.utils.</code><code class="sig-name descname">overlay_mask</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">img</span><span class="p">:</span> <span class="n">PIL.Image.Image</span></em>, <em class="sig-param"><span class="n">mask</span><span class="p">:</span> <span class="n">PIL.Image.Image</span></em>, <em class="sig-param"><span class="n">colormap</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'jet'</span></em>, <em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.7</span></em><span class="sig-paren">)</span> &#x2192; PIL.Image.Image<a class="reference internal" href="_modules/torchcam/utils.html#overlay_mask"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torchcam.utils.overlay_mask" title="Permalink to this definition">¶</a></dt>
 <dd><p>Overlay a colormapped mask on a background image</p>
+<dl>
+<dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.utils</span> <span class="kn">import</span> <span class="n">overlay_mask</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">img</span> <span class="o">=</span> <span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cam</span> <span class="o">=</span> <span class="o">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">overlay</span> <span class="o">=</span> <span class="n">overlay_mask</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">cam</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -181,6 +204,12 @@
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>overlayed image</p>
+</dd>
+<dt class="field-odd">Raises</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>TypeError</strong> – when the arguments have invalid types</p></li>
+<li><p><strong>ValueError</strong> – when the alpha argument has an incorrect value</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
@@ -194,6 +223,8 @@
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="changelog.html" class="btn btn-neutral float-right" title="Changelog" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="cams.html" class="btn btn-neutral float-left" title="torchcam.cams" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

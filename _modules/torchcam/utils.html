@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.utils &mdash; torchcam 0.2.0a0+eb9427e-git documentation</title>
+  <title>torchcam.utils &mdash; torchcam 0.2.1a0+d8d722d-git documentation</title>
   
 
   
@@ -88,8 +88,9 @@
 <li class="toctree-l2"><a class="reference internal" href="../../installing.html#via-git">Via Git</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../notebooks.html">TorchCAM Notebooks</a></li>
 </ul>
-<p><span class="caption-text">Package Documentation</span></p>
+<p><span class="caption-text">Package Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../cams.html">torchcam.cams</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../cams.html#class-activation-map">Class activation map</a></li>
@@ -98,6 +99,16 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../utils.html">torchcam.utils</a></li>
+</ul>
+<p><span class="caption-text">Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../changelog.html#v0-2-0-2021-04-10">v0.2.0 (2021-04-10)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../changelog.html#v0-1-2-2020-12-27">v0.1.2 (2020-12-27)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../changelog.html#v0-1-1-2020-08-03">v0.1.1 (2020-08-03)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../changelog.html#v0-1-0-2020-03-24">v0.1.0 (2020-03-24)</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -161,13 +172,26 @@
            <div itemprop="articleBody">
             
   <h1>Source code for torchcam.utils</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="c1"># Copyright (C) 2020-2021, François-Guillaume Fernandez.</span>
+
+<span class="c1"># This program is licensed under the Apache License version 2.</span>
+<span class="c1"># See LICENSE or go to &lt;https://www.apache.org/licenses/LICENSE-2.0.txt&gt; for full license details.</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span>
 <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
 
 
 <div class="viewcode-block" id="overlay_mask"><a class="viewcode-back" href="../../utils.html#torchcam.utils.overlay_mask">[docs]</a><span class="k">def</span> <span class="nf">overlay_mask</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">colormap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;jet&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Overlay a colormapped mask on a background image</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from PIL import Image</span>
+<span class="sd">        &gt;&gt;&gt; import matplotlib.pyplot as plt</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.utils import overlay_mask</span>
+<span class="sd">        &gt;&gt;&gt; img = ...</span>
+<span class="sd">        &gt;&gt;&gt; cam = ...</span>
+<span class="sd">        &gt;&gt;&gt; overlay = overlay_mask(img, cam)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        img: background image</span>
@@ -177,6 +201,10 @@
 
 <span class="sd">    Returns:</span>
 <span class="sd">        overlayed image</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        TypeError: when the arguments have invalid types</span>
+<span class="sd">        ValueError: when the alpha argument has an incorrect value</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">):</span>

@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>TorchCAM: class activation explorer &mdash; torchcam 0.2.0a0+eb9427e-git documentation</title>
+  <title>TorchCAM: class activation explorer &mdash; torchcam 0.2.1a0+d8d722d-git documentation</title>
   
 
   
@@ -90,8 +90,9 @@
 <li class="toctree-l2"><a class="reference internal" href="installing.html#via-git">Via Git</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">TorchCAM Notebooks</a></li>
 </ul>
-<p><span class="caption-text">Package Documentation</span></p>
+<p><span class="caption-text">Package Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="cams.html">torchcam.cams</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="cams.html#class-activation-map">Class activation map</a></li>
@@ -100,6 +101,16 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="utils.html">torchcam.utils</a></li>
+</ul>
+<p><span class="caption-text">Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-2-0-2021-04-10">v0.2.0 (2021-04-10)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-1-2-2020-12-27">v0.1.2 (2020-12-27)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-1-1-2020-08-03">v0.1.1 (2020-08-03)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="changelog.html#v0-1-0-2020-03-24">v0.1.0 (2020-03-24)</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -166,32 +177,46 @@
             
   <section id="torchcam-class-activation-explorer">
 <h1>TorchCAM: class activation explorer<a class="headerlink" href="#torchcam-class-activation-explorer" title="Permalink to this headline">¶</a></h1>
-<p>TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs.</p>
+<p>TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs. Check out the live demo on <a class="reference external" href="https://huggingface.co/spaces/frgfm/torch-cam">HuggingFace Spaces</a> 🤗</p>
 <img alt="code_snippet" class="align-center" src="https://github.com/frgfm/torch-cam/releases/download/v0.1.2/base_snippet.png" />
-<p>This project is meant for :</p>
+<p>This project is meant for:</p>
 <ul class="simple">
 <li><p>⚡ <strong>exploration</strong>: easily assess the influence of spatial features on your model’s outputs</p></li>
 <li><p>👩‍🔬 <strong>research</strong>: quickly implement your own ideas for new CAM methods</p></li>
 </ul>
 <div class="toctree-wrapper compound">
-<p><span class="caption-text">Getting Started</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="installing.html">Installation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="installing.html#via-python-package">Via Python Package</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installing.html#via-conda">Via Conda</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installing.html#via-git">Via Git</a></li>
+</div>
+<section id="cam-zoo">
+<h2>CAM zoo<a class="headerlink" href="#cam-zoo" title="Permalink to this headline">¶</a></h2>
+<section id="activation-based-methods">
+<h3>Activation-based methods<a class="headerlink" href="#activation-based-methods" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><ul class="simple">
+<li><p>CAM from <a class="reference external" href="https://arxiv.org/pdf/1512.04150.pdf">“Learning Deep Features for Discriminative Localization”</a></p></li>
+<li><p>Score-CAM from <a class="reference external" href="https://arxiv.org/pdf/1910.01279.pdf">“Score-CAM: Score-Weighted Visual Explanations for Convolutional Neural Networks”</a></p></li>
+<li><p>SS-CAM from <a class="reference external" href="https://arxiv.org/pdf/2006.14255.pdf">“SS-CAM: Smoothed Score-CAM for Sharper Visual Feature Localization”</a></p></li>
+<li><p>IS-CAM from <a class="reference external" href="https://arxiv.org/pdf/2010.03023.pdf">“IS-CAM: Integrated Score-CAM for axiomatic-based explanations”</a></p></li>
 </ul>
-</li>
+</div></blockquote>
+</section>
+<section id="gradient-based-methods">
+<h3>Gradient-based methods<a class="headerlink" href="#gradient-based-methods" title="Permalink to this headline">¶</a></h3>
+<blockquote>
+<div><ul class="simple">
+<li><p>Grad-CAM from <a class="reference external" href="https://arxiv.org/pdf/1610.02391.pdf">“Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization”</a></p></li>
+<li><p>Grad-CAM++ from <a class="reference external" href="https://arxiv.org/pdf/1710.11063.pdf">“Grad-CAM++: Improved Visual Explanations for Deep Convolutional Networks”</a></p></li>
+<li><p>Smooth Grad-CAM++ from <a class="reference external" href="https://arxiv.org/pdf/1908.01224.pdf">“Smooth Grad-CAM++: An Enhanced Inference Level Visualization Technique for Deep Convolutional Neural Network Models”</a></p></li>
+<li><p>X-Grad-CAM from <a class="reference external" href="https://arxiv.org/pdf/2008.02312.pdf">“Axiom-based Grad-CAM: Towards Accurate Visualization and Explanation of CNNs”</a></p></li>
+<li><p>Layer-CAM from <a class="reference external" href="http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf">“LayerCAM: Exploring Hierarchical Class Activation Maps for Localization”</a></p></li>
 </ul>
+</div></blockquote>
+<div class="toctree-wrapper compound">
 </div>
 <div class="toctree-wrapper compound">
-<p><span class="caption-text">Package Documentation</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="cams.html">torchcam.cams</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utils.html">torchcam.utils</a></li>
-</ul>
 </div>
-<span class="target" id="module-torchcam"></span></section>
+</section>
+</section>
+</section>
 
 
            </div>
