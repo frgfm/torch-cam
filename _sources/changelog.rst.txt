@@ -1,6 +1,10 @@
 Changelog
 =========
 
+v0.3.0 (2021-10-31)
+-------------------
+Release note: `v0.3.0 <https://github.com/frgfm/torch-cam/releases/tag/v0.3.0>`_
+
 v0.2.0 (2021-04-10)
 -------------------
 Release note: `v0.2.0 <https://github.com/frgfm/torch-cam/releases/tag/v0.2.0>`_
