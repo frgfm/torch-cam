@@ -40,7 +40,7 @@ Basic usage
     >>> from torchvision.models import resnet18
     >>> from torchvision.transforms.functional import normalize, resize, to_pil_image
     >>> 
-    >>> from torchcam.cams import SmoothGradCAMpp, LayerCAM
+    >>> from torchcam.methods import SmoothGradCAMpp, LayerCAM
     >>> from torchcam.utils import overlay_mask
 
 .. code-block:: python
