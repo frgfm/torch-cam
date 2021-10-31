@@ -234,13 +234,13 @@
 <span class="sd">    The localization map is computed as follows:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        L^{(c)}_{Grad-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
+<span class="sd">        L^{(c)}_{Grad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)</span>
 
 <span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        w_k^{(c)} = \\frac{1}{H \\cdot W} \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W</span>
-<span class="sd">        \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}</span>
+<span class="sd">        w_k^{(c)} = \frac{1}{H \cdot W} \sum\limits_{i=1}^H \sum\limits_{j=1}^W</span>
+<span class="sd">        \frac{\partial Y^{(c)}}{\partial A_k(i, j)}</span>
 
 <span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
@@ -276,26 +276,26 @@
 <span class="sd">    The localization map is computed as follows:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        L^{(c)}_{Grad-CAM++}(x, y) = \\sum\\limits_k w_k^{(c)} A_k(x, y)</span>
+<span class="sd">        L^{(c)}_{Grad-CAM++}(x, y) = \sum\limits_k w_k^{(c)} A_k(x, y)</span>
 
 <span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot</span>
-<span class="sd">        ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)</span>
+<span class="sd">        w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot</span>
+<span class="sd">        ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)</span>
 
 <span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,</span>
-<span class="sd">    and :math:`\\alpha_k^{(c)}(i, j)` being defined as:</span>
+<span class="sd">    and :math:`\alpha_k^{(c)}(i, j)` being defined as:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        \\alpha_k^{(c)}(i, j) = \\frac{1}{\\sum\\limits_{i, j} \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}}</span>
-<span class="sd">        = \\frac{\\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2}}{2 \\cdot</span>
-<span class="sd">        \\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2} + \\sum\\limits_{a,b} A_k (a,b) \\cdot</span>
-<span class="sd">        \\frac{\\partial^3 Y^{(c)}}{(\\partial A_k(i,j))^3}}</span>
+<span class="sd">        \alpha_k^{(c)}(i, j) = \frac{1}{\sum\limits_{i, j} \frac{\partial Y^{(c)}}{\partial A_k(i, j)}}</span>
+<span class="sd">        = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot</span>
+<span class="sd">        \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot</span>
+<span class="sd">        \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}</span>
 
-<span class="sd">    if :math:`\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} = 1` else :math:`0`.</span>
+<span class="sd">    if :math:`\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1` else :math:`0`.</span>
 
 <span class="sd">    Example::</span>
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
@@ -345,34 +345,34 @@
 <span class="sd">    The localization map is computed as follows:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        L^{(c)}_{Smooth Grad-CAM++}(x, y) = \\sum\\limits_k w_k^{(c)} A_k(x, y)</span>
+<span class="sd">        L^{(c)}_{Smooth Grad-CAM++}(x, y) = \sum\limits_k w_k^{(c)} A_k(x, y)</span>
 
 <span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot</span>
-<span class="sd">        ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)</span>
+<span class="sd">        w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot</span>
+<span class="sd">        ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)</span>
 
 <span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,</span>
-<span class="sd">    and :math:`\\alpha_k^{(c)}(i, j)` being defined as:</span>
+<span class="sd">    and :math:`\alpha_k^{(c)}(i, j)` being defined as:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        \\alpha_k^{(c)}(i, j)</span>
-<span class="sd">        = \\frac{\\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2}}{2 \\cdot</span>
-<span class="sd">        \\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2} + \\sum\\limits_{a,b} A_k (a,b) \\cdot</span>
-<span class="sd">        \\frac{\\partial^3 Y^{(c)}}{(\\partial A_k(i,j))^3}}</span>
-<span class="sd">        = \\frac{\\frac{1}{n} \\sum\\limits_{m=1}^n D^{(c, 2)}_k(i, j)}{</span>
-<span class="sd">        \\frac{2}{n} \\sum\\limits_{m=1}^n D^{(c, 2)}_k(i, j) + \\sum\\limits_{a,b} A_k (a,b) \\cdot</span>
-<span class="sd">        \\frac{1}{n} \\sum\\limits_{m=1}^n D^{(c, 3)}_k(i, j)}</span>
+<span class="sd">        \alpha_k^{(c)}(i, j)</span>
+<span class="sd">        = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot</span>
+<span class="sd">        \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot</span>
+<span class="sd">        \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}</span>
+<span class="sd">        = \frac{\frac{1}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j)}{</span>
+<span class="sd">        \frac{2}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j) + \sum\limits_{a,b} A_k (a,b) \cdot</span>
+<span class="sd">        \frac{1}{n} \sum\limits_{m=1}^n D^{(c, 3)}_k(i, j)}</span>
 
-<span class="sd">    if :math:`\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} = 1` else :math:`0`. Here :math:`D^{(c, p)}_k(i, j)`</span>
+<span class="sd">    if :math:`\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1` else :math:`0`. Here :math:`D^{(c, p)}_k(i, j)`</span>
 <span class="sd">    refers to the p-th partial derivative of the class score of class :math:`c` relatively to the activation in layer</span>
 <span class="sd">    :math:`k` at position :math:`(i, j)`, and :math:`n` is the number of samples used to get the gradient estimate.</span>
 
-<span class="sd">    Please note the difference in the numerator of :math:`\\alpha_k^{(c)}(i, j)`,</span>
-<span class="sd">    which is actually :math:`\\frac{1}{n} \\sum\\limits_{k=1}^n D^{(c, 1)}_k(i,j)` in the paper.</span>
+<span class="sd">    Please note the difference in the numerator of :math:`\alpha_k^{(c)}(i, j)`,</span>
+<span class="sd">    which is actually :math:`\frac{1}{n} \sum\limits_{k=1}^n D^{(c, 1)}_k(i,j)` in the paper.</span>
 
 <span class="sd">    Example::</span>
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
@@ -473,14 +473,14 @@
 <span class="sd">    The localization map is computed as follows:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        L^{(c)}_{XGrad-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
+<span class="sd">        L^{(c)}_{XGrad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)</span>
 
 <span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W</span>
-<span class="sd">        \\Big( \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} \\cdot</span>
-<span class="sd">        \\frac{A_k(i, j)}{\\sum\\limits_{m=1}^H \\sum\\limits_{n=1}^W A_k(m, n)} \\Big)</span>
+<span class="sd">        w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W</span>
+<span class="sd">        \Big( \frac{\partial Y^{(c)}}{\partial A_k(i, j)} \cdot</span>
+<span class="sd">        \frac{A_k(i, j)}{\sum\limits_{m=1}^H \sum\limits_{n=1}^W A_k(m, n)} \Big)</span>
 
 <span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
@@ -519,12 +519,12 @@
 <span class="sd">    The localization map is computed as follows:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        L^{(c)}_{Layer-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)}(x, y) \\cdot A_k(x, y)\\Big)</span>
+<span class="sd">        L^{(c)}_{Layer-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)}(x, y) \cdot A_k(x, y)\Big)</span>
 
 <span class="sd">    with the coefficient :math:`w_k^{(c)}(x, y)` being defined as:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        w_k^{(c)}(x, y) = ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}(x, y)\\Big)</span>
+<span class="sd">        w_k^{(c)}(x, y) = ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}(x, y)\Big)</span>
 
 <span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`,</span>
