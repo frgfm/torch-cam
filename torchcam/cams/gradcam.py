@@ -27,7 +27,7 @@ class _GradCAM(_CAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[nn.Module, str]] = None,
+        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
@@ -231,7 +231,7 @@ class SmoothGradCAMpp(_GradCAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[nn.Module, str]] = None,
+        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         num_samples: int = 4,
         std: float = 0.3,
         input_shape: Tuple[int, ...] = (3, 224, 224),

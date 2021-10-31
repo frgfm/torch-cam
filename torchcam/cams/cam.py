@@ -50,7 +50,7 @@ class CAM(_CAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[nn.Module, str]] = None,
+        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         fc_layer: Optional[Union[nn.Module, str]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
@@ -132,7 +132,7 @@ class ScoreCAM(_CAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[str] = None,
+        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         batch_size: int = 32,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
@@ -257,7 +257,7 @@ class SSCAM(ScoreCAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[str] = None,
+        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         batch_size: int = 32,
         num_samples: int = 35,
         std: float = 2.0,
@@ -346,7 +346,7 @@ class ISCAM(ScoreCAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[str] = None,
+        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         batch_size: int = 32,
         num_samples: int = 10,
         input_shape: Tuple[int, ...] = (3, 224, 224),
