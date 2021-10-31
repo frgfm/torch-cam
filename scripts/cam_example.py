@@ -18,7 +18,7 @@ from PIL import Image
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_pil_image, to_tensor
 
-from torchcam import cams
+from torchcam import methods
 from torchcam.utils import overlay_mask
 
 
@@ -44,16 +44,16 @@ def main(args):
                            [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
 
     if isinstance(args.method, str):
-        methods = [args.method]
+        cam_methods = [args.method]
     else:
-        methods = [
+        cam_methods = [
             'CAM',
             'GradCAM', 'GradCAMpp', 'SmoothGradCAMpp',
             'ScoreCAM', 'SSCAM', 'ISCAM',
             'XGradCAM', 'LayerCAM'
         ]
     # Hook the corresponding layer in the model
-    cam_extractors = [cams.__dict__[name](model, enable_hooks=False) for name in methods]
+    cam_extractors = [methods.__dict__[name](model, enable_hooks=False) for name in cam_methods]
 
     # Homogenize number of elements in each row
     num_cols = math.ceil((len(cam_extractors) + 1) / args.rows)

@@ -14,7 +14,7 @@ import numpy as np
 import torch
 from torchvision import models
 
-from torchcam import cams as methods
+from torchcam import methods
 
 
 def main(args):
