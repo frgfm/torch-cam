@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.cams.core &mdash; torchcam 0.2.0a0+eb9427e-git documentation</title>
+  <title>torchcam.methods.core &mdash; torchcam 0.1.1a0+a95d680-git documentation</title>
   
 
   
@@ -92,9 +92,8 @@
 <p><span class="caption-text">Package Documentation</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../cams.html">torchcam.cams</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../cams.html#class-activation-map">Class activation map</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../cams.html#activation-based-methods">Activation-based methods</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../cams.html#gradient-based-methods">Gradient-based methods</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../cams.html#cam">CAM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../cams.html#grad-cam">Grad-CAM</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../utils.html">torchcam.utils</a></li>
@@ -145,7 +144,7 @@
         
           <li><a href="../../index.html">Module code</a> &raquo;</li>
         
-      <li>torchcam.cams.core</li>
+      <li>torchcam.methods.core</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -160,7 +159,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <h1>Source code for torchcam.cams.core</h1><div class="highlight"><pre>
+  <h1>Source code for torchcam.methods.core</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Copyright (C) 2020-2021, François-Guillaume Fernandez.</span>
 
 <span class="c1"># This program is licensed under the Apache License version 2.</span>
@@ -174,7 +173,7 @@
 <span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
 <span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">nn</span>
 
-<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">locate_candidate_layer</span>
+<span class="kn">from</span> <span class="nn">._utils</span> <span class="kn">import</span> <span class="n">locate_candidate_layer</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_CAM&#39;</span><span class="p">]</span>
 

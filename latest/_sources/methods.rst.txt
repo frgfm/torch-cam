@@ -1,8 +1,8 @@
-torchcam.cams
-=============
+torchcam.methods
+================
 
 
-.. currentmodule:: torchcam.cams
+.. currentmodule:: torchcam.methods
 
 
 Class activation map
