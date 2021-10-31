@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from torchvision.models import mobilenet_v2
 
-from torchcam.cams import gradcam
+from torchcam.methods import gradient
 
 
 def _verify_cam(activation_map, output_size):
@@ -34,7 +34,7 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
-    extractor = gradcam.__dict__[cam_name](model, target_layer)
+    extractor = gradient.__dict__[cam_name](model, target_layer)
 
     scores = model(mock_img_tensor)
     # Use the hooked data to compute activation map
@@ -52,7 +52,7 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
     )
 
     # Hook before the inplace ops
-    extractor = gradcam.__dict__[cam_name](model, '2')
+    extractor = gradient.__dict__[cam_name](model, '2')
     scores = model(mock_img_tensor)
     # Use the hooked data to compute activation map
     _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (224, 224))
@@ -71,7 +71,7 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
 def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_video_tensor):
     model = mock_video_model.eval()
     # Hook the corresponding layer in the model
-    extractor = gradcam.__dict__[cam_name](model, target_layer)
+    extractor = gradient.__dict__[cam_name](model, target_layer)
 
     scores = model(mock_video_tensor)
     # Use the hooked data to compute activation map
@@ -82,7 +82,7 @@ def test_smoothgradcampp_repr():
     model = mobilenet_v2(pretrained=False).eval()
 
     # Hook the corresponding layer in the model
-    extractor = gradcam.SmoothGradCAMpp(model, 'features.18.0')
+    extractor = gradient.SmoothGradCAMpp(model, 'features.18.0')
 
     assert repr(extractor) == "SmoothGradCAMpp(target_layer=['features.18.0'], num_samples=4, std=0.3)"
 
@@ -90,24 +90,24 @@ def test_smoothgradcampp_repr():
 def test_layercam_fuse_cams(mock_img_model):
 
     with pytest.raises(TypeError):
-        gradcam.LayerCAM.fuse_cams(torch.zeros((3, 32, 32)))
+        gradient.LayerCAM.fuse_cams(torch.zeros((3, 32, 32)))
 
     with pytest.raises(ValueError):
-        gradcam.LayerCAM.fuse_cams([])
+        gradient.LayerCAM.fuse_cams([])
 
     cams = [torch.rand((32, 32)), torch.rand((16, 16))]
 
     # Single CAM
-    assert torch.equal(cams[0], gradcam.LayerCAM.fuse_cams(cams[:1]))
+    assert torch.equal(cams[0], gradient.LayerCAM.fuse_cams(cams[:1]))
 
     # Fusion
-    cam = gradcam.LayerCAM.fuse_cams(cams)
+    cam = gradient.LayerCAM.fuse_cams(cams)
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (32, 32)
 
     # Specify target shape
-    cam = gradcam.LayerCAM.fuse_cams(cams, (16, 16))
+    cam = gradient.LayerCAM.fuse_cams(cams, (16, 16))
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (16, 16)

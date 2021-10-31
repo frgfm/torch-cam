@@ -49,7 +49,7 @@ Gradient-based methods
    :caption: Package Reference
    :hidden:
 
-   cams
+   methods
    utils
 
 

@@ -28,7 +28,7 @@ test:
   # Python imports
   imports:
     - torchcam
-    - torchcam.cams
+    - torchcam.methods
     - torchcam.utils
   requires:
     - python

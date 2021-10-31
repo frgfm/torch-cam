@@ -12,7 +12,8 @@ from PIL import Image
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_pil_image, to_tensor
 
-from torchcam import cams
+from torchcam import methods
+from torchcam.methods._utils import locate_candidate_layer
 from torchcam.utils import overlay_mask
 
 CAM_METHODS = ["CAM", "GradCAM", "GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "SSCAM", "ISCAM", "XGradCAM", "LayerCAM"]
@@ -56,12 +57,12 @@ def main():
     if tv_model is not None:
         with st.spinner('Loading model...'):
             model = models.__dict__[tv_model](pretrained=True).eval()
-        default_layer = cams.utils.locate_candidate_layer(model, (3, 224, 224))
+        default_layer = locate_candidate_layer(model, (3, 224, 224))
 
     target_layer = st.sidebar.text_input("Target layer", default_layer)
     cam_method = st.sidebar.selectbox("CAM method", CAM_METHODS)
     if cam_method is not None:
-        cam_extractor = cams.__dict__[cam_method](
+        cam_extractor = methods.__dict__[cam_method](
             model,
             target_layer=target_layer.split("+") if len(target_layer) > 0 else None
         )

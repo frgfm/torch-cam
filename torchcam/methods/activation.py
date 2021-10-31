@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from .core import _CAM
-from .utils import locate_linear_layer
+from ._utils import locate_linear_layer
 
 __all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']
 
@@ -34,7 +34,7 @@ class CAM(_CAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import CAM
+        >>> from torchcam.methods import CAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = CAM(model, 'layer4', 'fc')
         >>> with torch.no_grad(): out = model(input_tensor)
@@ -116,7 +116,7 @@ class ScoreCAM(_CAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import ScoreCAM
+        >>> from torchcam.methods import ScoreCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = ScoreCAM(model, 'layer4')
         >>> with torch.no_grad(): out = model(input_tensor)
@@ -239,7 +239,7 @@ class SSCAM(ScoreCAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import SSCAM
+        >>> from torchcam.methods import SSCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = SSCAM(model, 'layer4')
         >>> with torch.no_grad(): out = model(input_tensor)
@@ -329,7 +329,7 @@ class ISCAM(ScoreCAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import ISSCAM
+        >>> from torchcam.methods import ISSCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = ISCAM(model, 'layer4')
         >>> with torch.no_grad(): out = model(input_tensor)
