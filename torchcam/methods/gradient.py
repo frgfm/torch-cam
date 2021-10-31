@@ -86,7 +86,7 @@ class GradCAM(_GradCAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import GradCAM
+        >>> from torchcam.methods import GradCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = GradCAM(model, 'layer4')
         >>> scores = model(input_tensor)
@@ -137,7 +137,7 @@ class GradCAMpp(_GradCAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import GradCAMpp
+        >>> from torchcam.methods import GradCAMpp
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = GradCAMpp(model, 'layer4')
         >>> scores = model(input_tensor)
@@ -214,7 +214,7 @@ class SmoothGradCAMpp(_GradCAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import SmoothGradCAMpp
+        >>> from torchcam.methods import SmoothGradCAMpp
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = SmoothGradCAMpp(model, 'layer4')
         >>> scores = model(input_tensor)
@@ -326,7 +326,7 @@ class XGradCAM(_GradCAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import XGradCAM
+        >>> from torchcam.methods import XGradCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> cam = XGradCAM(model, 'layer4')
         >>> scores = model(input_tensor)
@@ -370,7 +370,7 @@ class LayerCAM(_GradCAM):
 
     Example::
         >>> from torchvision.models import resnet18
-        >>> from torchcam.cams import LayerCAM
+        >>> from torchcam.methods import LayerCAM
         >>> model = resnet18(pretrained=True).eval()
         >>> extractor = LayerCAM(model, 'layer4')
         >>> scores = model(input_tensor)
