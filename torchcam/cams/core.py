@@ -29,7 +29,7 @@ class _CAM:
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[nn.Module, str]] = None,
+        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
         enable_hooks: bool = True,
     ) -> None:
