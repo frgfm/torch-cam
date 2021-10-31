@@ -6,7 +6,7 @@
 import pytest
 import torch
 
-from torchcam.cams import core
+from torchcam.methods import core
 
 
 def test_cam_constructor(mock_img_model):
