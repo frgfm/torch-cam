@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 
 from .core import _CAM
-from .utils import locate_linear_layer
+from ._utils import locate_linear_layer
 
 __all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']
 
