@@ -56,8 +56,8 @@ class CAM(_CAM):
         **kwargs: Any,
     ) -> None:
 
-        if isinstance(target_layer, list):
-            raise TypeError("invalid argument type for `target_layer`")
+        if isinstance(target_layer, list) and len(target_layer) > 1:
+            raise ValueError("base CAM does not support multiple target layers")
 
         super().__init__(model, target_layer, input_shape, **kwargs)
 
