@@ -25,7 +25,7 @@ class CAM(_CAM):
     of the visual feature extraction block. The localization map is computed as follows:
 
     .. math::
-        L^{(c)}_{CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+        L^{(c)}_{CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
 
     where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`,
@@ -96,7 +96,7 @@ class ScoreCAM(_CAM):
     The localization map is computed as follows:
 
     .. math::
-        L^{(c)}_{Score-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+        L^{(c)}_{Score-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
 
     with the coefficient :math:`w_k^{(c)}` being defined as:
 
@@ -109,10 +109,10 @@ class ScoreCAM(_CAM):
     and :math:`M_k` is defined as follows:
 
     .. math::
-        M_k = \\frac{U(A_k) - \\min\\limits_m U(A_m)}{\\max\\limits_m  U(A_m) - \\min\\limits_m  U(A_m)})
-        \\odot X
+        M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)})
+        \odot X
 
-    where :math:`\\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.
+    where :math:`\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.
 
     Example::
         >>> from torchvision.models import resnet18
@@ -216,12 +216,12 @@ class SSCAM(ScoreCAM):
     The localization map is computed as follows:
 
     .. math::
-        L^{(c)}_{SS-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+        L^{(c)}_{SS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
 
     with the coefficient :math:`w_k^{(c)}` being defined as:
 
     .. math::
-        w_k^{(c)} = \\frac{1}{N} \\sum\\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
+        w_k^{(c)} = \frac{1}{N} \sum\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
 
     where :math:`N` is the number of samples used to smooth the weights,
     :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
@@ -230,12 +230,12 @@ class SSCAM(ScoreCAM):
     and :math:`M_k` is defined as follows:
 
     .. math::
-        M_k = \\Bigg(\\frac{U(A_k) - \\min\\limits_m U(A_m)}{\\max\\limits_m  U(A_m) - \\min\\limits_m  U(A_m)} +
-        \\delta\\Bigg) \\odot X
+        M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
+        \delta\Bigg) \odot X
 
-    where :math:`\\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
-    :math:`\\delta \\sim \\mathcal{N}(0, \\sigma^2)` is the random noise that follows a 0-mean gaussian distribution
-    with a standard deviation of :math:`\\sigma`.
+    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
+    :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution
+    with a standard deviation of :math:`\sigma`.
 
     Example::
         >>> from torchvision.models import resnet18
@@ -306,12 +306,12 @@ class ISCAM(ScoreCAM):
     The localization map is computed as follows:
 
     .. math::
-        L^{(c)}_{ISS-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)
+        L^{(c)}_{ISS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
 
     with the coefficient :math:`w_k^{(c)}` being defined as:
 
     .. math::
-        w_k^{(c)} = \\sum\\limits_{i=1}^N \\frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
+        w_k^{(c)} = \sum\limits_{i=1}^N \frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
 
     where :math:`N` is the number of samples used to smooth the weights,
     :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
@@ -320,12 +320,12 @@ class ISCAM(ScoreCAM):
     and :math:`M_k` is defined as follows:
 
     .. math::
-        M_k = \\Bigg(\\frac{U(A_k) - \\min\\limits_m U(A_m)}{\\max\\limits_m  U(A_m) - \\min\\limits_m  U(A_m)} +
-        \\delta\\Bigg) \\odot X
+        M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
+        \delta\Bigg) \odot X
 
-    where :math:`\\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
-    :math:`\\delta \\sim \\mathcal{N}(0, \\sigma^2)` is the random noise that follows a 0-mean gaussian distribution
-    with a standard deviation of :math:`\\sigma`.
+    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
+    :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution
+    with a standard deviation of :math:`\sigma`.
 
     Example::
         >>> from torchvision.models import resnet18
