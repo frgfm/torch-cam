@@ -14,7 +14,7 @@ def test_base_cam_constructor(mock_img_model):
     model = mobilenet_v2(pretrained=False).eval()
     # Check that multiple target layers is disabled for base CAM
     with pytest.raises(ValueError):
-        _ = activation.CAM(model, ['classifier.1' 'classifier.2'])
+        _ = cam.CAM(model, ['classifier.1' 'classifier.2'])
 
     # FC layer checks
     with pytest.raises(TypeError):
