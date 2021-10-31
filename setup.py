@@ -12,7 +12,7 @@ import subprocess
 
 from setuptools import find_packages, setup
 
-version = '0.2.1a0'
+version = '0.3.1a0'
 sha = 'Unknown'
 package_name = 'torchcam'
 

@@ -80,8 +80,7 @@ jobs:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
           VERSION: ${{ steps.release_tag.outputs.VERSION }}
         run: |
-          VERSION="${VERSION:1}"
-          export BUILD_VERSION=$VERSION
+          export BUILD_VERSION="${VERSION:1}"
           python setup.py sdist
           mkdir conda-dist
           conda-build .conda/ -c pytorch --output-folder conda-dist
