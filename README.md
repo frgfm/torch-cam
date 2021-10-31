@@ -213,6 +213,9 @@ python scripts/eval_latency.py SmoothGradCAMpp
 
 *All script arguments can be checked using `python scripts/eval_latency.py --help`*
 
+### Example notebooks
+
+Explore TorchCAM features with [jupyter notebooks](notebooks)!
 
 
 
