@@ -68,6 +68,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: 3.7
+          auto-activate-base: true
       - name: Install dependencies
         run: |
           conda install -y conda-build conda-verify anaconda-client
@@ -97,6 +98,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: 3.7
+          auto-activate-base: true
       - name: Install package
         run: |
           conda install -c frgfm torchcam
