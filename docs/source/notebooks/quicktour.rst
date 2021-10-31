@@ -13,7 +13,7 @@ Latest stable release
 
 .. code-block:: python
 
-    >>> !pip install torch-cam
+    >>> !pip install torchcam
 
 From source
 -----------
@@ -31,6 +31,20 @@ Basic usage
 
 .. code-block:: python
 
+    >>> %matplotlib inline
+    >>> # All imports
+    >>> import matplotlib.pyplot as plt
+    >>> import torch
+    >>> from torch.nn.functional import softmax, interpolate
+    >>> from torchvision.io.image import read_image
+    >>> from torchvision.models import resnet18
+    >>> from torchvision.transforms.functional import normalize, resize, to_pil_image
+    >>> 
+    >>> from torchcam.cams import SmoothGradCAMpp, LayerCAM
+    >>> from torchcam.utils import overlay_mask
+
+.. code-block:: python
+
     >>> # Download an image
     >>> !wget https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg
     >>> # Set this to your image path if you wish to run it on your own data
@@ -40,23 +54,12 @@ Basic usage
 .. code-block:: python
 
     >>> # Instantiate your model here
-    >>> from torchvision.models import resnet18
     >>> model = resnet18(pretrained=True).eval()
 
 
 
 Illustrate your classifier capabilities
 ---------------------------------------
-
-.. code-block:: python
-
-    >>> %matplotlib inline
-    >>> # All imports
-    >>> from torchvision.io.image import read_image
-    >>> from torchvision.transforms.functional import normalize, resize, to_pil_image
-    >>> import matplotlib.pyplot as plt
-    >>> from torchcam.cams import SmoothGradCAMpp, LayerCAM
-    >>> from torchcam.utils import overlay_mask
 
 .. code-block:: python
 
@@ -69,6 +72,7 @@ Illustrate your classifier capabilities
     >>> out = model(input_tensor.unsqueeze(0))
     >>> # Retrieve the CAM by passing the class index and the model output
     >>> cams = cam_extractor(out.squeeze(0).argmax().item(), out)
+    WARNING:root:no value was provided for `target_layer`, thus set to 'layer4'.
 
 .. code-block:: python
 
@@ -106,16 +110,12 @@ Extract localization cues
 
 .. code-block::python
 
-    >>> import torch
-    >>> from torch.nn.functional import softmax, interpolate
-
-.. code-block::python
-
     >>> # Retrieve the CAM from several layers at the same time
     >>> cam_extractor = LayerCAM(model)
     >>> # Preprocess your data and feed it to the model
     >>> out = model(input_tensor.unsqueeze(0))
     >>> print(softmax(out, dim=1).max())
+    WARNING:root:no value was provided for `target_layer`, thus set to 'layer4'.
     tensor(0.9115, grad_fn=<MaxBackward1>)
 
 
@@ -135,6 +135,11 @@ Extract localization cues
     >>>   axes[1].imshow(seg); axes[1].axis('off'); axes[1].set_title(name)
     >>>   plt.show()
 
+.. code-block:: python
+
+    >>> # Once you're finished, clear the hooks on your model
+    >>> cam_extractor.clear_hooks()
+
 
 Fuse CAMs from multiple layers
 ------------------------------
@@ -153,6 +158,7 @@ Fuse CAMs from multiple layers
     >>> # This time, there are several CAMs
     >>> for cam in cams:
     >>>   print(cam.shape)
+    torch.Size([28, 28])
     torch.Size([14, 14])
     torch.Size([7, 7])
 
@@ -175,3 +181,8 @@ Fuse CAMs from multiple layers
     >>> # Plot the overlayed version
     >>> result = overlay_mask(to_pil_image(img), to_pil_image(fused_cam, mode='F'), alpha=0.5)
     >>> plt.imshow(result); plt.axis('off'); plt.title(" + ".join(cam_extractor.target_names)); plt.show()
+
+.. code-block:: python
+
+    >>> # Once you're finished, clear the hooks on your model
+    >>> cam_extractor.clear_hooks()
