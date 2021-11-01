@@ -9,8 +9,8 @@ Package installation setup
 
 import os
 import re
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 from setuptools import find_packages, setup
 
