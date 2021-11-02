@@ -4,8 +4,8 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
 import re
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 
 def test_deps_consistency():
@@ -25,7 +25,6 @@ def test_deps_consistency():
             version_constraint = _split[-1] if len(_split) > 1 else ""
             assert req_deps.get(lib) is None, f"conflicting deps for {lib}"
             req_deps[lib] = version_constraint
-
 
     # Collect the one from setup.py
     setup_deps = {}
