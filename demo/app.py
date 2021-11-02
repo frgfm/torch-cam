@@ -52,15 +52,27 @@ def main():
 
     # Model selection
     st.sidebar.title("Setup")
-    tv_model = st.sidebar.selectbox("Classification model", TV_MODELS)
+    tv_model = st.sidebar.selectbox(
+        "Classification model",
+        TV_MODELS,
+        help="Supported models from Torchvision",
+    )
     default_layer = ""
     if tv_model is not None:
         with st.spinner('Loading model...'):
             model = models.__dict__[tv_model](pretrained=True).eval()
         default_layer = locate_candidate_layer(model, (3, 224, 224))
 
-    target_layer = st.sidebar.text_input("Target layer", default_layer)
-    cam_method = st.sidebar.selectbox("CAM method", CAM_METHODS)
+    target_layer = st.sidebar.text_input(
+        "Target layer",
+        default_layer,
+        help='If you want to target several layers, add a "+" separator (e.g. "layer3+layer4")',
+    )
+    cam_method = st.sidebar.selectbox(
+        "CAM method",
+        CAM_METHODS,
+        help="The way your class activation map will be computed",
+    )
     if cam_method is not None:
         cam_extractor = methods.__dict__[cam_method](
             model,
