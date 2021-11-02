@@ -64,7 +64,7 @@ def main():
     if cam_method is not None:
         cam_extractor = methods.__dict__[cam_method](
             model,
-            target_layer=target_layer.split("+") if len(target_layer) > 0 else None
+            target_layer=[s.strip() for s in target_layer.split("+")] if len(target_layer) > 0 else None
         )
 
     class_choices = [f"{idx + 1} - {class_name}" for idx, class_name in enumerate(LABEL_MAP)]
