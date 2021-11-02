@@ -7,7 +7,6 @@ from functools import partial
 from typing import Any, List, Optional, Tuple, Union
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor, nn
 
 from .core import _CAM
