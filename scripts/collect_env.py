@@ -21,13 +21,13 @@ from collections import namedtuple
 try:
     import torchcam
     TORCHCAM_AVAILABLE = True
-except (ImportError, NameError, AttributeError):
+except (ImportError, NameError, AttributeError, OSError):
     TORCHCAM_AVAILABLE = False
 
 try:
     import torch
     TORCH_AVAILABLE = True
-except (ImportError, NameError, AttributeError):
+except (ImportError, NameError, AttributeError, OSError):
     TORCH_AVAILABLE = False
 
 PY3 = sys.version_info >= (3, 0)
@@ -123,7 +123,7 @@ def get_cudnn_version(run_lambda):
     if len(out) == 0 or rc not in (1, 0):
         lib = os.environ.get('CUDNN_LIBRARY')
         if lib is not None and os.path.isfile(lib):
-            return os.path.realpath(l)
+            return os.path.realpath(lib)
         return None
     files = set()
     for fn in out.split('\n'):
@@ -224,7 +224,7 @@ def get_env_info():
     return SystemEnv(
         torchcam_version=torchcam_str,
         torch_version=torch_str,
-        python_version='{}.{}'.format(sys.version_info[0], sys.version_info[1]),
+        python_version=".".join(map(str, sys.version_info[:3])),
         is_cuda_available=cuda_available_str,
         cuda_runtime_version=get_running_cuda_version(run_lambda),
         nvidia_gpu_models=get_gpu_info(run_lambda),
