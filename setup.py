@@ -47,6 +47,7 @@ _deps = [
     "coverage>=4.5.4",
     "requests>=2.20.0",
     "torchvision>=0.4.0",
+    "requirements-parser==0.2.0",
     # Quality
     "flake8>=3.9.0",
     "isort>=5.7.0",
@@ -82,7 +83,8 @@ extras["testing"] = deps_list(
     "pytest",
     "coverage",
     "requests",
-    "torchvision"
+    "torchvision",
+    "requirements-parser",
 )
 
 extras["quality"] = deps_list(
