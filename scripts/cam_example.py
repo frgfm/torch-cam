@@ -44,7 +44,7 @@ def main(args):
                            [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
 
     if isinstance(args.method, str):
-        cam_methods = [args.method]
+        cam_methods = args.method.split(",")
     else:
         cam_methods = [
             'CAM',
