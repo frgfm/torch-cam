@@ -39,7 +39,7 @@ jobs:
           pip install -r scripts/requirements.txt
 
       - name: Run analysis script
-        run: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock
+        run: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock --method LayerCAM
 
   eval-latency:
     runs-on: ${{ matrix.os }}
