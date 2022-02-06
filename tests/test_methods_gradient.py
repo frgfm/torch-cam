@@ -14,26 +14,29 @@ def _verify_cam(activation_map, output_size):
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, output_size",
+    "cam_name, target_layer, output_size, batch_size",
     [
-        ["GradCAM", 'features.18.0', (7, 7)],
-        ["GradCAMpp", 'features.18.0', (7, 7)],
-        ["SmoothGradCAMpp", lambda m: m.features[18][0], (7, 7)],
-        ["SmoothGradCAMpp", 'features.18.0', (7, 7)],
-        ["XGradCAM", 'features.18.0', (7, 7)],
-        ["LayerCAM", 'features.18.0', (7, 7)],
+        ["GradCAM", 'features.18.0', (7, 7), 1],
+        ["GradCAMpp", 'features.18.0', (7, 7), 1],
+        ["SmoothGradCAMpp", lambda m: m.features[18][0], (7, 7), 1],
+        ["SmoothGradCAMpp", 'features.18.0', (7, 7), 1],
+        ["XGradCAM", 'features.18.0', (7, 7), 1],
+        ["LayerCAM", 'features.18.0', (7, 7), 1],
+        ["LayerCAM", 'features.18.0', (7, 7), 2],
     ],
 )
-def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
+def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
     model = mobilenet_v2(pretrained=False).eval()
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
     extractor = gradient.__dict__[cam_name](model, target_layer)
 
-    scores = model(mock_img_tensor)
+    scores = model(mock_img_tensor.repeat((batch_size,) + (1,) * (mock_img_tensor.ndim - 1)))
     # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
+    _verify_cam(extractor(scores[0].argmax().item(), scores, retain_graph=True)[0], (batch_size, *output_size))
+    # Multiple class indices
+    _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
 
     # Inplace model
     model = nn.Sequential(
@@ -50,17 +53,17 @@ def test_img_cams(cam_name, target_layer, output_size, mock_img_tensor):
     extractor = gradient.__dict__[cam_name](model, '2')
     scores = model(mock_img_tensor)
     # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (224, 224))
+    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 224, 224))
 
 
 @pytest.mark.parametrize(
     "cam_name, target_layer, output_size",
     [
-        ["GradCAM", '0.3', (8, 16, 16)],
-        ["GradCAMpp", '0.3', (8, 16, 16)],
-        ["SmoothGradCAMpp", '0.3', (8, 16, 16)],
-        ["XGradCAM", '0.3', (8, 16, 16)],
-        ["LayerCAM", '0.3', (8, 16, 16)],
+        ["GradCAM", '0.3', (1, 8, 16, 16)],
+        ["GradCAMpp", '0.3', (1, 8, 16, 16)],
+        ["SmoothGradCAMpp", '0.3', (1, 8, 16, 16)],
+        ["XGradCAM", '0.3', (1, 8, 16, 16)],
+        ["LayerCAM", '0.3', (1, 8, 16, 16)],
     ],
 )
 def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_video_tensor):
@@ -90,7 +93,7 @@ def test_layercam_fuse_cams(mock_img_model):
     with pytest.raises(ValueError):
         gradient.LayerCAM.fuse_cams([])
 
-    cams = [torch.rand((32, 32)), torch.rand((16, 16))]
+    cams = [torch.rand((1, 32, 32)), torch.rand((1, 16, 16))]
 
     # Single CAM
     assert torch.equal(cams[0], gradient.LayerCAM.fuse_cams(cams[:1]))
@@ -99,10 +102,10 @@ def test_layercam_fuse_cams(mock_img_model):
     cam = gradient.LayerCAM.fuse_cams(cams)
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
-    assert cam.shape == (32, 32)
+    assert cam.shape == (1, 32, 32)
 
     # Specify target shape
     cam = gradient.LayerCAM.fuse_cams(cams, (16, 16))
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
-    assert cam.shape == (16, 16)
+    assert cam.shape == (1, 16, 16)
