@@ -49,7 +49,7 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
 
-    def _backprop(self, scores: Tensor, class_idx: Union[int, List[int]], retain_graph=False) -> None:
+    def _backprop(self, scores: Tensor, class_idx: Union[int, List[int]], retain_graph: bool = False) -> None:
         """Backpropagate the loss for a specific output class"""
 
         # Backpropagate to get the gradients on the hooked layer

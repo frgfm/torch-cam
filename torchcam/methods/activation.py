@@ -86,7 +86,7 @@ class CAM(_CAM):
     def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
-        scores: Optional[Tensor] = None
+        *args: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps"""
 
@@ -202,7 +202,7 @@ class ScoreCAM(_CAM):
     def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
-        scores: Optional[Tensor] = None
+        *args: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps"""
 
