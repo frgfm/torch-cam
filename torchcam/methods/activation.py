@@ -88,7 +88,7 @@ class CAM(_CAM):
         class_idx: Union[int, List[int]],
         *args: Any,
     ) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+        """Computes the weight coefficients of the hooked activation maps."""
 
         # Take the FC weights of the target class
         if isinstance(class_idx, int):
@@ -155,7 +155,7 @@ class ScoreCAM(_CAM):
         self._relu = True
 
     def _store_input(self, module: nn.Module, input: Tensor) -> None:
-        """Store model input tensor"""
+        """Store model input tensor."""
 
         if self._hooks_enabled:
             self._input = input[0].data.clone()
@@ -204,7 +204,7 @@ class ScoreCAM(_CAM):
         class_idx: Union[int, List[int]],
         *args: Any,
     ) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+        """Computes the weight coefficients of the hooked activation maps."""
 
         self.hook_a: List[Tensor]  # type: ignore[assignment]
 

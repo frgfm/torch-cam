@@ -79,7 +79,7 @@ class _CAM:
         self._score_used = False
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
-        """Resolves the name of a given layer inside the hooked model"""
+        """Resolves the name of a given layer inside the hooked model."""
         _found = False
         for k, v in self.submodule_dict.items():
             if id(v) == id(target_layer):
@@ -92,17 +92,17 @@ class _CAM:
         return target_name
 
     def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
-        """Activation hook"""
+        """Activation hook."""
         if self._hooks_enabled:
             self.hook_a[idx] = output.data  # type: ignore[call-overload]
 
     def reset_hooks(self) -> None:
-        """Clear stored activation and gradients"""
+        """Clear stored activation and gradients."""
         self.hook_a: List[Optional[Tensor]] = [None] * len(self.target_names)
         self.hook_g: List[Optional[Tensor]] = [None] * len(self.target_names)
 
     def remove_hooks(self) -> None:
-        """Clear model hooks"""
+        """Clear model hooks."""
         for handle in self.hook_handles:
             handle.remove()
         self.hook_handles.clear()
@@ -110,7 +110,7 @@ class _CAM:
     @staticmethod
     @torch.no_grad()
     def _normalize(cams: Tensor, spatial_dims: Optional[int] = None) -> Tensor:
-        """CAM normalization"""
+        """CAM normalization."""
         spatial_dims = cams.ndim - 1 if spatial_dims is None else spatial_dims
         cams.sub_(cams.flatten(start_dim=-spatial_dims).min(-1).values[(...,) + (None,) * spatial_dims])
         cams.div_(cams.flatten(start_dim=-spatial_dims).max(-1).values[(...,) + (None,) * spatial_dims])
@@ -121,7 +121,7 @@ class _CAM:
         raise NotImplementedError
 
     def _precheck(self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None) -> None:
-        """Check for invalid computation cases"""
+        """Check for invalid computation cases."""
 
         for fmap in self.hook_a:
             # Check that forward has already occurred
@@ -161,7 +161,7 @@ class _CAM:
         normalized: bool = True,
         **kwargs: Any,
     ) -> List[Tensor]:
-        """Compute the CAM for a specific output class
+        """Compute the CAM for a specific output class.
 
         Args:
             class_idx: the class index of the class to compute the CAM of, or a list of class indices. If it is a list,
@@ -207,7 +207,7 @@ class _CAM:
 
     @classmethod
     def fuse_cams(cls, cams: List[Tensor], target_shape: Optional[Tuple[int, int]] = None) -> Tensor:
-        """Fuse class activation maps from different layers
+        """Fuse class activation maps from different layers.
 
         Args:
             cams: the list of activation maps (for the same input)

@@ -15,7 +15,7 @@ __all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp', 'XGradCAM', 'LayerCAM']
 
 
 class _GradCAM(_CAM):
-    """Implements a gradient-based class activation map extractor
+    """Implements a gradient-based class activation map extractor.
 
     Args:
         model: input model
@@ -99,7 +99,7 @@ class GradCAM(_GradCAM):
     """
 
     def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+        """Computes the weight coefficients of the hooked activation maps."""
 
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
@@ -152,7 +152,7 @@ class GradCAMpp(_GradCAM):
     """
 
     def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+        """Computes the weight coefficients of the hooked activation maps."""
 
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
@@ -256,7 +256,7 @@ class SmoothGradCAMpp(_GradCAM):
         self._ihook_enabled = True
 
     def _store_input(self, module: nn.Module, input: Tensor) -> None:
-        """Store model input tensor"""
+        """Store model input tensor."""
 
         if self._ihook_enabled:
             self._input = input[0].data.clone()
@@ -267,7 +267,7 @@ class SmoothGradCAMpp(_GradCAM):
         scores: Optional[Tensor] = None,
         **kwargs: Any
     ) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+        """Computes the weight coefficients of the hooked activation maps."""
 
         # Disable input update
         self._ihook_enabled = False
@@ -350,7 +350,7 @@ class XGradCAM(_GradCAM):
     """
 
     def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+        """Computes the weight coefficients of the hooked activation maps."""
 
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
@@ -397,7 +397,7 @@ class LayerCAM(_GradCAM):
     """
 
     def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+        """Computes the weight coefficients of the hooked activation maps."""
 
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
