@@ -3,6 +3,7 @@ quality:
 	isort . -c -v
 	flake8 ./
 	mypy torchcam/
+	pydocstyle torchcam/
 
 # this target runs checks on all files and potentially modifies some of them
 style:

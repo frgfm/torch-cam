@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2021, François-Guillaume Fernandez.
+# Copyright (C) 2020-2022, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License version 2.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
@@ -47,11 +47,11 @@ _deps = [
     "coverage>=4.5.4",
     "requests>=2.20.0",
     "torchvision>=0.4.0",
-    "requirements-parser==0.2.0",
     # Quality
     "flake8>=3.9.0",
     "isort>=5.7.0",
     "mypy>=0.812",
+    "pydocstyle>=6.0.0",
     # Docs
     "sphinx<=3.4.3",
     "sphinx-rtd-theme==0.4.3",
@@ -84,13 +84,13 @@ extras["testing"] = deps_list(
     "coverage",
     "requests",
     "torchvision",
-    "requirements-parser",
 )
 
 extras["quality"] = deps_list(
     "flake8",
     "isort",
-    "mypy"
+    "mypy",
+    "pydocstyle",
 )
 
 extras["docs"] = deps_list(
