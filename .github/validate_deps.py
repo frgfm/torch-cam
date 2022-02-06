@@ -3,12 +3,15 @@ from pathlib import Path
 import requirements
 from requirements.requirement import Requirement
 
+# Deps that won't have a specific requirements.txt
+IGNORE = ["flake8", "isort", "mypy", "pydocstyle"]
+# All req files to check
+REQ_FILES = ["requirements.txt", "tests/requirements.txt", "docs/requirements.txt"]
 
-def test_deps_consistency():
 
-    IGNORE = ["flake8", "isort", "mypy"]
+def main():
+
     # Collect the deps from all requirements.txt
-    REQ_FILES = ["requirements.txt", "tests/requirements.txt", "docs/requirements.txt"]
     folder = Path(__file__).parent.parent.absolute()
     req_deps = {}
     for file in REQ_FILES:
@@ -43,6 +46,19 @@ def test_deps_consistency():
 
     # Compare them
     assert len(req_deps) == len(setup_deps)
+    mismatches = []
     for k, v in setup_deps.items():
         assert isinstance(req_deps.get(k), list)
-        assert req_deps[k] == v, f"Mismatch on dependency {k}: {v} from setup.py, {req_deps[k]} from requirements.txt"
+        if req_deps[k] != v:
+            mismatches.append((k, v, req_deps[k]))
+
+    if len(mismatches) > 0:
+        mismatch_str = "version specifiers mismatches:\n"
+        mismatch_str += '\n'.join(
+            f"- {lib}: {setup} (from setup.py) | {reqs} (from requirements)"
+            for lib, setup, reqs in mismatches
+        )
+        raise AssertionError(mismatch_str)
+
+if __name__ == "__main__":
+    main()
