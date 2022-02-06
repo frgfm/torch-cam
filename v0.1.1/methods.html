@@ -9,7 +9,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torchcam.methods &mdash; torchcam 0.3.2.dev0+b3daac2-git documentation</title>
+  <title>torchcam.methods &mdash; torchcam 0.3.2.dev0+3179f51-git documentation</title>
   
 
   
@@ -240,14 +240,14 @@ Score-Weighted Visual Explanations for Convolutional Neural Networks”</a>.</p>
 \[L^{(c)}_{Score-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
 <p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
 <div class="math notranslate nohighlight">
-\[w_k^{(c)} = softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
+\[w_k^{(c)} = softmax\Big(Y^{(c)}(M_k) - Y^{(c)}(X_b)\Big)_k\]</div>
 <p>where <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
 for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
 and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
 <div class="math notranslate nohighlight">
 \[M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)})
-\odot X\]</div>
+\odot X_b\]</div>
 <p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication and <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation.</p>
 <dl>
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
@@ -282,15 +282,15 @@ Sharper Visual Feature Localization”</a>.</p>
 \[L^{(c)}_{SS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
 <p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
 <div class="math notranslate nohighlight">
-\[w_k^{(c)} = \frac{1}{N} \sum\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
+\[w_k^{(c)} = softmax\Big(\frac{1}{N} \sum\limits_{i=1}^N (Y^{(c)}(\hat{M_k}) - Y^{(c)}(X_b))\Big)_k\]</div>
 <p>where <span class="math notranslate nohighlight">\(N\)</span> is the number of samples used to smooth the weights,
 <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
 for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
 and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
 <div class="math notranslate nohighlight">
-\[M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
-\delta\Bigg) \odot X\]</div>
+\[\hat{M_k} = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
+\delta\Bigg) \odot X_b\]</div>
 <p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication, <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation,
 <span class="math notranslate nohighlight">\(\delta \sim \mathcal{N}(0, \sigma^2)\)</span> is the random noise that follows a 0-mean gaussian distribution
 with a standard deviation of <span class="math notranslate nohighlight">\(\sigma\)</span>.</p>
@@ -329,18 +329,17 @@ explanations”</a>.</p>
 \[L^{(c)}_{ISS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)\]</div>
 <p>with the coefficient <span class="math notranslate nohighlight">\(w_k^{(c)}\)</span> being defined as:</p>
 <div class="math notranslate nohighlight">
-\[w_k^{(c)} = \sum\limits_{i=1}^N \frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))\]</div>
+\[w_k^{(c)} = softmax\Bigg(\frac{1}{N} \sum\limits_{i=1}^N
+\Big(Y^{(c)}(\sum\limits_{p=1}^i \frac{p}{N} M_k) - Y^{(c)}(X_b)\Big)
+\Bigg)_k\]</div>
 <p>where <span class="math notranslate nohighlight">\(N\)</span> is the number of samples used to smooth the weights,
 <span class="math notranslate nohighlight">\(A_k(x, y)\)</span> is the activation of node <span class="math notranslate nohighlight">\(k\)</span> in the target layer of the model at
 position <span class="math notranslate nohighlight">\((x, y)\)</span>, <span class="math notranslate nohighlight">\(Y^{(c)}(X)\)</span> is the model output score for class <span class="math notranslate nohighlight">\(c\)</span> before softmax
 for input <span class="math notranslate nohighlight">\(X\)</span>, <span class="math notranslate nohighlight">\(X_b\)</span> is a baseline image,
 and <span class="math notranslate nohighlight">\(M_k\)</span> is defined as follows:</p>
 <div class="math notranslate nohighlight">
-\[M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
-\delta\Bigg) \odot X\]</div>
-<p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication, <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation,
-<span class="math notranslate nohighlight">\(\delta \sim \mathcal{N}(0, \sigma^2)\)</span> is the random noise that follows a 0-mean gaussian distribution
-with a standard deviation of <span class="math notranslate nohighlight">\(\sigma\)</span>.</p>
+\[M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b\]</div>
+<p>where <span class="math notranslate nohighlight">\(\odot\)</span> refers to the element-wise multiplication, <span class="math notranslate nohighlight">\(U\)</span> is the upsampling operation.</p>
 <dl>
 <dt>Example::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchvision.models</span> <span class="kn">import</span> <span class="n">resnet18</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.methods</span> <span class="kn">import</span> <span class="n">ISSCAM</span>
@@ -580,7 +579,7 @@ and <span class="math notranslate nohighlight">\(Y^{(c)}\)</span> is the model o
 <dl class="py method">
 <dt id="torchcam.methods.LayerCAM.fuse_cams">
 <em class="property">classmethod </em><code class="sig-name descname">fuse_cams</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cams</span><span class="p">:</span> <span class="n">List<span class="p">[</span>torch.Tensor<span class="p">]</span></span></em>, <em class="sig-param"><span class="n">target_shape</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>Tuple<span class="p">[</span>int<span class="p">, </span>int<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#torchcam.methods.LayerCAM.fuse_cams" title="Permalink to this definition">¶</a></dt>
-<dd><p>Fuse class activation maps from different layers</p>
+<dd><p>Fuse class activation maps from different layers.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
