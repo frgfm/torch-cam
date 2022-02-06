@@ -168,7 +168,7 @@ An example script is provided for you to benchmark the heatmaps produced by mult
 python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 ```
 
-![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example_2rows.png)
+![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png)
 
 *All script arguments can be checked using `python scripts/cam_example.py --help`*
 
