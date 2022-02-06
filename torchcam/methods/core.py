@@ -164,12 +164,15 @@ class _CAM:
         """Compute the CAM for a specific output class
 
         Args:
-            class_idx: output class index of the target class whose CAM will be computed
-            scores: forward output scores of the hooked model
+            class_idx: the class index of the class to compute the CAM of, or a list of class indices. If it is a list,
+                the list needs to have valid class indices and have a length equal to the batch size.
+            scores: forward output scores of the hooked model of shape (N, K)
             normalized: whether the CAM should be normalized
 
         Returns:
-            List[torch.Tensor]: list of class activation maps, one for each hooked layer
+            list of class activation maps of shape (N, H, W), one for each hooked layer. If a list of class indices
+                was passed to arg `class_idx`, the k-th element along the batch axis will be the activation map for
+                the k-th element of the input batch for class index equal to the k-th element of `class_idx`.
         """
 
         # Get map weight & unsqueeze it
