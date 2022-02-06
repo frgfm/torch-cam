@@ -8,6 +8,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import requests
 import streamlit as st
+import torch
 from PIL import Image
 from torchvision import models
 from torchvision.transforms.functional import normalize, resize, to_pil_image, to_tensor
@@ -63,6 +64,9 @@ def main():
             model = models.__dict__[tv_model](pretrained=True).eval()
         default_layer = locate_candidate_layer(model, (3, 224, 224))
 
+    if torch.cuda.is_available():
+        model = model.cuda()
+
     target_layer = st.sidebar.text_input(
         "Target layer",
         default_layer,
@@ -95,6 +99,9 @@ def main():
 
                 # Preprocess image
                 img_tensor = normalize(to_tensor(resize(img, (224, 224))), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+
+                if torch.cuda.is_available():
+                    img_tensor = img_tensor.cuda()
 
                 # Forward the image to the model
                 out = model(img_tensor.unsqueeze(0))
