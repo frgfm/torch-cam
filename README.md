@@ -7,7 +7,7 @@ Simple way to leverage the class-specific activation of convolutional layers in 
 
 <p align="center">
     <a alt="cam_examples">
-        <img src="https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example_2rows.png" /></a>
+        <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" /></a>
 </p>
 <p align="center">
     <em>Source: image from <a href="https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg">woopets</a> (activation maps created with a pretrained <a href="https://pytorch.org/vision/stable/models.html#torchvision.models.resnet18">Resnet-18</a>)</em>
