@@ -30,7 +30,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
     output_shapes: List[Tuple[Optional[str], Tuple[int, ...]]] = []
 
     def _record_output_shape(module: nn.Module, input: Tensor, output: Tensor, name: Optional[str] = None) -> None:
-        """Activation hook"""
+        """Activation hook."""
         output_shapes.append((name, output.shape))
 
     hook_handles: List[torch.utils.hooks.RemovableHandle] = []
@@ -40,7 +40,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
 
     # forward empty
     with torch.no_grad():
-        _ = mod(torch.rand(1, *input_shape, device=next(mod.parameters()).data.device))
+        _ = mod(torch.zeros((1, *input_shape), device=next(mod.parameters()).data.device))
 
     # Remove all temporary hooks
     for handle in hook_handles:

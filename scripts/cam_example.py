@@ -72,10 +72,10 @@ def main(args):
         class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
 
         # Use the hooked data to compute activation map
-        activation_map = extractor(class_idx, scores)[0].cpu()
+        activation_map = extractor(class_idx, scores)[0].squeeze(0).cpu()
 
         # Clean data
-        extractor.clear_hooks()
+        extractor.remove_hooks()
         extractor._hooks_enabled = False
         # Convert it to PIL image
         # The indexing below means first image in batch

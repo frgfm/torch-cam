@@ -82,11 +82,19 @@ class CAM(_CAM):
         if self._fc_weights.ndim > 2:
             self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
 
-    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+    @torch.no_grad()
+    def _get_weights(  # type: ignore[override]
+        self,
+        class_idx: Union[int, List[int]],
+        *args: Any,
+    ) -> List[Tensor]:
+        """Computes the weight coefficients of the hooked activation maps."""
 
         # Take the FC weights of the target class
-        return [self._fc_weights[class_idx, :]]
+        if isinstance(class_idx, int):
+            return [self._fc_weights[class_idx, :].unsqueeze(0)]
+        else:
+            return [self._fc_weights[class_idx, :]]
 
 
 class ScoreCAM(_CAM):
@@ -101,7 +109,7 @@ class ScoreCAM(_CAM):
     with the coefficient :math:`w_k^{(c)}` being defined as:
 
     .. math::
-        w_k^{(c)} = softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
+        w_k^{(c)} = softmax\Big(Y^{(c)}(M_k) - Y^{(c)}(X_b)\Big)_k
 
     where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
@@ -110,7 +118,7 @@ class ScoreCAM(_CAM):
 
     .. math::
         M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)})
-        \odot X
+        \odot X_b
 
     where :math:`\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.
 
@@ -147,48 +155,71 @@ class ScoreCAM(_CAM):
         self._relu = True
 
     def _store_input(self, module: nn.Module, input: Tensor) -> None:
-        """Store model input tensor"""
+        """Store model input tensor."""
 
         if self._hooks_enabled:
             self._input = input[0].data.clone()
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: int) -> List[Tensor]:
+    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+
+        b, c = activations[0].shape[:2]
+        # (N * C, I, H, W)
+        scored_inputs = [
+            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:])
+            for act in activations
+        ]
 
         # Initialize weights
+        # (N * C)
         weights = [
-            torch.zeros(t.shape[0], dtype=t.dtype).to(device=t.device)
+            torch.zeros(b * c, dtype=t.dtype).to(device=t.device)
             for t in activations
         ]
 
-        for idx, act in enumerate(activations):
+        # (N, M)
+        logits = self.model(self._input)
+        idcs = torch.arange(b).repeat_interleave(c)
+
+        for idx, scored_input in enumerate(scored_inputs):
             # Process by chunk (GPU RAM limitation)
-            for _idx in range(math.ceil(weights[idx].shape[0] / self.bs)):
+            for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
 
-                _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].shape[0]))
+                _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                 # Get the softmax probabilities of the target class
-                weights[idx][_slice] = F.softmax(self.model(act[_slice]), dim=1)[:, class_idx]
+                # (*, M)
+                cic = self.model(scored_input[_slice]) - logits[idcs[_slice]]
+                if isinstance(class_idx, int):
+                    weights[idx][_slice] = cic[:, class_idx]
+                else:
+                    _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
+                    weights[idx][_slice] = cic.gather(1, _target.view(-1, 1)).squeeze(1)
 
-        return weights
+        # Reshape the weights (N, C)
+        return [torch.softmax(w.view(b, c), -1) for w in weights]
 
-    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps"""
+    @torch.no_grad()
+    def _get_weights(  # type: ignore[override]
+        self,
+        class_idx: Union[int, List[int]],
+        *args: Any,
+    ) -> List[Tensor]:
+        """Computes the weight coefficients of the hooked activation maps."""
+
+        self.hook_a: List[Tensor]  # type: ignore[assignment]
 
         # Normalize the activation
+        # (N, C, H', W')
         upsampled_a = [self._normalize(act, act.ndim - 2) for act in self.hook_a]
 
         # Upsample it to input_size
-        # 1 * O * M * N
+        # (N, C, H, W)
         spatial_dims = self._input.ndim - 2
         interpolation_mode = 'bilinear' if spatial_dims == 2 else 'trilinear' if spatial_dims == 3 else 'nearest'
         upsampled_a = [
             F.interpolate(up_a, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
             for up_a in upsampled_a
         ]
-
-        # Use it as a mask
-        # O * I * H * W
-        upsampled_a = [up_a.squeeze(0).unsqueeze(1) * self._input for up_a in upsampled_a]
 
         # Disable hook updates
         self._hooks_enabled = False
@@ -221,7 +252,7 @@ class SSCAM(ScoreCAM):
     with the coefficient :math:`w_k^{(c)}` being defined as:
 
     .. math::
-        w_k^{(c)} = \frac{1}{N} \sum\limits_1^N softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
+        w_k^{(c)} = softmax\Big(\frac{1}{N} \sum\limits_{i=1}^N (Y^{(c)}(\hat{M_k}) - Y^{(c)}(X_b))\Big)_k
 
     where :math:`N` is the number of samples used to smooth the weights,
     :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
@@ -230,8 +261,8 @@ class SSCAM(ScoreCAM):
     and :math:`M_k` is defined as follows:
 
     .. math::
-        M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
-        \delta\Bigg) \odot X
+        \hat{M_k} = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
+        \delta\Bigg) \odot X_b
 
     where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
     :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution
@@ -272,28 +303,44 @@ class SSCAM(ScoreCAM):
         self._distrib = torch.distributions.normal.Normal(0, self.std)
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: int) -> List[Tensor]:
+    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+
+        b, c = activations[0].shape[:2]
 
         # Initialize weights
+        # (N * C)
         weights = [
-            torch.zeros(t.shape[0], dtype=t.dtype).to(device=t.device)
+            torch.zeros(b * c, dtype=t.dtype).to(device=t.device)
             for t in activations
         ]
 
+        # (N, M)
+        logits = self.model(self._input)
+        idcs = torch.arange(b).repeat_interleave(c)
+
         for idx, act in enumerate(activations):
-            # Process by chunk (GPU RAM limitation)
+            # Add noise
             for _ in range(self.num_samples):
-                noisy_m = self._input * (act +
-                                         self._distrib.sample(self._input.size()).to(device=self._input.device))
+                noise = self._distrib.sample(act.size()).to(device=act.device)
+                # (N, C, I, H, W)
+                scored_input = (act + noise).unsqueeze(2) * self._input.unsqueeze(1)
+                # (N * C, I, H, W)
+                scored_input = scored_input.view(b * c, *scored_input.shape[2:])
 
                 # Process by chunk (GPU RAM limitation)
-                for _idx in range(math.ceil(weights[idx].shape[0] / self.bs)):
+                for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
 
-                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].shape[0]))
+                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
-                    weights[idx][_slice] += F.softmax(self.model(noisy_m[_slice]), dim=1)[:, class_idx]
+                    cic = self.model(scored_input[_slice]) - logits[idcs[_slice]]
+                    if isinstance(class_idx, int):
+                        weights[idx][_slice] += cic[:, class_idx]
+                    else:
+                        _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
+                        weights[idx][_slice] += cic.gather(1, _target.view(-1, 1)).squeeze(1)
 
-        return [weight.div_(self.num_samples) for weight in weights]
+        # Reshape the weights (N, C)
+        return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
@@ -311,7 +358,9 @@ class ISCAM(ScoreCAM):
     with the coefficient :math:`w_k^{(c)}` being defined as:
 
     .. math::
-        w_k^{(c)} = \sum\limits_{i=1}^N \frac{i}{N} softmax(Y^{(c)}(M_k) - Y^{(c)}(X_b))
+        w_k^{(c)} = softmax\Bigg(\frac{1}{N} \sum\limits_{i=1}^N
+        \Big(Y^{(c)}(\sum\limits_{p=1}^i \frac{p}{N} M_k) - Y^{(c)}(X_b)\Big)
+        \Bigg)_k
 
     where :math:`N` is the number of samples used to smooth the weights,
     :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
@@ -320,12 +369,9 @@ class ISCAM(ScoreCAM):
     and :math:`M_k` is defined as follows:
 
     .. math::
-        M_k = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
-        \delta\Bigg) \odot X
+        M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b
 
-    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
-    :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution
-    with a standard deviation of :math:`\sigma`.
+    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.
 
     Example::
         >>> from torchvision.models import resnet18
@@ -358,27 +404,42 @@ class ISCAM(ScoreCAM):
         self.num_samples = num_samples
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: int) -> List[Tensor]:
+    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+
+        b, c = activations[0].shape[:2]
+        # (N * C, I, H, W)
+        scored_inputs = [
+            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:])
+            for act in activations
+        ]
 
         # Initialize weights
         weights = [
-            torch.zeros(t.shape[0], dtype=t.dtype).to(device=t.device)
+            torch.zeros(b * c, dtype=t.dtype).to(device=t.device)
             for t in activations
         ]
 
-        for idx, act in enumerate(activations):
-            fmap = torch.zeros((act.shape[0], *self._input.shape[1:]), dtype=act.dtype, device=act.device)
-            # Masked input
-            mask = act * self._input
+        # (N, M)
+        logits = self.model(self._input)
+        idcs = torch.arange(b).repeat_interleave(c)
+
+        for idx, scored_input in enumerate(scored_inputs):
+            _coeff = 0.
             # Process by chunk (GPU RAM limitation)
             for sidx in range(self.num_samples):
-                fmap += (sidx + 1) / self.num_samples * self._input * mask
+                _coeff += (sidx + 1) / self.num_samples
 
                 # Process by chunk (GPU RAM limitation)
-                for _idx in range(math.ceil(weights[idx].shape[0] / self.bs)):
+                for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
 
-                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].shape[0]))
+                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
-                    weights[idx][_slice] += F.softmax(self.model(fmap[_slice]), dim=1)[:, class_idx]
+                    cic = self.model(_coeff * scored_input[_slice]) - logits[idcs[_slice]]
+                    if isinstance(class_idx, int):
+                        weights[idx][_slice] += cic[:, class_idx]
+                    else:
+                        _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
+                        weights[idx][_slice] += cic.gather(1, _target.view(-1, 1)).squeeze(1)
 
-        return [weight.div_(self.num_samples) for weight in weights]
+        # Reshape the weights (N, C)
+        return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]

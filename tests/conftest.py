@@ -15,7 +15,7 @@ def mock_img_tensor():
         URL = 'https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg'
         response = requests.get(URL)
 
-        # Forward an image
+        # Forward an image
         pil_img = Image.open(BytesIO(response.content), mode='r').convert('RGB')
         img_tensor = normalize(to_tensor(resize(pil_img, (224, 224))),
                                [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).unsqueeze(0)

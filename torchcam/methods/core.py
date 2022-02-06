@@ -5,7 +5,7 @@
 
 import logging
 from functools import partial
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -66,7 +66,7 @@ class _CAM:
         self.target_names = target_names
         self.model = model
         # Init hooks
-        self.hook_a: List[Tensor] = [None] * len(target_names)  # type: ignore[list-item]
+        self.reset_hooks()
         self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
         # Forward hook
         for idx, name in enumerate(self.target_names):
@@ -79,7 +79,7 @@ class _CAM:
         self._score_used = False
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
-        """Resolves the name of a given layer inside the hooked model"""
+        """Resolves the name of a given layer inside the hooked model."""
         _found = False
         for k, v in self.submodule_dict.items():
             if id(v) == id(target_layer):
@@ -92,88 +92,110 @@ class _CAM:
         return target_name
 
     def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
-        """Activation hook"""
+        """Activation hook."""
         if self._hooks_enabled:
-            self.hook_a[idx] = output.data
+            self.hook_a[idx] = output.data  # type: ignore[call-overload]
 
-    def clear_hooks(self) -> None:
-        """Clear model hooks"""
+    def reset_hooks(self) -> None:
+        """Clear stored activation and gradients."""
+        self.hook_a: List[Optional[Tensor]] = [None] * len(self.target_names)
+        self.hook_g: List[Optional[Tensor]] = [None] * len(self.target_names)
+
+    def remove_hooks(self) -> None:
+        """Clear model hooks."""
         for handle in self.hook_handles:
             handle.remove()
         self.hook_handles.clear()
 
     @staticmethod
+    @torch.no_grad()
     def _normalize(cams: Tensor, spatial_dims: Optional[int] = None) -> Tensor:
-        """CAM normalization"""
-        spatial_dims = cams.ndim if spatial_dims is None else spatial_dims
+        """CAM normalization."""
+        spatial_dims = cams.ndim - 1 if spatial_dims is None else spatial_dims
         cams.sub_(cams.flatten(start_dim=-spatial_dims).min(-1).values[(...,) + (None,) * spatial_dims])
         cams.div_(cams.flatten(start_dim=-spatial_dims).max(-1).values[(...,) + (None,) * spatial_dims])
 
         return cams
 
-    def _get_weights(self, class_idx: int, scores: Optional[Tensor] = None) -> List[Tensor]:
-
+    def _get_weights(self, class_idx, scores, **kwargs):
         raise NotImplementedError
 
-    def _precheck(self, class_idx: int, scores: Optional[Tensor] = None) -> None:
-        """Check for invalid computation cases"""
+    def _precheck(self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None) -> None:
+        """Check for invalid computation cases."""
 
         for fmap in self.hook_a:
             # Check that forward has already occurred
             if not isinstance(fmap, Tensor):
                 raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")
             # Check batch size
-            if fmap.shape[0] != 1:
-                raise ValueError(f"expected a 1-sized batch to be hooked. Received: {fmap.shape[0]}")
+            if not isinstance(class_idx, int) and fmap.shape[0] != len(class_idx):
+                raise ValueError("expected batch size and length of `class_idx` to be the same.")
 
         # Check class_idx value
-        if not isinstance(class_idx, int) or class_idx < 0:
+        if (not isinstance(class_idx, int) or class_idx < 0) and \
+                (not isinstance(class_idx, list) or any(_idx < 0 for _idx in class_idx)):
             raise ValueError("Incorrect `class_idx` argument value")
 
         # Check scores arg
         if self._score_used and not isinstance(scores, torch.Tensor):
             raise ValueError("model output scores is required to be passed to compute CAMs")
 
-    def __call__(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> List[Tensor]:
+    def __call__(
+        self,
+        class_idx: Union[int, List[int]],
+        scores: Optional[Tensor] = None,
+        normalized: bool = True,
+        **kwargs: Any,
+    ) -> List[Tensor]:
 
         # Integrity check
         self._precheck(class_idx, scores)
 
         # Compute CAM
-        return self.compute_cams(class_idx, scores, normalized)
+        return self.compute_cams(class_idx, scores, normalized, **kwargs)
 
-    def compute_cams(self, class_idx: int, scores: Optional[Tensor] = None, normalized: bool = True) -> List[Tensor]:
-        """Compute the CAM for a specific output class
+    def compute_cams(
+        self,
+        class_idx: Union[int, List[int]],
+        scores: Optional[Tensor] = None,
+        normalized: bool = True,
+        **kwargs: Any,
+    ) -> List[Tensor]:
+        """Compute the CAM for a specific output class.
 
         Args:
-            class_idx: output class index of the target class whose CAM will be computed
-            scores: forward output scores of the hooked model
+            class_idx: the class index of the class to compute the CAM of, or a list of class indices. If it is a list,
+                the list needs to have valid class indices and have a length equal to the batch size.
+            scores: forward output scores of the hooked model of shape (N, K)
             normalized: whether the CAM should be normalized
 
         Returns:
-            List[torch.Tensor]: list of class activation maps, one for each hooked layer
+            list of class activation maps of shape (N, H, W), one for each hooked layer. If a list of class indices
+                was passed to arg `class_idx`, the k-th element along the batch axis will be the activation map for
+                the k-th element of the input batch for class index equal to the k-th element of `class_idx`.
         """
 
         # Get map weight & unsqueeze it
-        weights = self._get_weights(class_idx, scores)
+        weights = self._get_weights(class_idx, scores, **kwargs)
 
         cams: List[Tensor] = []
 
-        for weight, activation in zip(weights, self.hook_a):
-            missing_dims = activation.ndim - weight.ndim - 1  # type: ignore[union-attr]
-            weight = weight[(...,) + (None,) * missing_dims]
+        with torch.no_grad():
+            for weight, activation in zip(weights, self.hook_a):
+                missing_dims = activation.ndim - weight.ndim  # type: ignore[union-attr]
+                weight = weight[(...,) + (None,) * missing_dims]
 
-            # Perform the weighted combination to get the CAM
-            cam = torch.nansum(weight * activation.squeeze(0), dim=0)  # type: ignore[union-attr]
+                # Perform the weighted combination to get the CAM
+                cam = torch.nansum(weight * activation, dim=1)  # type: ignore[union-attr]
 
-            if self._relu:
-                cam = F.relu(cam, inplace=True)
+                if self._relu:
+                    cam = F.relu(cam, inplace=True)
 
-            # Normalize the CAM
-            if normalized:
-                cam = self._normalize(cam)
+                # Normalize the CAM
+                if normalized:
+                    cam = self._normalize(cam)
 
-            cams.append(cam)
+                cams.append(cam)
 
         return cams
 
@@ -185,7 +207,7 @@ class _CAM:
 
     @classmethod
     def fuse_cams(cls, cams: List[Tensor], target_shape: Optional[Tuple[int, int]] = None) -> Tensor:
-        """Fuse class activation maps from different layers
+        """Fuse class activation maps from different layers.
 
         Args:
             cams: the list of activation maps (for the same input)
@@ -208,7 +230,7 @@ class _CAM:
             if isinstance(target_shape, tuple):
                 _shape = target_shape
             else:
-                _shape = tuple(map(max, zip(*[tuple(cam.shape) for cam in cams])))  # type: ignore[assignment]
+                _shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))  # type: ignore[assignment]
             # Scale cams
             scaled_cams = cls._scale_cams(cams)
             return cls._fuse_cams(scaled_cams, _shape)
@@ -220,11 +242,11 @@ class _CAM:
     @staticmethod
     def _fuse_cams(cams: List[Tensor], target_shape: Tuple[int, int]) -> Tensor:
         # Interpolate all CAMs
-        interpolation_mode = 'bilinear' if cams[0].ndim == 2 else 'trilinear' if cams[0].ndim == 3 else 'nearest'
+        interpolation_mode = 'bilinear' if cams[0].ndim == 3 else 'trilinear' if cams[0].ndim == 4 else 'nearest'
         scaled_cams = [
-            F.interpolate(cam.unsqueeze(0).unsqueeze(0), target_shape, mode=interpolation_mode, align_corners=False)
+            F.interpolate(cam.unsqueeze(1), target_shape, mode=interpolation_mode, align_corners=False)
             for cam in cams
         ]
 
         # Fuse them
-        return torch.stack(scaled_cams).max(dim=0).values.squeeze(0).squeeze(0)
+        return torch.stack(scaled_cams).max(dim=0).values.squeeze(1)

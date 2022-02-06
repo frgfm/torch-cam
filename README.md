@@ -7,7 +7,7 @@ Simple way to leverage the class-specific activation of convolutional layers in 
 
 <p align="center">
     <a alt="cam_examples">
-        <img src="https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example_2rows.png" /></a>
+        <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" /></a>
 </p>
 <p align="center">
     <em>Source: image from <a href="https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg">woopets</a> (activation maps created with a pretrained <a href="https://pytorch.org/vision/stable/models.html#torchvision.models.resnet18">Resnet-18</a>)</em>
@@ -64,7 +64,7 @@ If you want to visualize your heatmap, you only need to cast the CAM to a numpy 
 ```python
 import matplotlib.pyplot as plt
 # Visualize the raw CAM
-plt.imshow(activation_map[0].numpy()); plt.axis('off'); plt.tight_layout(); plt.show()
+plt.imshow(activation_map[0].squeeze(0).numpy()); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
 
 ![raw_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/raw_heatmap.png)
@@ -76,7 +76,7 @@ import matplotlib.pyplot as plt
 from torchcam.utils import overlay_mask
 
 # Resize the CAM and overlay it
-result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0], mode='F'), alpha=0.5)
+result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
 # Display it
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
@@ -168,7 +168,7 @@ An example script is provided for you to benchmark the heatmaps produced by mult
 python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 ```
 
-![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/cam_example_2rows.png)
+![gradcam_sample](https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png)
 
 *All script arguments can be checked using `python scripts/cam_example.py --help`*
 

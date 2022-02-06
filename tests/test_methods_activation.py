@@ -24,18 +24,19 @@ def _verify_cam(activation_map, output_size):
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, fc_layer, num_samples, output_size",
+    "cam_name, target_layer, fc_layer, num_samples, output_size, batch_size",
     [
-        ["CAM", None, None, None, (7, 7)],
-        ["CAM", None, 'classifier.1', None, (7, 7)],
-        ["CAM", None, lambda m: m.classifier[1], None, (7, 7)],
-        ["ScoreCAM", 'features.16.conv.3', None, None, (7, 7)],
-        ["ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7)],
-        ["SSCAM", 'features.16.conv.3', None, 4, (7, 7)],
-        ["ISCAM", 'features.16.conv.3', None, 4, (7, 7)],
+        ["CAM", None, None, None, (7, 7), 1],
+        ["CAM", None, None, None, (7, 7), 2],
+        ["CAM", None, 'classifier.1', None, (7, 7), 1],
+        ["CAM", None, lambda m: m.classifier[1], None, (7, 7), 1],
+        ["ScoreCAM", 'features.16.conv.3', None, None, (7, 7), 1],
+        ["ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7), 1],
+        ["SSCAM", 'features.16.conv.3', None, 4, (7, 7), 1],
+        ["ISCAM", 'features.16.conv.3', None, 4, (7, 7), 1],
     ],
 )
-def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, mock_img_tensor):
+def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, batch_size, mock_img_tensor):
     model = mobilenet_v2(pretrained=False).eval()
     kwargs = {}
     # Speed up testing by reducing the number of samples
@@ -50,9 +51,11 @@ def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, mo
     extractor = activation.__dict__[cam_name](model, target_layer, **kwargs)
 
     with torch.no_grad():
-        scores = model(mock_img_tensor)
+        scores = model(mock_img_tensor.repeat((batch_size,) + (1,) * (mock_img_tensor.ndim - 1)))
         # Use the hooked data to compute activation map
-        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (batch_size, *output_size))
+        # Multiple class indices
+        _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
 
 
 def test_cam_conv1x1(mock_fullyconv_model):
@@ -60,16 +63,16 @@ def test_cam_conv1x1(mock_fullyconv_model):
     with torch.no_grad():
         scores = mock_fullyconv_model(torch.rand((1, 3, 32, 32)))
         # Use the hooked data to compute activation map
-        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (32, 32))
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 32, 32))
 
 
 @pytest.mark.parametrize(
     "cam_name, target_layer, num_samples, output_size",
     [
-        ["CAM", '0.3', None, (8, 16, 16)],
-        ["ScoreCAM", '0.3', None, (8, 16, 16)],
-        ["SSCAM", '0.3', 4, (8, 16, 16)],
-        ["ISCAM", '0.3', 4, (8, 16, 16)],
+        ["CAM", '0.3', None, (1, 8, 16, 16)],
+        ["ScoreCAM", '0.3', None, (1, 8, 16, 16)],
+        ["SSCAM", '0.3', 4, (1, 8, 16, 16)],
+        ["ISCAM", '0.3', 4, (1, 8, 16, 16)],
     ],
 )
 def test_video_cams(cam_name, target_layer, num_samples, output_size, mock_video_model, mock_video_tensor):
