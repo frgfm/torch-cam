@@ -109,7 +109,7 @@ def main():
                 activation_map = act_maps[0] if len(act_maps) == 1 else cam_extractor.fuse_cams(act_maps)
                 # Plot the raw heatmap
                 fig, ax = plt.subplots()
-                ax.imshow(activation_map.numpy())
+                ax.imshow(activation_map.squeeze(0).cpu().numpy())
                 ax.axis('off')
                 cols[1].pyplot(fig)
 
