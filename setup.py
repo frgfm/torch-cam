@@ -38,7 +38,7 @@ with open('README.md', 'r') as f:
     readme = f.read()
 
 _deps = [
-    "torch>=1.5.1",
+    "torch>=1.7.0",  # cf. https://github.com/frgfm/torch-cam/discussions/148
     "numpy>=1.14.0",
     "Pillow>=8.3.2",  # cf. https://github.com/advisories/GHSA-98vv-pw6r-q6q4
     "matplotlib>=3.0.0",
