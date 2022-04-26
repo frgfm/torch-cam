@@ -101,7 +101,8 @@ extras["docs"] = deps_list(
     "sphinx-copybutton",
     "docutils",
     "recommonmark",
-    "sphinx-markdown-tables"
+    "sphinx-markdown-tables",
+    "Jinja2",
 )
 
 extras["dev"] = (
