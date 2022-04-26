@@ -100,7 +100,7 @@ Illustrate your classifier capabilities
 .. code-block:: python
 
     >>> # Once you're finished, clear the hooks on your model
-    >>> cam_extractor.clear_hooks()
+    >>> cam_extractor.remove_hooks()
 
 Advanced tricks
 ===============
@@ -138,7 +138,7 @@ Extract localization cues
 .. code-block:: python
 
     >>> # Once you're finished, clear the hooks on your model
-    >>> cam_extractor.clear_hooks()
+    >>> cam_extractor.remove_hooks()
 
 
 Fuse CAMs from multiple layers
@@ -185,4 +185,4 @@ Fuse CAMs from multiple layers
 .. code-block:: python
 
     >>> # Once you're finished, clear the hooks on your model
-    >>> cam_extractor.clear_hooks()
+    >>> cam_extractor.remove_hooks()
