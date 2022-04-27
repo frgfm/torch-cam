@@ -521,17 +521,17 @@
 
 <span class="sd">    .. math::</span>
 <span class="sd">        w_k^{(c)} = softmax\Bigg(\frac{1}{N} \sum\limits_{i=1}^N</span>
-<span class="sd">        \Big(Y^{(c)}(\sum\limits_{p=1}^i \frac{p}{N} M_k) - Y^{(c)}(X_b)\Big)</span>
-<span class="sd">        \Bigg)_k</span>
+<span class="sd">        \Big(Y^{(c)}(M_i) - Y^{(c)}(X_b)\Big)\Bigg)_k</span>
 
 <span class="sd">    where :math:`N` is the number of samples used to smooth the weights,</span>
 <span class="sd">    :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
 <span class="sd">    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax</span>
 <span class="sd">    for input :math:`X`, :math:`X_b` is a baseline image,</span>
-<span class="sd">    and :math:`M_k` is defined as follows:</span>
+<span class="sd">    and :math:`M_i` is defined as follows:</span>
 
 <span class="sd">    .. math::</span>
-<span class="sd">        M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b</span>
+<span class="sd">        M_i = \sum\limits_{j=0}^{i-1} \frac{j}{N}</span>
+<span class="sd">        \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b</span>
 
 <span class="sd">    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.</span>
 
