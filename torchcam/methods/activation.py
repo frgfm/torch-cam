@@ -368,7 +368,8 @@ class ISCAM(ScoreCAM):
     and :math:`M_i` is defined as follows:
 
     .. math::
-        M_i = \sum\limits_{j=0}^{i-1} \frac{j}{N} \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b
+        M_i = \sum\limits_{j=0}^{i-1} \frac{j}{N}
+        \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b
 
     where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.
 
