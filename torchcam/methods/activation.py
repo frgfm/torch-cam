@@ -359,17 +359,17 @@ class ISCAM(ScoreCAM):
 
     .. math::
         w_k^{(c)} = softmax\Bigg(\frac{1}{N} \sum\limits_{i=1}^N
-        \Big(Y^{(c)}(\sum\limits_{p=1}^i \frac{p}{N} M_k) - Y^{(c)}(X_b)\Big)
-        \Bigg)_k
+        \Big(Y^{(c)}(M_i) - Y^{(c)}(X_b)\Big)\Bigg)_k
 
     where :math:`N` is the number of samples used to smooth the weights,
     :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
     position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
     for input :math:`X`, :math:`X_b` is a baseline image,
-    and :math:`M_k` is defined as follows:
+    and :math:`M_i` is defined as follows:
 
     .. math::
-        M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b
+        M_i = \sum\limits_{j=0}^{i-1} \frac{j}{N}
+        \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b
 
     where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.
 
