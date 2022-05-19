@@ -91,10 +91,17 @@ class _CAM:
 
         return target_name
 
-    def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
+    def _hook_a(
+        self,
+        module: nn.Module,
+        input: Tensor,
+        output: Union[Tensor, Tuple[Tensor, ...]],
+        idx: int = 0,
+    ) -> None:
         """Activation hook."""
         if self._hooks_enabled:
-            self.hook_a[idx] = output.data  # type: ignore[call-overload]
+            _o = output if isinstance(output, Tensor) else output[0]
+            self.hook_a[idx] = _o.data  # type: ignore[call-overload]
 
     def reset_hooks(self) -> None:
         """Clear stored activation and gradients."""

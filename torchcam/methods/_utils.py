@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0.txt> for full license details.
 
 from functools import partial
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor, nn
@@ -29,9 +29,15 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
 
     output_shapes: List[Tuple[Optional[str], Tuple[int, ...]]] = []
 
-    def _record_output_shape(module: nn.Module, input: Tensor, output: Tensor, name: Optional[str] = None) -> None:
+    def _record_output_shape(
+        module: nn.Module,
+        input: Tensor,
+        output: Union[Tensor, Tuple[Tensor, ...]],
+        name: Optional[str] = None,
+    ) -> None:
         """Activation hook."""
-        output_shapes.append((name, output.shape))
+        _o = output if isinstance(output, Tensor) else output[0]
+        output_shapes.append((name, _o.shape))
 
     hook_handles: List[torch.utils.hooks.RemovableHandle] = []
     # forward hook on all layers

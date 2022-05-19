@@ -44,10 +44,17 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_g[idx] = grad.data  # type: ignore[call-overload]
 
-    def _hook_g(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
+    def _hook_g(
+        self,
+        module: nn.Module,
+        input: Tensor,
+        output: Union[Tensor, Tuple[Tensor, ...]],
+        idx: int = 0,
+    ) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
-            self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
+            _o = output if isinstance(output, Tensor) else output[0]
+            self.hook_handles.append(_o.register_hook(partial(self._store_grad, idx=idx)))
 
     def _backprop(self, scores: Tensor, class_idx: Union[int, List[int]], retain_graph: bool = False) -> None:
         """Backpropagate the loss for a specific output class"""
