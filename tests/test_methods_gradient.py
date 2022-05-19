@@ -1,7 +1,7 @@
 import pytest
 import torch
 from torch import nn
-from torchvision.models import mobilenet_v2
+from torchvision.models import mobilenet_v2, vit_b_16
 
 from torchcam.methods import gradient
 
@@ -14,19 +14,20 @@ def _verify_cam(activation_map, output_size):
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, output_size, batch_size",
+    "cam_name, model_fn, target_layer, output_size, batch_size",
     [
-        ["GradCAM", 'features.18.0', (7, 7), 1],
-        ["GradCAMpp", 'features.18.0', (7, 7), 1],
-        ["SmoothGradCAMpp", lambda m: m.features[18][0], (7, 7), 1],
-        ["SmoothGradCAMpp", 'features.18.0', (7, 7), 1],
-        ["XGradCAM", 'features.18.0', (7, 7), 1],
-        ["LayerCAM", 'features.18.0', (7, 7), 1],
-        ["LayerCAM", 'features.18.0', (7, 7), 2],
+        ["GradCAM", mobilenet_v2, 'features.18.0', (7, 7), 1],
+        ["GradCAMpp", mobilenet_v2, 'features.18.0', (7, 7), 1],
+        ["SmoothGradCAMpp", mobilenet_v2, lambda m: m.features[18][0], (7, 7), 1],
+        ["SmoothGradCAMpp", mobilenet_v2, 'features.18.0', (7, 7), 1],
+        ["XGradCAM", mobilenet_v2, 'features.18.0', (7, 7), 1],
+        ["LayerCAM", mobilenet_v2, 'features.18.0', (7, 7), 1],
+        ["LayerCAM", mobilenet_v2, 'features.18.0', (7, 7), 2],
+        ["LayerCAM", vit_b_16, 'encoder', (7, 7), 1],
     ],
 )
-def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
-    model = mobilenet_v2(pretrained=False).eval()
+def test_img_cams(cam_name, model_fn, target_layer, output_size, batch_size, mock_img_tensor):
+    model = model_fn(pretrained=False).eval()
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model

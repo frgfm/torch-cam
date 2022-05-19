@@ -1,4 +1,4 @@
-from torchvision.models import resnet18
+from torchvision.models import resnet18, vit_b_16
 
 from torchcam.methods import _utils
 
@@ -14,6 +14,10 @@ def test_locate_candidate_layer(mock_img_model):
     assert _utils.locate_candidate_layer(mod) == '0.3'
     # Check that the model is switched back to its origin mode afterwards
     assert mod.training
+
+    # Transformer
+    mod = vit_b_16().eval()
+    assert _utils.locate_candidate_layer(mod) == 'encoder'
 
 
 def test_locate_linear_layer(mock_img_model):
