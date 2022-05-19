@@ -46,7 +46,7 @@ _deps = [
     "pytest>=5.3.2",
     "coverage>=4.5.4",
     "requests>=2.20.0",
-    "torchvision>=0.4.0",
+    "torchvision>=0.12.0",
     # Quality
     "flake8>=3.9.0",
     "isort>=5.7.0",
