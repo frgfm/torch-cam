@@ -16,7 +16,7 @@ This project is meant for:
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Getting Started
    :hidden:
 
@@ -54,7 +54,7 @@ Gradient-based methods
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Notes
    :hidden:
 
