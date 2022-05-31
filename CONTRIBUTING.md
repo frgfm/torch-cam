@@ -8,10 +8,10 @@ Whatever the way you wish to contribute to the project, please respect the [code
 
 ## Codebase structure
 
-- [torchcam](https://github.com/frgfm/torch-cam/blob/master/torchcam) - The actual torchcam library
-- [tests](https://github.com/frgfm/torch-cam/blob/master/tests) - Python unit tests
-- [docs](https://github.com/frgfm/torch-cam/blob/master/docs) - Sphinx documentation building
-- [scripts](https://github.com/frgfm/torch-cam/blob/master/scripts) - Example and utilities scripts
+- [torchcam](https://github.com/frgfm/torch-cam/blob/main/torchcam) - The actual torchcam library
+- [tests](https://github.com/frgfm/torch-cam/blob/main/tests) - Python unit tests
+- [docs](https://github.com/frgfm/torch-cam/blob/main/docs) - Sphinx documentation building
+- [scripts](https://github.com/frgfm/torch-cam/blob/main/scripts) - Example and utilities scripts
 - [demo](https://github.com/mindee/doctr/blob/main/demo) - Small demo app to showcase docTR capabilities 
 
 
@@ -55,7 +55,7 @@ cd torch-cam
 git remote add upstream https://github.com/frgfm/torch-cam.git
 ```
 
-3 - You should not work on the `master` branch, so let's create a new one
+3 - You should not work on the `main` branch, so let's create a new one
 ```shell
 git checkout -b a-short-description
 ```
