@@ -1,0 +1,130 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torchcam"
+description = "Class activation maps for your PyTorch CNN models"
+authors = [
+    {email = "fg-feedback@protonmail.com"},
+    {name = "François-Guillaume Fernandez"}
+]
+readme = "README.md"
+requires-python = ">=3.6,<4"
+license = {file = "LICENSE"}
+keywords = ["pytorch", "deep learning", "class activation map", "cnn", "gradcam"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dynamic = ["version"]
+dependencies = [
+    # cf. https://github.com/frgfm/torch-cam/discussions/148
+    "torch>=1.7.0",
+    "numpy>=1.14.0",
+    # cf. https://github.com/advisories/GHSA-98vv-pw6r-q6q4
+    "Pillow>=8.3.2",
+    "matplotlib>=3.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=5.3.2",
+    "coverage[toml]>=4.5.4",
+    "requests>=2.20.0",
+    "torchvision>=0.4.0",
+]
+quality = [
+    "flake8>=3.9.0",
+    "isort>=5.7.0",
+    "mypy>=0.812",
+    "pydocstyle[toml]>=6.0.0",
+    "black>=22.1,<23.0",
+]
+docs = [
+    "sphinx>=3.0.0,!=3.5.0",
+    "sphinxemoji>=0.1.8",
+    "sphinx-copybutton>=0.3.1",
+    "docutils<0.18",
+    # cf. https://github.com/readthedocs/readthedocs.org/issues/9038
+    "Jinja2<3.1",
+    "furo>=2022.3.4",
+]
+dev = [
+    # test
+    "pytest>=5.3.2",
+    "coverage[toml]>=4.5.4",
+    "requests>=2.20.0",
+    "torchvision>=0.4.0",
+    # style
+    "flake8>=3.9.0",
+    "isort>=5.7.0",
+    "mypy>=0.812",
+    "pydocstyle[toml]>=6.0.0",
+    "black>=22.1,<23.0",
+    # docs
+    "sphinx<=3.4.3",
+    "sphinx-rtd-theme==0.4.3",
+    "sphinxemoji>=0.1.8",
+    "sphinx-copybutton>=0.3.1",
+    "docutils<0.18",
+    "Jinja2<3.1",
+]
+
+[project.urls]
+documentation = "https://frgfm.github.io/torch-cam"
+repository = "https://github.com/frgfm/torch-cam"
+tracker = "https://github.com/frgfm/torch-cam/issues"
+
+[tool.setuptools]
+zip-safe = true
+
+[tool.setuptools.packages.find]
+exclude = ["demo*", "docs*", "notebooks*", "scripts*", "tests*"]
+
+
+[tool.mypy]
+files = "torchcam/*.py"
+show_error_codes = true
+pretty = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+implicit_reexport = false
+
+[[tool.mypy.overrides]]
+module = [
+    "PIL",
+    "matplotlib"
+]
+ignore_missing_imports = true
+
+[tool.isort]
+line_length = 120
+src_paths = ["torchcam", "tests"]
+skip_glob = "**/__init__.py"
+known_third_party = ["torch", "torchvision"]
+
+[tool.pydocstyle]
+select = "D300,D301,D417"
+match = ".*\\.py"
+
+[tool.coverage.run]
+source = ["torchcam"]
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
