@@ -19,10 +19,10 @@ requirements:
     - python>=3.6
 
   run:
-    - pytorch >=1.5.1
-    - numpy
-    - pillow
-    - matplotlib
+    - pytorch >=1.7.0
+    - numpy >=1.14.0
+    - pillow >=8.3.2
+    - matplotlib >=3.0.0
 
 test:
   # Python imports
