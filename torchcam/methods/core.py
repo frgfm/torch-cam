@@ -13,7 +13,7 @@ from torch import Tensor, nn
 
 from ._utils import locate_candidate_layer
 
-__all__ = ['_CAM']
+__all__ = ["_CAM"]
 
 
 class _CAM:
@@ -46,12 +46,11 @@ class _CAM:
             if any(not isinstance(elt, (str, nn.Module)) for elt in target_layer):
                 raise TypeError("invalid argument type for `target_layer`")
             target_names = [
-                self._resolve_layer_name(layer) if isinstance(layer, nn.Module) else layer
-                for layer in target_layer
+                self._resolve_layer_name(layer) if isinstance(layer, nn.Module) else layer for layer in target_layer
             ]
         elif target_layer is None:
             # If the layer is not specified, try automatic resolution
-            target_name = locate_candidate_layer(model, input_shape)  # type: ignore[assignment]
+            target_name = locate_candidate_layer(model, input_shape)
             # Warn the user of the choice
             if isinstance(target_name, str):
                 logging.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
@@ -94,7 +93,7 @@ class _CAM:
     def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
         """Activation hook."""
         if self._hooks_enabled:
-            self.hook_a[idx] = output.data  # type: ignore[call-overload]
+            self.hook_a[idx] = output.data
 
     def reset_hooks(self) -> None:
         """Clear stored activation and gradients."""
@@ -132,8 +131,9 @@ class _CAM:
                 raise ValueError("expected batch size and length of `class_idx` to be the same.")
 
         # Check class_idx value
-        if (not isinstance(class_idx, int) or class_idx < 0) and \
-                (not isinstance(class_idx, list) or any(_idx < 0 for _idx in class_idx)):
+        if (not isinstance(class_idx, int) or class_idx < 0) and (
+            not isinstance(class_idx, list) or any(_idx < 0 for _idx in class_idx)
+        ):
             raise ValueError("Incorrect `class_idx` argument value")
 
         # Check scores arg
@@ -186,7 +186,7 @@ class _CAM:
                 weight = weight[(...,) + (None,) * missing_dims]
 
                 # Perform the weighted combination to get the CAM
-                cam = torch.nansum(weight * activation, dim=1)  # type: ignore[union-attr]
+                cam = torch.nansum(weight * activation, dim=1)
 
                 if self._relu:
                     cam = F.relu(cam, inplace=True)
@@ -242,10 +242,9 @@ class _CAM:
     @staticmethod
     def _fuse_cams(cams: List[Tensor], target_shape: Tuple[int, int]) -> Tensor:
         # Interpolate all CAMs
-        interpolation_mode = 'bilinear' if cams[0].ndim == 3 else 'trilinear' if cams[0].ndim == 4 else 'nearest'
+        interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
         scaled_cams = [
-            F.interpolate(cam.unsqueeze(1), target_shape, mode=interpolation_mode, align_corners=False)
-            for cam in cams
+            F.interpolate(cam.unsqueeze(1), target_shape, mode=interpolation_mode, align_corners=False) for cam in cams
         ]
 
         # Fuse them

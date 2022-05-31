@@ -8,7 +8,7 @@ def test_cam_constructor(mock_img_model):
     model = mock_img_model.eval()
     # Check that wrong target_layer raises an error
     with pytest.raises(ValueError):
-        _ = core._CAM(model, '3')
+        _ = core._CAM(model, "3")
 
     # Wrong types
     with pytest.raises(TypeError):
@@ -23,7 +23,7 @@ def test_cam_constructor(mock_img_model):
 
 def test_cam_precheck(mock_img_model, mock_img_tensor):
     model = mock_img_model.eval()
-    extractor = core._CAM(model, '0.3')
+    extractor = core._CAM(model, "0.3")
     with torch.no_grad():
         # Check missing forward raises Error
         with pytest.raises(AssertionError):
@@ -68,7 +68,7 @@ def test_cam_normalize(input_shape, spatial_dims):
 
 def test_cam_remove_hooks(mock_img_model):
     model = mock_img_model.eval()
-    extractor = core._CAM(model, '0.3')
+    extractor = core._CAM(model, "0.3")
 
     assert len(extractor.hook_handles) == 1
     # Check that there is only one hook on the model
@@ -89,7 +89,7 @@ def test_cam_remove_hooks(mock_img_model):
 
 def test_cam_repr(mock_img_model):
     model = mock_img_model.eval()
-    extractor = core._CAM(model, '0.3')
+    extractor = core._CAM(model, "0.3")
 
     assert repr(extractor) == "_CAM(target_layer=['0.3'])"
 

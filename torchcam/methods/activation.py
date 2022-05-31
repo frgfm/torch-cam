@@ -14,7 +14,7 @@ from torch import Tensor, nn
 from ._utils import locate_linear_layer
 from .core import _CAM
 
-__all__ = ['CAM', 'ScoreCAM', 'SSCAM', 'ISCAM']
+__all__ = ["CAM", "ScoreCAM", "SSCAM", "ISCAM"]
 
 
 class CAM(_CAM):
@@ -83,7 +83,7 @@ class CAM(_CAM):
             self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
 
     @torch.no_grad()
-    def _get_weights(  # type: ignore[override]
+    def _get_weights(
         self,
         class_idx: Union[int, List[int]],
         *args: Any,
@@ -166,16 +166,12 @@ class ScoreCAM(_CAM):
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [
-            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:])
-            for act in activations
+            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:]) for act in activations
         ]
 
         # Initialize weights
         # (N * C)
-        weights = [
-            torch.zeros(b * c, dtype=t.dtype).to(device=t.device)
-            for t in activations
-        ]
+        weights = [torch.zeros(b * c, dtype=t.dtype).to(device=t.device) for t in activations]
 
         # (N, M)
         logits = self.model(self._input)
@@ -199,7 +195,7 @@ class ScoreCAM(_CAM):
         return [torch.softmax(w.view(b, c), -1) for w in weights]
 
     @torch.no_grad()
-    def _get_weights(  # type: ignore[override]
+    def _get_weights(
         self,
         class_idx: Union[int, List[int]],
         *args: Any,
@@ -215,7 +211,7 @@ class ScoreCAM(_CAM):
         # Upsample it to input_size
         # (N, C, H, W)
         spatial_dims = self._input.ndim - 2
-        interpolation_mode = 'bilinear' if spatial_dims == 2 else 'trilinear' if spatial_dims == 3 else 'nearest'
+        interpolation_mode = "bilinear" if spatial_dims == 2 else "trilinear" if spatial_dims == 3 else "nearest"
         upsampled_a = [
             F.interpolate(up_a, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
             for up_a in upsampled_a
@@ -309,10 +305,7 @@ class SSCAM(ScoreCAM):
 
         # Initialize weights
         # (N * C)
-        weights = [
-            torch.zeros(b * c, dtype=t.dtype).to(device=t.device)
-            for t in activations
-        ]
+        weights = [torch.zeros(b * c, dtype=t.dtype).to(device=t.device) for t in activations]
 
         # (N, M)
         logits = self.model(self._input)
@@ -409,22 +402,18 @@ class ISCAM(ScoreCAM):
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [
-            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:])
-            for act in activations
+            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:]) for act in activations
         ]
 
         # Initialize weights
-        weights = [
-            torch.zeros(b * c, dtype=t.dtype).to(device=t.device)
-            for t in activations
-        ]
+        weights = [torch.zeros(b * c, dtype=t.dtype).to(device=t.device) for t in activations]
 
         # (N, M)
         logits = self.model(self._input)
         idcs = torch.arange(b).repeat_interleave(c)
 
         for idx, scored_input in enumerate(scored_inputs):
-            _coeff = 0.
+            _coeff = 0.0
             # Process by chunk (GPU RAM limitation)
             for sidx in range(self.num_samples):
                 _coeff += (sidx + 1) / self.num_samples

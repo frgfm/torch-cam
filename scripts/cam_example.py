@@ -25,32 +25,38 @@ from torchcam.utils import overlay_mask
 def main(args):
 
     if args.device is None:
-        args.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     device = torch.device(args.device)
 
     # Pretrained imagenet model
     model = models.__dict__[args.arch](pretrained=True).to(device=device)
 
-    # Image
-    if args.img.startswith('http'):
+    # Image
+    if args.img.startswith("http"):
         img_path = BytesIO(requests.get(args.img).content)
     else:
         img_path = args.img
-    pil_img = Image.open(img_path, mode='r').convert('RGB')
+    pil_img = Image.open(img_path, mode="r").convert("RGB")
 
     # Preprocess image
-    img_tensor = normalize(to_tensor(resize(pil_img, (224, 224))),
-                           [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(device=device)
+    img_tensor = normalize(to_tensor(resize(pil_img, (224, 224))), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(
+        device=device
+    )
 
     if isinstance(args.method, str):
         cam_methods = args.method.split(",")
     else:
         cam_methods = [
-            'CAM',
-            'GradCAM', 'GradCAMpp', 'SmoothGradCAMpp',
-            'ScoreCAM', 'SSCAM', 'ISCAM',
-            'XGradCAM', 'LayerCAM'
+            "CAM",
+            "GradCAM",
+            "GradCAMpp",
+            "SmoothGradCAMpp",
+            "ScoreCAM",
+            "SSCAM",
+            "ISCAM",
+            "XGradCAM",
+            "LayerCAM",
         ]
     # Hook the corresponding layer in the model
     cam_extractors = [methods.__dict__[name](model, enable_hooks=False) for name in cam_methods]
@@ -79,7 +85,7 @@ def main(args):
         extractor._hooks_enabled = False
         # Convert it to PIL image
         # The indexing below means first image in batch
-        heatmap = to_pil_image(activation_map, mode='F')
+        heatmap = to_pil_image(activation_map, mode="F")
         # Plot the result
         result = overlay_mask(pil_img, heatmap, alpha=args.alpha)
 
@@ -93,28 +99,32 @@ def main(args):
         for _axes in axes:
             if args.rows > 1:
                 for ax in _axes:
-                    ax.axis('off')
+                    ax.axis("off")
             else:
-                _axes.axis('off')
+                _axes.axis("off")
 
     else:
-        axes.axis('off')
+        axes.axis("off")
 
     plt.tight_layout()
     if args.savefig:
-        plt.savefig(args.savefig, dpi=200, transparent=True, bbox_inches='tight', pad_inches=0)
+        plt.savefig(args.savefig, dpi=200, transparent=True, bbox_inches="tight", pad_inches=0)
     plt.show(block=not args.noblock)
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Saliency Map comparison',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--arch", type=str, default='resnet18', help="Name of the architecture")
-    parser.add_argument("--img", type=str,
-                        default='https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg',
-                        help="The image to extract CAM from")
-    parser.add_argument("--class-idx", type=int, default=232, help='Index of the class to inspect')
-    parser.add_argument("--device", type=str, default=None, help='Default device to perform computation on')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Saliency Map comparison", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("--arch", type=str, default="resnet18", help="Name of the architecture")
+    parser.add_argument(
+        "--img",
+        type=str,
+        default="https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg",
+        help="The image to extract CAM from",
+    )
+    parser.add_argument("--class-idx", type=int, default=232, help="Index of the class to inspect")
+    parser.add_argument("--device", type=str, default=None, help="Default device to perform computation on")
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
     parser.add_argument("--method", type=str, default=None, help="CAM method to use")
     parser.add_argument("--alpha", type=float, default=0.5, help="Transparency of the heatmap")
