@@ -11,7 +11,7 @@ from torch import Tensor, nn
 
 from .core import _CAM
 
-__all__ = ['GradCAM', 'GradCAMpp', 'SmoothGradCAMpp', 'XGradCAM', 'LayerCAM']
+__all__ = ["GradCAM", "GradCAMpp", "SmoothGradCAMpp", "XGradCAM", "LayerCAM"]
 
 
 class _GradCAM(_CAM):
@@ -42,7 +42,7 @@ class _GradCAM(_CAM):
 
     def _store_grad(self, grad: Tensor, idx: int = 0) -> None:
         if self._hooks_enabled:
-            self.hook_g[idx] = grad.data  # type: ignore[call-overload]
+            self.hook_g[idx] = grad.data
 
     def _hook_g(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
         """Gradient hook"""
@@ -106,7 +106,7 @@ class GradCAM(_GradCAM):
 
         self.hook_g: List[Tensor]  # type: ignore[assignment]
         # Global average pool the gradients over spatial dimensions
-        return [grad.flatten(2).mean(-1) for grad in self.hook_g]  # type: ignore[attr-defined]
+        return [grad.flatten(2).mean(-1) for grad in self.hook_g]
 
 
 class GradCAMpp(_GradCAM):
@@ -173,10 +173,7 @@ class GradCAMpp(_GradCAM):
             alpha[idx][mask].div_(d[mask])
 
         # Apply pixel coefficient in each weight
-        return [
-            a.mul_(torch.relu(grad)).flatten(2).sum(-1)
-            for a, grad in zip(alpha, self.hook_g)
-        ]
+        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, self.hook_g)]
 
 
 class SmoothGradCAMpp(_GradCAM):
@@ -262,10 +259,7 @@ class SmoothGradCAMpp(_GradCAM):
             self._input = input[0].data.clone()
 
     def _get_weights(
-        self,
-        class_idx: Union[int, List[int]],
-        scores: Optional[Tensor] = None,
-        **kwargs: Any
+        self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None, **kwargs: Any
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
 
@@ -299,17 +293,14 @@ class SmoothGradCAMpp(_GradCAM):
         grad_3 = [g3.div_(self.num_samples) for g3 in grad_3]
 
         # Alpha coefficient for each pixel
-        spatial_dims = self.hook_a[0].ndim - 2  # type: ignore[attr-defined]
+        spatial_dims = self.hook_a[0].ndim - 2
         alpha = [
             g2 / (2 * g2 + (g3 * act).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims])
             for g2, g3, act in zip(grad_2, grad_3, init_fmap)
         ]
 
         # Apply pixel coefficient in each weight
-        return [
-            a.mul_(torch.relu(grad)).flatten(2).sum(-1)
-            for a, grad in zip(alpha, self.hook_g)
-        ]
+        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, self.hook_g)]
 
     def extra_repr(self) -> str:
         return f"target_layer={self.target_names}, num_samples={self.num_samples}, std={self.std}"
@@ -357,10 +348,7 @@ class XGradCAM(_GradCAM):
 
         self.hook_a: List[Tensor]  # type: ignore[assignment]
         self.hook_g: List[Tensor]  # type: ignore[assignment]
-        return [
-            (grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1)
-            for act, grad in zip(self.hook_a, self.hook_g)
-        ]
+        return [(grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1) for act, grad in zip(self.hook_a, self.hook_g)]
 
 
 class LayerCAM(_GradCAM):
@@ -407,6 +395,6 @@ class LayerCAM(_GradCAM):
         return [torch.relu(grad) for grad in self.hook_g]
 
     @staticmethod
-    def _scale_cams(cams: List[Tensor], gamma: float = 2.) -> List[Tensor]:
+    def _scale_cams(cams: List[Tensor], gamma: float = 2.0) -> List[Tensor]:
         # cf. Equation 9 in the paper
         return [torch.tanh(gamma * cam) for cam in cams]

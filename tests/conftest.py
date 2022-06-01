@@ -12,13 +12,14 @@ from torchvision.transforms.functional import normalize, resize, to_tensor
 def mock_img_tensor():
     try:
         # Get a dog image
-        URL = 'https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg'
+        URL = "https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg"
         response = requests.get(URL)
 
         # Forward an image
-        pil_img = Image.open(BytesIO(response.content), mode='r').convert('RGB')
-        img_tensor = normalize(to_tensor(resize(pil_img, (224, 224))),
-                               [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).unsqueeze(0)
+        pil_img = Image.open(BytesIO(response.content), mode="r").convert("RGB")
+        img_tensor = normalize(
+            to_tensor(resize(pil_img, (224, 224))), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+        ).unsqueeze(0)
     except ConnectionError:
         img_tensor = torch.rand((1, 3, 224, 224))
 
@@ -38,10 +39,10 @@ def mock_video_model():
             nn.ReLU(),
             nn.Conv3d(8, 16, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool3d((1, 1, 1))
+            nn.AdaptiveAvgPool3d((1, 1, 1)),
         ),
         nn.Flatten(1),
-        nn.Linear(16, 1)
+        nn.Linear(16, 1),
     )
 
 
@@ -53,10 +54,10 @@ def mock_img_model():
             nn.ReLU(),
             nn.Conv2d(8, 16, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1))
+            nn.AdaptiveAvgPool2d((1, 1)),
         ),
         nn.Flatten(1),
-        nn.Linear(16, 1)
+        nn.Linear(16, 1),
     )
 
 
@@ -68,8 +69,8 @@ def mock_fullyconv_model():
             nn.ReLU(),
             nn.Conv2d(8, 16, 3, padding=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1))
+            nn.AdaptiveAvgPool2d((1, 1)),
         ),
         nn.Conv2d(16, 1, 1),
-        nn.Flatten(1)
+        nn.Flatten(1),
     )

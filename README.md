@@ -1,7 +1,37 @@
 
 # TorchCAM: class activation explorer
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/25324db1064a4d52b3f44d657c430973)](https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade)  ![Build Status](https://github.com/frgfm/torch-cam/workflows/tests/badge.svg) [![codecov](https://codecov.io/gh/frgfm/torch-cam/branch/master/graph/badge.svg)](https://codecov.io/gh/frgfm/torch-cam) [![Docs](https://img.shields.io/badge/docs-available-blue.svg)](https://frgfm.github.io/torch-cam)  [![Pypi](https://img.shields.io/badge/pypi-v0.3.1-blue.svg)](https://pypi.org/project/torchcam/) [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb)
+<p align="center">
+  <a href="https://github.com/frgfm/torch-cam/actions?query=workflow%3Abuilds">
+    <img alt="CI Status" src="https://img.shields.io/github/workflow/status/frgfm/torch-cam/builds?label=CI&logo=github&style=flat-square">
+  </a>
+  <a href="https://frgfm.github.io/torch-cam">
+    <img src="https://img.shields.io/readthedocs/deezer-python.svg?logo=read-the-docs&style=flat-square" alt="Documentation Status">
+  </a>
+  <a href="https://codecov.io/gh/frgfm/torch-cam">
+    <img src="https://img.shields.io/codecov/c/github/frgfm/torch-cam.svg?logo=codecov&style=flat-square" alt="Test coverage percentage">
+  </a>
+  <a href="https://github.com/ambv/black">
+    <img src="https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square" alt="black">
+  </a>
+  <a href="https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade"><img src="https://app.codacy.com/project/badge/Grade/25324db1064a4d52b3f44d657c430973"/></a>
+</p>
+<p align="center">
+  <a href="https://pypi.org/project/torchcam/">
+    <img src="https://img.shields.io/pypi/v/torchcam.svg?logo=python&logoColor=fff&style=flat-square" alt="PyPi Status">
+  </a>
+  <a href="https://anaconda.org/frgfm/torchcam"> <img src="https://anaconda.org/frgfm/torchcam/badges/version.svg" /> </a>
+  <img src="https://img.shields.io/pypi/pyversions/torchcam.svg?style=flat-square" alt="pyversions">
+  <img src="https://img.shields.io/pypi/l/torchcam.svg?style=flat-square" alt="license">
+</p>
+<p align="center">
+  <a href="https://huggingface.co/spaces/frgfm/torch-cam">
+    <img src="https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue" alt="Huggingface Spaces">
+  </a>
+  <a href="https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb">
+    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in Colab">
+  </a>
+</p>
 
 Simple way to leverage the class-specific activation of convolutional layers in PyTorch.
 

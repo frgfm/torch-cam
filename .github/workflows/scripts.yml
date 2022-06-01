@@ -2,9 +2,9 @@ name: scripts
 
 on:
   push:
-    branches: master
+    branches: main
   pull_request:
-    branches: master
+    branches: main
 
 jobs:
   cam-example:
@@ -25,13 +25,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('scripts/requirements.txt') }}-${{ hashFiles('**/*.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('scripts/requirements.txt') }}-
-            ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-
-            ${{ runner.os }}-pkg-deps-${{ matrix.python }}-
-            ${{ runner.os }}-pkg-deps-
-            ${{ runner.os }}-
+          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}-scripts
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -59,13 +53,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('scripts/requirements.txt') }}-${{ hashFiles('**/*.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('scripts/requirements.txt') }}-
-            ${{ runner.os }}-pkg-deps-${{ matrix.python }}-${{ hashFiles('requirements.txt') }}-
-            ${{ runner.os }}-pkg-deps-${{ matrix.python }}-
-            ${{ runner.os }}-pkg-deps-
-            ${{ runner.os }}-
+          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}-scripts
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

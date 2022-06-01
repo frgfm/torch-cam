@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 import torch
 from torch import Tensor, nn
 
-__all__ = ['locate_candidate_layer', 'locate_linear_layer']
+__all__ = ["locate_candidate_layer", "locate_linear_layer"]
 
 
 def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 224, 224)) -> Optional[str]:

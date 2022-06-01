@@ -8,7 +8,7 @@ from matplotlib import cm
 from PIL import Image
 
 
-def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = 'jet', alpha: float = 0.7) -> Image.Image:
+def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = "jet", alpha: float = 0.7) -> Image.Image:
     """Overlay a colormapped mask on a background image
 
     Example::
@@ -34,10 +34,10 @@ def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = 'jet', alp
     """
 
     if not isinstance(img, Image.Image) or not isinstance(mask, Image.Image):
-        raise TypeError('img and mask arguments need to be PIL.Image')
+        raise TypeError("img and mask arguments need to be PIL.Image")
 
     if not isinstance(alpha, float) or alpha < 0 or alpha >= 1:
-        raise ValueError('alpha argument is expected to be of type float between 0 and 1')
+        raise ValueError("alpha argument is expected to be of type float between 0 and 1")
 
     cmap = cm.get_cmap(colormap)
     # Resize mask and apply colormap

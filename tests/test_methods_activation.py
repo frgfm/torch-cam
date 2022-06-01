@@ -9,7 +9,7 @@ def test_base_cam_constructor(mock_img_model):
     model = mobilenet_v2(pretrained=False).eval()
     # Check that multiple target layers is disabled for base CAM
     with pytest.raises(ValueError):
-        _ = activation.CAM(model, ['classifier.1', 'classifier.2'])
+        _ = activation.CAM(model, ["classifier.1", "classifier.2"])
 
     # FC layer checks
     with pytest.raises(TypeError):
@@ -28,12 +28,12 @@ def _verify_cam(activation_map, output_size):
     [
         ["CAM", None, None, None, (7, 7), 1],
         ["CAM", None, None, None, (7, 7), 2],
-        ["CAM", None, 'classifier.1', None, (7, 7), 1],
+        ["CAM", None, "classifier.1", None, (7, 7), 1],
         ["CAM", None, lambda m: m.classifier[1], None, (7, 7), 1],
-        ["ScoreCAM", 'features.16.conv.3', None, None, (7, 7), 1],
+        ["ScoreCAM", "features.16.conv.3", None, None, (7, 7), 1],
         ["ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7), 1],
-        ["SSCAM", 'features.16.conv.3', None, 4, (7, 7), 1],
-        ["ISCAM", 'features.16.conv.3', None, 4, (7, 7), 1],
+        ["SSCAM", "features.16.conv.3", None, 4, (7, 7), 1],
+        ["ISCAM", "features.16.conv.3", None, 4, (7, 7), 1],
     ],
 )
 def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, batch_size, mock_img_tensor):
@@ -41,10 +41,10 @@ def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, ba
     kwargs = {}
     # Speed up testing by reducing the number of samples
     if isinstance(num_samples, int):
-        kwargs['num_samples'] = num_samples
+        kwargs["num_samples"] = num_samples
 
     if fc_layer is not None:
-        kwargs['fc_layer'] = fc_layer(model) if callable(fc_layer) else fc_layer
+        kwargs["fc_layer"] = fc_layer(model) if callable(fc_layer) else fc_layer
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
@@ -59,7 +59,7 @@ def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, ba
 
 
 def test_cam_conv1x1(mock_fullyconv_model):
-    extractor = activation.CAM(mock_fullyconv_model, fc_layer='1')
+    extractor = activation.CAM(mock_fullyconv_model, fc_layer="1")
     with torch.no_grad():
         scores = mock_fullyconv_model(torch.rand((1, 3, 32, 32)))
         # Use the hooked data to compute activation map
@@ -69,10 +69,10 @@ def test_cam_conv1x1(mock_fullyconv_model):
 @pytest.mark.parametrize(
     "cam_name, target_layer, num_samples, output_size",
     [
-        ["CAM", '0.3', None, (1, 8, 16, 16)],
-        ["ScoreCAM", '0.3', None, (1, 8, 16, 16)],
-        ["SSCAM", '0.3', 4, (1, 8, 16, 16)],
-        ["ISCAM", '0.3', 4, (1, 8, 16, 16)],
+        ["CAM", "0.3", None, (1, 8, 16, 16)],
+        ["ScoreCAM", "0.3", None, (1, 8, 16, 16)],
+        ["SSCAM", "0.3", 4, (1, 8, 16, 16)],
+        ["ISCAM", "0.3", 4, (1, 8, 16, 16)],
     ],
 )
 def test_video_cams(cam_name, target_layer, num_samples, output_size, mock_video_model, mock_video_tensor):
@@ -80,7 +80,7 @@ def test_video_cams(cam_name, target_layer, num_samples, output_size, mock_video
     kwargs = {}
     # Speed up testing by reducing the number of samples
     if isinstance(num_samples, int):
-        kwargs['num_samples'] = num_samples
+        kwargs["num_samples"] = num_samples
 
     # Hook the corresponding layer in the model
     extractor = activation.__dict__[cam_name](model, target_layer, **kwargs)

@@ -16,13 +16,13 @@ def _verify_cam(activation_map, output_size):
 @pytest.mark.parametrize(
     "cam_name, target_layer, output_size, batch_size",
     [
-        ["GradCAM", 'features.18.0', (7, 7), 1],
-        ["GradCAMpp", 'features.18.0', (7, 7), 1],
+        ["GradCAM", "features.18.0", (7, 7), 1],
+        ["GradCAMpp", "features.18.0", (7, 7), 1],
         ["SmoothGradCAMpp", lambda m: m.features[18][0], (7, 7), 1],
-        ["SmoothGradCAMpp", 'features.18.0', (7, 7), 1],
-        ["XGradCAM", 'features.18.0', (7, 7), 1],
-        ["LayerCAM", 'features.18.0', (7, 7), 1],
-        ["LayerCAM", 'features.18.0', (7, 7), 2],
+        ["SmoothGradCAMpp", "features.18.0", (7, 7), 1],
+        ["XGradCAM", "features.18.0", (7, 7), 1],
+        ["LayerCAM", "features.18.0", (7, 7), 1],
+        ["LayerCAM", "features.18.0", (7, 7), 2],
     ],
 )
 def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
@@ -46,11 +46,11 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
         nn.ReLU(inplace=True),
         nn.AdaptiveAvgPool2d((1, 1)),
         nn.Flatten(1),
-        nn.Linear(8, 10)
+        nn.Linear(8, 10),
     )
 
     # Hook before the inplace ops
-    extractor = gradient.__dict__[cam_name](model, '2')
+    extractor = gradient.__dict__[cam_name](model, "2")
     scores = model(mock_img_tensor)
     # Use the hooked data to compute activation map
     _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 224, 224))
@@ -59,11 +59,11 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
 @pytest.mark.parametrize(
     "cam_name, target_layer, output_size",
     [
-        ["GradCAM", '0.3', (1, 8, 16, 16)],
-        ["GradCAMpp", '0.3', (1, 8, 16, 16)],
-        ["SmoothGradCAMpp", '0.3', (1, 8, 16, 16)],
-        ["XGradCAM", '0.3', (1, 8, 16, 16)],
-        ["LayerCAM", '0.3', (1, 8, 16, 16)],
+        ["GradCAM", "0.3", (1, 8, 16, 16)],
+        ["GradCAMpp", "0.3", (1, 8, 16, 16)],
+        ["SmoothGradCAMpp", "0.3", (1, 8, 16, 16)],
+        ["XGradCAM", "0.3", (1, 8, 16, 16)],
+        ["LayerCAM", "0.3", (1, 8, 16, 16)],
     ],
 )
 def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_video_tensor):
@@ -80,7 +80,7 @@ def test_smoothgradcampp_repr():
     model = mobilenet_v2(pretrained=False).eval()
 
     # Hook the corresponding layer in the model
-    extractor = gradient.SmoothGradCAMpp(model, 'features.18.0')
+    extractor = gradient.SmoothGradCAMpp(model, "features.18.0")
 
     assert repr(extractor) == "SmoothGradCAMpp(target_layer=['features.18.0'], num_samples=4, std=0.3)"
 
