@@ -8,7 +8,6 @@ on:
 
 jobs:
   pytest:
-    needs: install
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
