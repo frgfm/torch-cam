@@ -36,7 +36,7 @@ test:
 about:
   home: {{ data.get('url') }}
   license: {{ data['license'] }}
-  license_url: https://github.com/frgfm/torch-cam/blob/master/LICENSE
+  license_url: https://github.com/frgfm/torch-cam/blob/main/LICENSE
   license_file: LICENSE
   summary: {{ data['description'] }}
   description: |
