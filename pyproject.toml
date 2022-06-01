@@ -58,6 +58,8 @@ docs = [
     "sphinxemoji>=0.1.8",
     "sphinx-copybutton>=0.3.1",
     "docutils<0.18",
+    "recommonmark>=0.7.1",
+    "sphinx-markdown-tables>=0.0.15",
     # cf. https://github.com/readthedocs/readthedocs.org/issues/9038
     "Jinja2<3.1",
     "furo>=2022.3.4",
@@ -80,6 +82,8 @@ dev = [
     "sphinxemoji>=0.1.8",
     "sphinx-copybutton>=0.3.1",
     "docutils<0.18",
+    "recommonmark>=0.7.1",
+    "sphinx-markdown-tables>=0.0.15",
     "Jinja2<3.1",
 ]
 
