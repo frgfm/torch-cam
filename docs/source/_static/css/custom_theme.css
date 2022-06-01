@@ -12,7 +12,7 @@ h1 {
 /* Version control */
 
 .version-button {
-    color: white;
+    color: gray;
     border: none;
     padding: 5px;
     font-size: 15px;
@@ -20,7 +20,8 @@ h1 {
 }
 
 .version-button:hover, .version-button:focus {
-    background-color: #5eb2e6;
+    color: white;
+    background-color: gray;
 }
 
 .version-dropdown {
@@ -31,14 +32,15 @@ h1 {
 }
 
 .version-dropdown a {
-    color: white;
+    color: gray;
     padding: 3px 4px;
     text-decoration: none;
     display: block;
 }
 
 .version-dropdown a:hover {
-    background-color: #5eb2e6;
+    color: white;
+    background-color: gray;
 }
 
 .version-show {
