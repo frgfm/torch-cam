@@ -72,7 +72,7 @@ jobs:
       - name: Run mypy
         run: |
           mypy --version
-          mypy --config-file mypy.ini torchcam/
+          mypy torchcam/
 
   pydocstyle:
     runs-on: ${{ matrix.os }}
@@ -89,7 +89,7 @@ jobs:
           architecture: x64
       - name: Run pydocstyle
         run: |
-          pip install pydocstyle
+          pip install pydocstyle[toml]
           pydocstyle --version
           pydocstyle torchcam/
 
