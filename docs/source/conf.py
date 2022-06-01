@@ -65,7 +65,8 @@ exclude_patterns = ["notebooks/*.rst"]
 
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "sphinx"
+pygments_style = "friendly"
+pygments_dark_style = "monokai"
 highlight_language = "python3"
 
 # -- Options for HTML output -------------------------------------------------
@@ -73,19 +74,35 @@ highlight_language = "python3"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinx_rtd_theme"
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = "furo"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 html_theme_options = {
-    "collapse_navigation": False,
-    "display_version": False,
-    "logo_only": False,
-    "analytics_id": "UA-148140560-4",
+    "sidebar_hide_name": True,
+    "navigation_with_keys": True,
+    "light_css_variables": {
+        "color-sidebar-background": "#082747",
+        "color-sidebar-background-border": "#082747",
+        "color-sidebar-caption-text": "white",
+        "color-sidebar-link-text--top-level": "white",
+        "color-sidebar-link-text": "white",
+        "sidebar-caption-font-size": "normal",
+        "color-sidebar-item-background--hover": " #5dade2",
+    },
+    "dark_css_variables": {
+        "color-sidebar-background": "#1a1c1e",
+        "color-sidebar-background-border": "#1a1c1e",
+        "color-sidebar-caption-text": "white",
+        "color-sidebar-link-text--top-level": "white",
+    },
 }
+
+# html_logo = "_static/images/logo.png"
+# html_favicon = "_static/images/favicon.ico"
+html_title = "TorchCAM documentation"
 
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -93,7 +110,28 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
+# Add googleanalytics id
+# ref: https://github.com/orenhecht/googleanalytics/blob/master/sphinxcontrib/googleanalytics.py
+def add_ga_javascript(app, pagename, templatename, context, doctree):
+
+    metatags = context.get("metatags", "")
+    metatags += """
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id={0}"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){{dataLayer.push(arguments);}}
+  gtag('js', new Date());
+  gtag('config', '{0}');
+</script>
+    """.format(
+        app.config.googleanalytics_id
+    )
+    context["metatags"] = metatags
+
 
 def setup(app):
+    app.add_config_value("googleanalytics_id", "UA-148140560-4", "html")
     app.add_css_file("css/custom_theme.css")
     app.add_js_file("js/custom.js")
+    app.connect("html-page-context", add_ga_javascript)
