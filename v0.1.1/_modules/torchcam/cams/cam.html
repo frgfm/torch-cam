@@ -13,10 +13,10 @@
 </script>
     <link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
-    <meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
+    <meta name="generator" content="sphinx-5.0.1, furo 2022.06.04.1"/>
         <title>torchcam.cams.cam - TorchCAM</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/css/custom_theme.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -190,7 +190,8 @@
           </svg>
           <span>Back to top</span>
         </a>
-        <div class="content-icon-container"><div class="theme-toggle-container theme-toggle-content">
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -208,24 +209,24 @@
 <span></span><span class="ch">#!usr/bin/python</span>
 <span class="c1"># -*- coding: utf-8 -*-</span>
 
-<span class="sd">"""</span>
+<span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">CAM</span>
-<span class="sd">"""</span>
+<span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'CAM'</span><span class="p">,</span> <span class="s1">'ScoreCAM'</span><span class="p">,</span> <span class="s1">'SSCAM'</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CAM&#39;</span><span class="p">,</span> <span class="s1">&#39;ScoreCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;SSCAM&#39;</span><span class="p">]</span>
 
 
 <span class="k">class</span> <span class="nc">_CAM</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">"""Implements a class activation map extractor</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model (torch.nn.Module): input model</span>
 <span class="sd">        conv_layer (str): name of the last convolutional layer</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">hook_a</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">hook_handles</span> <span class="o">=</span> <span class="p">[]</span>
@@ -233,7 +234,7 @@
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">):</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">conv_layer</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unable to find submodule </span><span class="si">{</span><span class="n">conv_layer</span><span class="si">}</span><span class="s2"> in the model"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unable to find submodule </span><span class="si">{</span><span class="n">conv_layer</span><span class="si">}</span><span class="s2"> in the model&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="c1"># Forward hook</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_modules</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">conv_layer</span><span class="p">)</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_a</span><span class="p">))</span>
@@ -245,18 +246,18 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">False</span>
 
     <span class="k">def</span> <span class="nf">_hook_a</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
-        <span class="sd">"""Activation hook"""</span>
+        <span class="sd">&quot;&quot;&quot;Activation hook&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">data</span>
 
     <span class="k">def</span> <span class="nf">clear_hooks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">"""Clear model hooks"""</span>
+        <span class="sd">&quot;&quot;&quot;Clear model hooks&quot;&quot;&quot;</span>
         <span class="k">for</span> <span class="n">handle</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="p">:</span>
             <span class="n">handle</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">_normalize</span><span class="p">(</span><span class="n">cams</span><span class="p">):</span>
-        <span class="sd">"""CAM normalization"""</span>
+        <span class="sd">&quot;&quot;&quot;CAM normalization&quot;&quot;&quot;</span>
         <span class="n">cams</span> <span class="o">-=</span> <span class="n">cams</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">start_dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">cams</span> <span class="o">/=</span> <span class="n">cams</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="n">start_dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
@@ -267,22 +268,22 @@
         <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
     <span class="k">def</span> <span class="nf">_precheck</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">):</span>
-        <span class="sd">"""Check for invalid computation cases"""</span>
+        <span class="sd">&quot;&quot;&quot;Check for invalid computation cases&quot;&quot;&quot;</span>
 
         <span class="c1"># Check that forward has already occurred</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">"Inputs need to be forwarded in the model for the conv features to be hooked"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;Inputs need to be forwarded in the model for the conv features to be hooked&quot;</span><span class="p">)</span>
         <span class="c1"># Check batch size</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"expected a 1-sized batch to be hooked. Received: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;expected a 1-sized batch to be hooked. Received: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Check class_idx value</span>
         <span class="k">if</span> <span class="n">class_idx</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Incorrect `class_idx` argument value"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Incorrect `class_idx` argument value&quot;</span><span class="p">)</span>
 
         <span class="c1"># Check scores arg</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"model output scores is required to be passed to compute CAMs"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;model output scores is required to be passed to compute CAMs&quot;</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 
@@ -293,7 +294,7 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_cams</span><span class="p">(</span><span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">,</span> <span class="n">normalized</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">compute_cams</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">normalized</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-        <span class="sd">"""Compute the CAM for a specific output class</span>
+        <span class="sd">&quot;&quot;&quot;Compute the CAM for a specific output class</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            class_idx (int): output class index of the target class whose CAM will be computed</span>
@@ -302,7 +303,7 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            torch.Tensor[M, N]: class activation map of hooked conv layer</span>
-<span class="sd">        """</span>
+<span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Get map weight</span>
         <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_weights</span><span class="p">(</span><span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">)</span>
@@ -320,12 +321,12 @@
         <span class="k">return</span> <span class="n">batch_cams</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">()"</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">()&quot;</span>
 
 
 <div class="viewcode-block" id="CAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.CAM">[docs]</a><span class="k">class</span> <span class="nc">CAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
-    <span class="sd">"""Implements a class activation map extractor as described in `"Learning Deep Features for Discriminative</span>
-<span class="sd">    Localization" &lt;https://arxiv.org/pdf/1512.04150.pdf&gt;`_.</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Learning Deep Features for Discriminative</span>
+<span class="sd">    Localization&quot; &lt;https://arxiv.org/pdf/1512.04150.pdf&gt;`_.</span>
 
 <span class="sd">    The Class Activation Map (CAM) is defined for image classification models that have global pooling at the end</span>
 <span class="sd">    of the visual feature extraction block. The localization map is computed as follows:</span>
@@ -342,7 +343,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import CAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = CAM(model, 'layer4', 'fc')</span>
+<span class="sd">        &gt;&gt;&gt; cam = CAM(model, &#39;layer4&#39;, &#39;fc&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -350,7 +351,7 @@
 <span class="sd">        model (torch.nn.Module): input model</span>
 <span class="sd">        conv_layer (str): name of the last convolutional layer</span>
 <span class="sd">        fc_layer (str): name of the fully convolutional layer</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">hook_a</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">hook_handles</span> <span class="o">=</span> <span class="p">[]</span>
@@ -362,15 +363,15 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">_modules</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fc_layer</span><span class="p">)</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">data</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Take the FC weights of the target class</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span><span class="p">[</span><span class="n">class_idx</span><span class="p">,</span> <span class="p">:]</span></div>
 
 
 <div class="viewcode-block" id="ScoreCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.ScoreCAM">[docs]</a><span class="k">class</span> <span class="nc">ScoreCAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
-    <span class="sd">"""Implements a class activation map extractor as described in `"Score-CAM:</span>
-<span class="sd">    Score-Weighted Visual Explanations for Convolutional Neural Networks" &lt;https://arxiv.org/pdf/1910.01279.pdf&gt;`_.</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Score-CAM:</span>
+<span class="sd">    Score-Weighted Visual Explanations for Convolutional Neural Networks&quot; &lt;https://arxiv.org/pdf/1910.01279.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -397,7 +398,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import ScoreCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ScoreCAM(model, 'layer4', 'conv1')</span>
+<span class="sd">        &gt;&gt;&gt; cam = ScoreCAM(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -406,7 +407,7 @@
 <span class="sd">        conv_layer (str): name of the last convolutional layer</span>
 <span class="sd">        input_layer (str): name of the first layer</span>
 <span class="sd">        batch_size (int, optional): batch size used to forward masked inputs</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">hook_a</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">hook_handles</span> <span class="o">=</span> <span class="p">[]</span>
@@ -422,20 +423,20 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">def</span> <span class="nf">_store_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
-        <span class="sd">"""Store model input tensor"""</span>
+        <span class="sd">&quot;&quot;&quot;Store model input tensor&quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Normalize the activation</span>
         <span class="n">upsampled_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span>
 
         <span class="c1"># Upsample it to input_size</span>
         <span class="c1"># 1 * O * M * N</span>
-        <span class="n">upsampled_a</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">upsampled_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'bilinear'</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">upsampled_a</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">upsampled_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="c1"># Use it as a mask</span>
         <span class="c1"># O * I * H * W</span>
@@ -460,12 +461,12 @@
         <span class="k">return</span> <span class="n">weights</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">)"</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">)&quot;</span></div>
 
 
 <div class="viewcode-block" id="SSCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.SSCAM">[docs]</a><span class="k">class</span> <span class="nc">SSCAM</span><span class="p">(</span><span class="n">ScoreCAM</span><span class="p">):</span>
-    <span class="sd">"""Implements a class activation map extractor as described in `"SS-CAM: Smoothed Score-CAM for</span>
-<span class="sd">    Sharper Visual Feature Localization" &lt;https://arxiv.org/pdf/2006.14255.pdf&gt;`_.</span>
+    <span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;SS-CAM: Smoothed Score-CAM for</span>
+<span class="sd">    Sharper Visual Feature Localization&quot; &lt;https://arxiv.org/pdf/2006.14255.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -495,7 +496,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import SSCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = SSCAM(model, 'layer4', 'conv1')</span>
+<span class="sd">        &gt;&gt;&gt; cam = SSCAM(model, &#39;layer4&#39;, &#39;conv1&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -506,7 +507,7 @@
 <span class="sd">        batch_size (int, optional): batch size used to forward masked inputs</span>
 <span class="sd">        num_samples (int, optional): number of noisy samples used for weight computation</span>
 <span class="sd">        std (float, optional): standard deviation of the noise added to the normalized activation</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">hook_a</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">hook_handles</span> <span class="o">=</span> <span class="p">[]</span>
@@ -520,14 +521,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_distrib</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributions</span><span class="o">.</span><span class="n">normal</span><span class="o">.</span><span class="n">Normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Normalize the activation</span>
         <span class="n">upsampled_a</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span>
 
         <span class="c1"># Upsample it to input_size</span>
         <span class="c1"># 1 * O * M * N</span>
-        <span class="n">upsampled_a</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">upsampled_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">'bilinear'</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">upsampled_a</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">upsampled_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;bilinear&#39;</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="c1"># Use it as a mask</span>
         <span class="c1"># O * I * H * W</span>
@@ -559,7 +560,7 @@
         <span class="k">return</span> <span class="n">weights</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">)"</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">)&quot;</span></div>
 </pre></div>
         </article>
       </div>
@@ -602,6 +603,7 @@
 </div><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
     <script src="../../../_static/jquery.js"></script>
     <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../../../_static/doctools.js"></script>
     <script src="../../../_static/scripts/furo.js"></script>
     <script src="../../../_static/clipboard.min.js"></script>

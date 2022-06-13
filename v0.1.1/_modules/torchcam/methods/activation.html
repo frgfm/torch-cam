@@ -13,10 +13,10 @@
 </script>
     <link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
-    <meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
+    <meta name="generator" content="sphinx-5.0.1, furo 2022.06.04.1"/>
         <title>torchcam.methods.activation - TorchCAM</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/css/custom_theme.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -195,7 +195,8 @@
           </svg>
           <span>Back to top</span>
         </a>
-        <div class="content-icon-container"><div class="theme-toggle-container theme-toggle-content">
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -226,12 +227,12 @@
 <span class="kn">from</span> <span class="nn">._utils</span> <span class="kn">import</span> <span class="n">locate_linear_layer</span>
 <span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"CAM"</span><span class="p">,</span> <span class="s2">"ScoreCAM"</span><span class="p">,</span> <span class="s2">"SSCAM"</span><span class="p">,</span> <span class="s2">"ISCAM"</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CAM&quot;</span><span class="p">,</span> <span class="s2">&quot;ScoreCAM&quot;</span><span class="p">,</span> <span class="s2">&quot;SSCAM&quot;</span><span class="p">,</span> <span class="s2">&quot;ISCAM&quot;</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="CAM"><a class="viewcode-back" href="../../../methods.html#torchcam.methods.CAM">[docs]</a><span class="k">class</span> <span class="nc">CAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"Learning Deep Features for Discriminative</span>
-<span class="sd">    Localization" &lt;https://arxiv.org/pdf/1512.04150.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Learning Deep Features for Discriminative</span>
+<span class="sd">    Localization&quot; &lt;https://arxiv.org/pdf/1512.04150.pdf&gt;`_.</span>
 
 <span class="sd">    The Class Activation Map (CAM) is defined for image classification models that have global pooling at the end</span>
 <span class="sd">    of the visual feature extraction block. The localization map is computed as follows:</span>
@@ -248,7 +249,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.methods import CAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = CAM(model, 'layer4', 'fc')</span>
+<span class="sd">        &gt;&gt;&gt; cam = CAM(model, &#39;layer4&#39;, &#39;fc&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -257,7 +258,7 @@
 <span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
 <span class="sd">        fc_layer: either the fully connected layer itself or its name</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -269,7 +270,7 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">target_layer</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_layer</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"base CAM does not support multiple target layers"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;base CAM does not support multiple target layers&quot;</span><span class="p">)</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
@@ -283,11 +284,11 @@
             <span class="n">fc_name</span> <span class="o">=</span> <span class="n">locate_linear_layer</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>  <span class="c1"># type: ignore[assignment]</span>
             <span class="c1"># Warn the user of the choice</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">"no value was provided for `fc_layer`, thus set to '</span><span class="si">{</span><span class="n">fc_name</span><span class="si">}</span><span class="s2">'."</span><span class="p">)</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no value was provided for `fc_layer`, thus set to &#39;</span><span class="si">{</span><span class="n">fc_name</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"unable to resolve `fc_layer` automatically, please specify its value."</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unable to resolve `fc_layer` automatically, please specify its value.&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">"invalid argument type for `fc_layer`"</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;invalid argument type for `fc_layer`&quot;</span><span class="p">)</span>
         <span class="c1"># Softmax weight</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">fc_name</span><span class="p">]</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">data</span>
         <span class="c1"># squeeze to accomodate replacement by Conv1x1</span>
@@ -300,7 +301,7 @@
         <span class="n">class_idx</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
         <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps."""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps.&quot;&quot;&quot;</span>
 
         <span class="c1"># Take the FC weights of the target class</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">class_idx</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
@@ -310,8 +311,8 @@
 
 
 <div class="viewcode-block" id="ScoreCAM"><a class="viewcode-back" href="../../../methods.html#torchcam.methods.ScoreCAM">[docs]</a><span class="k">class</span> <span class="nc">ScoreCAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"Score-CAM:</span>
-<span class="sd">    Score-Weighted Visual Explanations for Convolutional Neural Networks" &lt;https://arxiv.org/pdf/1910.01279.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Score-CAM:</span>
+<span class="sd">    Score-Weighted Visual Explanations for Convolutional Neural Networks&quot; &lt;https://arxiv.org/pdf/1910.01279.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -338,7 +339,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.methods import ScoreCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ScoreCAM(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; cam = ScoreCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -347,7 +348,7 @@
 <span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -367,7 +368,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">def</span> <span class="nf">_store_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">"""Store model input tensor."""</span>
+        <span class="sd">&quot;&quot;&quot;Store model input tensor.&quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
@@ -412,18 +413,18 @@
         <span class="n">class_idx</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
         <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps."""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps.&quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span>  <span class="c1"># type: ignore[assignment]</span>
 
         <span class="c1"># Normalize the activation</span>
-        <span class="c1"># (N, C, H', W')</span>
+        <span class="c1"># (N, C, H&#39;, W&#39;)</span>
         <span class="n">upsampled_a</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_normalize</span><span class="p">(</span><span class="n">act</span><span class="p">,</span> <span class="n">act</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">]</span>
 
         <span class="c1"># Upsample it to input_size</span>
         <span class="c1"># (N, C, H, W)</span>
         <span class="n">spatial_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span>
-        <span class="n">interpolation_mode</span> <span class="o">=</span> <span class="s2">"bilinear"</span> <span class="k">if</span> <span class="n">spatial_dims</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">else</span> <span class="s2">"trilinear"</span> <span class="k">if</span> <span class="n">spatial_dims</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">else</span> <span class="s2">"nearest"</span>
+        <span class="n">interpolation_mode</span> <span class="o">=</span> <span class="s2">&quot;bilinear&quot;</span> <span class="k">if</span> <span class="n">spatial_dims</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">else</span> <span class="s2">&quot;trilinear&quot;</span> <span class="k">if</span> <span class="n">spatial_dims</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">else</span> <span class="s2">&quot;nearest&quot;</span>
         <span class="n">upsampled_a</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">up_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:],</span> <span class="n">mode</span><span class="o">=</span><span class="n">interpolation_mode</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">up_a</span> <span class="ow">in</span> <span class="n">upsampled_a</span>
@@ -445,12 +446,12 @@
         <span class="k">return</span> <span class="n">weights</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">)"</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">)&quot;</span></div>
 
 
 <div class="viewcode-block" id="SSCAM"><a class="viewcode-back" href="../../../methods.html#torchcam.methods.SSCAM">[docs]</a><span class="k">class</span> <span class="nc">SSCAM</span><span class="p">(</span><span class="n">ScoreCAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"SS-CAM: Smoothed Score-CAM for</span>
-<span class="sd">    Sharper Visual Feature Localization" &lt;https://arxiv.org/pdf/2006.14255.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;SS-CAM: Smoothed Score-CAM for</span>
+<span class="sd">    Sharper Visual Feature Localization&quot; &lt;https://arxiv.org/pdf/2006.14255.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -480,7 +481,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.methods import SSCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = SSCAM(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; cam = SSCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -491,7 +492,7 @@
 <span class="sd">        num_samples: number of noisy samples used for weight computation</span>
 <span class="sd">        std: standard deviation of the noise added to the normalized activation</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -548,12 +549,12 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">weight</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">]</span>
 
     <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">)"</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(batch_size=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">bs</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">)&quot;</span></div>
 
 
 <div class="viewcode-block" id="ISCAM"><a class="viewcode-back" href="../../../methods.html#torchcam.methods.ISCAM">[docs]</a><span class="k">class</span> <span class="nc">ISCAM</span><span class="p">(</span><span class="n">ScoreCAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"IS-CAM: Integrated Score-CAM for axiomatic-based</span>
-<span class="sd">    explanations" &lt;https://arxiv.org/pdf/2010.03023.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;IS-CAM: Integrated Score-CAM for axiomatic-based</span>
+<span class="sd">    explanations&quot; &lt;https://arxiv.org/pdf/2010.03023.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -582,7 +583,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.methods import ISSCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ISCAM(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; cam = ISCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -592,7 +593,7 @@
 <span class="sd">        batch_size: batch size used to forward masked inputs</span>
 <span class="sd">        num_samples: number of noisy samples used for weight computation</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -686,6 +687,7 @@
 </div><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
     <script src="../../../_static/jquery.js"></script>
     <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../../../_static/doctools.js"></script>
     <script src="../../../_static/scripts/furo.js"></script>
     <script src="../../../_static/clipboard.min.js"></script>

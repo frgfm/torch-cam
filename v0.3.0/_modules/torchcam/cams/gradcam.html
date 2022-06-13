@@ -13,10 +13,10 @@
 </script>
     <link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
 
-    <meta name="generator" content="sphinx-4.5.0, furo 2022.04.07"/>
+    <meta name="generator" content="sphinx-5.0.1, furo 2022.06.04.1"/>
         <title>torchcam.cams.gradcam - TorchCAM</title>
       <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=68f4518137b9aefe99b631505a2064c3c42c9852" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/css/custom_theme.css" />
     <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -195,7 +195,8 @@
           </svg>
           <span>Back to top</span>
         </a>
-        <div class="content-icon-container"><div class="theme-toggle-container theme-toggle-content">
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -224,17 +225,17 @@
 
 <span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">'GradCAM'</span><span class="p">,</span> <span class="s1">'GradCAMpp'</span><span class="p">,</span> <span class="s1">'SmoothGradCAMpp'</span><span class="p">,</span> <span class="s1">'XGradCAM'</span><span class="p">,</span> <span class="s1">'LayerCAM'</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;GradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;SmoothGradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;XGradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;LayerCAM&#39;</span><span class="p">]</span>
 
 
 <span class="k">class</span> <span class="nc">_GradCAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
-    <span class="sd">"""Implements a gradient-based class activation map extractor</span>
+    <span class="sd">&quot;&quot;&quot;Implements a gradient-based class activation map extractor</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
 <span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -260,12 +261,12 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">grad</span><span class="o">.</span><span class="n">data</span>
 
     <span class="k">def</span> <span class="nf">_hook_g</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">"""Gradient hook"""</span>
+        <span class="sd">&quot;&quot;&quot;Gradient hook&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_grad</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)))</span>
 
     <span class="k">def</span> <span class="nf">_backprop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">"""Backpropagate the loss for a specific output class"""</span>
+        <span class="sd">&quot;&quot;&quot;Backpropagate the loss for a specific output class&quot;&quot;&quot;</span>
 
         <span class="c1"># Backpropagate to get the gradients on the hooked layer</span>
         <span class="n">loss</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[:,</span> <span class="n">class_idx</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
@@ -278,8 +279,8 @@
 
 
 <div class="viewcode-block" id="GradCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.GradCAM">[docs]</a><span class="k">class</span> <span class="nc">GradCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"Grad-CAM: Visual Explanations from Deep Networks</span>
-<span class="sd">    via Gradient-based Localization" &lt;https://arxiv.org/pdf/1610.02391.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Grad-CAM: Visual Explanations from Deep Networks</span>
+<span class="sd">    via Gradient-based Localization&quot; &lt;https://arxiv.org/pdf/1610.02391.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -300,7 +301,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import GradCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = GradCAM(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; cam = GradCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
 
@@ -308,10 +309,10 @@
 <span class="sd">        model: input model</span>
 <span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Backpropagate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
@@ -320,8 +321,8 @@
 
 
 <div class="viewcode-block" id="GradCAMpp"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.GradCAMpp">[docs]</a><span class="k">class</span> <span class="nc">GradCAMpp</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"Grad-CAM++: Improved Visual Explanations for</span>
-<span class="sd">    Deep Convolutional Networks" &lt;https://arxiv.org/pdf/1710.11063.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Grad-CAM++: Improved Visual Explanations for</span>
+<span class="sd">    Deep Convolutional Networks&quot; &lt;https://arxiv.org/pdf/1710.11063.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -351,7 +352,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import GradCAMpp</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = GradCAMpp(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; cam = GradCAMpp(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
 
@@ -359,10 +360,10 @@
 <span class="sd">        model: input model</span>
 <span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Backpropagate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
@@ -388,8 +389,8 @@
 
 
 <div class="viewcode-block" id="SmoothGradCAMpp"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.SmoothGradCAMpp">[docs]</a><span class="k">class</span> <span class="nc">SmoothGradCAMpp</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"Smooth Grad-CAM++: An Enhanced Inference Level</span>
-<span class="sd">    Visualization Technique for Deep Convolutional Neural Network Models" &lt;https://arxiv.org/pdf/1908.01224.pdf&gt;`_</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Smooth Grad-CAM++: An Enhanced Inference Level</span>
+<span class="sd">    Visualization Technique for Deep Convolutional Neural Network Models&quot; &lt;https://arxiv.org/pdf/1908.01224.pdf&gt;`_</span>
 <span class="sd">    with a personal correction to the paper (alpha coefficient numerator).</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
@@ -428,7 +429,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import SmoothGradCAMpp</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = SmoothGradCAMpp(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; cam = SmoothGradCAMpp(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
 
@@ -438,7 +439,7 @@
 <span class="sd">        num_samples: number of samples to use for smoothing</span>
 <span class="sd">        std: standard deviation of the noise</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -464,13 +465,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_ihook_enabled</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="k">def</span> <span class="nf">_store_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">"""Store model input tensor"""</span>
+        <span class="sd">&quot;&quot;&quot;Store model input tensor&quot;&quot;&quot;</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ihook_enabled</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Disable input update</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_ihook_enabled</span> <span class="o">=</span> <span class="kc">False</span>
@@ -513,12 +514,12 @@
         <span class="p">]</span>
 
     <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">"target_layer=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">target_names</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">"</span></div>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;target_layer=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">target_names</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">&quot;</span></div>
 
 
 <div class="viewcode-block" id="XGradCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.XGradCAM">[docs]</a><span class="k">class</span> <span class="nc">XGradCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"Axiom-based Grad-CAM: Towards Accurate</span>
-<span class="sd">    Visualization and Explanation of CNNs" &lt;https://arxiv.org/pdf/2008.02312.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Axiom-based Grad-CAM: Towards Accurate</span>
+<span class="sd">    Visualization and Explanation of CNNs&quot; &lt;https://arxiv.org/pdf/2008.02312.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -540,7 +541,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import XGradCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = XGradCAM(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; cam = XGradCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
 
@@ -548,10 +549,10 @@
 <span class="sd">        model: input model</span>
 <span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Backpropagate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
@@ -563,8 +564,8 @@
 
 
 <div class="viewcode-block" id="LayerCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.LayerCAM">[docs]</a><span class="k">class</span> <span class="nc">LayerCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">"""Implements a class activation map extractor as described in `"LayerCAM: Exploring Hierarchical Class Activation</span>
-<span class="sd">    Maps for Localization" &lt;http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf&gt;`_.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;LayerCAM: Exploring Hierarchical Class Activation</span>
+<span class="sd">    Maps for Localization&quot; &lt;http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf&gt;`_.</span>
 
 <span class="sd">    The localization map is computed as follows:</span>
 
@@ -584,7 +585,7 @@
 <span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
 <span class="sd">        &gt;&gt;&gt; from torchcam.cams import LayerCAM</span>
 <span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; extractor = LayerCAM(model, 'layer4')</span>
+<span class="sd">        &gt;&gt;&gt; extractor = LayerCAM(model, &#39;layer4&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
 <span class="sd">        &gt;&gt;&gt; cams = extractor(class_idx=100, scores=scores)</span>
 <span class="sd">        &gt;&gt;&gt; fused_cam = extractor.fuse_cams(cams)</span>
@@ -593,10 +594,10 @@
 <span class="sd">        model: input model</span>
 <span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
 <span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
-<span class="sd">    """</span>
+<span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
-        <span class="sd">"""Computes the weight coefficients of the hooked activation maps"""</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
 
         <span class="c1"># Backpropagate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
@@ -649,6 +650,7 @@
 </div><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
     <script src="../../../_static/jquery.js"></script>
     <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../../../_static/doctools.js"></script>
     <script src="../../../_static/scripts/furo.js"></script>
     <script src="../../../_static/clipboard.min.js"></script>
