@@ -14,7 +14,7 @@
   <a href="https://github.com/ambv/black">
     <img src="https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square" alt="black">
   </a>
-  <a href="https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade"><img src="https://app.codacy.com/project/badge/Grade/25324db1064a4d52b3f44d657c430973"/></a>
+  <a href="https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade"><img src="https://app.codacy.com/project/badge/Grade/87eaeec3e15442188f96c36bace5faf4"/></a>
 </p>
 <p align="center">
   <a href="https://pypi.org/project/torchcam/">
