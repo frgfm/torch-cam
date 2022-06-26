@@ -2,7 +2,7 @@
 quality:
 	isort . -c -v
 	flake8 ./
-	mypy torchcam/
+	mypy
 	pydocstyle torchcam/
 	black --check .
 
