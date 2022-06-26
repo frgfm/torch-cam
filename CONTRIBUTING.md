@@ -60,7 +60,7 @@ git remote add upstream https://github.com/frgfm/torch-cam.git
 git checkout -b a-short-description
 ```
 
-4 - You only have to set your development environment now. First uninstall any existing installation of the library with `pip uninstall torch-cam`, then:
+4 - You only have to set your development environment now. First uninstall any existing installation of the library with `pip uninstall torchcam`, then:
 ```shell
 pip install -e ".[dev]"
 ```
@@ -111,9 +111,17 @@ This will reorder the imports of your local files.
 Additionally, to catch type-related issues and have a cleaner codebase, annotation typing are expected. After installing [mypy](https://github.com/python/mypy), you can run the verifications as follows:
 
 ```shell
-mypy --config-file mypy.ini
+mypy
 ```
-The `mypy.ini` file will be read to check your typing.
+The `pyproject.toml` file will be read to check your typing.
+
+##### Code formatting
+
+Finally, code formatting is a good practice for shareable projects. After installing [black](https://github.com/psf/black), you can run the verifications as follows:
+
+```shell
+black .
+```
 
 ### Submit your modifications
 
