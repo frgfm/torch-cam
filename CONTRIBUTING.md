@@ -12,7 +12,7 @@ Whatever the way you wish to contribute to the project, please respect the [code
 - [tests](https://github.com/frgfm/torch-cam/blob/main/tests) - Python unit tests
 - [docs](https://github.com/frgfm/torch-cam/blob/main/docs) - Sphinx documentation building
 - [scripts](https://github.com/frgfm/torch-cam/blob/main/scripts) - Example and utilities scripts
-- [demo](https://github.com/mindee/doctr/blob/main/demo) - Small demo app to showcase docTR capabilities 
+- [demo](https://github.com/frgfm/torch-cam//blob/main/demo) - Small demo app to showcase TorchCAM capabilities 
 
 
 
