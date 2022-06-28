@@ -25,14 +25,11 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('demo/requirements.txt') }}-demo
-          restore-keys: |
-            ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}-
+          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}-demo
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . --upgrade
-          pip install -r demo/requirements.txt
+          pip install -e ".[demo]" --upgrade
 
       - name: Run demo app
         run: |
