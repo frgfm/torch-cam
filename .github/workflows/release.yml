@@ -9,10 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python 3.7
+      - name: Set up Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.7
+          python-version: 3.8
           architecture: x64
       - name: Cache python modules
         uses: actions/cache@v2
@@ -47,7 +47,7 @@ jobs:
       - name: Set up Python 3.7
         uses: actions/setup-python@v1
         with:
-          python-version: 3.7
+          python-version: 3.8
           architecture: x64
       - name: Install package
         run: |
@@ -63,7 +63,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
-          python-version: 3.7
+          python-version: 3.8
           auto-activate-base: true
       - name: Install dependencies
         run: |
@@ -93,7 +93,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
-          python-version: 3.7
+          python-version: 3.8
           auto-activate-base: true
       - name: Install package
         run: |
