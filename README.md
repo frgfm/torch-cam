@@ -179,7 +179,7 @@ A minimal demo app is provided for you to play with the supported CAM methods! F
 If you prefer running the demo by yourself, you will need an extra dependency ([Streamlit](https://streamlit.io/)) for the app to run:
 
 ```
-pip install -r demo/requirements.txt
+pip install -e ".[demo]"
 ```
 
 You can then easily run your app in your default browser by running:

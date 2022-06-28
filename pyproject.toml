@@ -31,19 +31,19 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     # cf. https://github.com/frgfm/torch-cam/discussions/148
-    "torch>=1.7.0",
-    "numpy>=1.14.0",
+    "torch>=1.7.0,<2.0.0",
+    "numpy>=1.14.0,<2.0.0",
     # cf. https://github.com/advisories/GHSA-98vv-pw6r-q6q4
     "Pillow>=8.3.2",
-    "matplotlib>=3.0.0",
+    "matplotlib>=3.0.0,<4.0.0",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=5.3.2",
     "coverage[toml]>=4.5.4",
-    "requests>=2.20.0",
-    "torchvision>=0.4.0",
+    "requests>=2.20.0,<3.0.0",
+    "torchvision>=0.4.0,<1.0.0",
 ]
 quality = [
     "flake8>=3.9.0",
@@ -54,21 +54,25 @@ quality = [
 ]
 docs = [
     "sphinx>=3.0.0,!=3.5.0",
+    "furo>=2022.3.4",
     "sphinxemoji>=0.1.8",
     "sphinx-copybutton>=0.3.1",
-    "docutils<0.18",
     "recommonmark>=0.7.1",
     "sphinx-markdown-tables>=0.0.15",
+    # Indirect deps
     # cf. https://github.com/readthedocs/readthedocs.org/issues/9038
     "Jinja2<3.1",
-    "furo>=2022.3.4",
+]
+demo = [
+    "streamlit>=0.65.0,<2.0.0",
+    "torchvision>=0.8.0,<1.0.0",
 ]
 dev = [
     # test
     "pytest>=5.3.2",
     "coverage[toml]>=4.5.4",
-    "requests>=2.20.0",
-    "torchvision>=0.4.0",
+    "requests>=2.20.0,<3.0.0",
+    "torchvision>=0.4.0,<1.0.0",
     # style
     "flake8>=3.9.0",
     "isort>=5.7.0",
@@ -76,11 +80,10 @@ dev = [
     "pydocstyle[toml]>=6.0.0",
     "black>=22.1,<23.0",
     # docs
-    "sphinx<=3.4.3",
-    "sphinx-rtd-theme==0.4.3",
+    "sphinx>=3.0.0,!=3.5.0",
+    "furo>=2022.3.4",
     "sphinxemoji>=0.1.8",
     "sphinx-copybutton>=0.3.1",
-    "docutils<0.18",
     "recommonmark>=0.7.1",
     "sphinx-markdown-tables>=0.0.15",
     "Jinja2<3.1",
@@ -90,6 +93,7 @@ dev = [
 documentation = "https://frgfm.github.io/torch-cam"
 repository = "https://github.com/frgfm/torch-cam"
 tracker = "https://github.com/frgfm/torch-cam/issues"
+changelog = "https://frgfm.github.io/torch-cam/latest/changelog.html"
 
 [tool.setuptools]
 zip-safe = true
