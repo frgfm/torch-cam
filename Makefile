@@ -1,9 +1,9 @@
 # this target runs checks on all files
 quality:
-	isort . -c -v
-	flake8 ./
+	isort . -c
+	flake8
 	mypy
-	pydocstyle torchcam/
+	pydocstyle
 	black --check .
 
 # this target runs checks on all files and potentially modifies some of them
