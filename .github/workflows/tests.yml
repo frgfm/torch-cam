@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.7]
+        python: [3.8]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -57,7 +57,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.7]
+        python: [3.8]
     steps:
       - uses: actions/checkout@v2
         with:
@@ -88,15 +88,15 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python: [3.7]
     steps:
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@v1
+      - name: Check the headers
+        uses: frgfm/validate-python-headers@main
         with:
-          python-version: ${{ matrix.python }}
-          architecture: x64
-      - name: Run unittests
-        run: python .github/validate_headers.py
+          license: 'Apache-2.0'
+          owner: 'François-Guillaume Fernandez'
+          starting-year: 2020
+          folders: 'torchcam,scripts,demo,docs,.github'
+          ignores: 'version.py,__init__.py'
