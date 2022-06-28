@@ -24,7 +24,7 @@ jobs:
         run: |
           pip install flake8
           flake8 --version
-          flake8 ./
+          flake8
 
   isort:
     runs-on: ${{ matrix.os }}
@@ -72,7 +72,7 @@ jobs:
       - name: Run mypy
         run: |
           mypy --version
-          mypy torchcam/
+          mypy
 
   pydocstyle:
     runs-on: ${{ matrix.os }}
@@ -91,7 +91,7 @@ jobs:
         run: |
           pip install pydocstyle[toml]
           pydocstyle --version
-          pydocstyle torchcam/
+          pydocstyle
 
   black:
     runs-on: ${{ matrix.os }}

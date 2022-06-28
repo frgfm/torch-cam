@@ -100,7 +100,7 @@ exclude = ["demo*", "docs*", "notebooks*", "scripts*", "tests*"]
 
 
 [tool.mypy]
-files = "torchcam/*.py"
+files = "torchcam/"
 show_error_codes = true
 pretty = true
 warn_unused_ignores = true
@@ -118,7 +118,7 @@ ignore_missing_imports = true
 
 [tool.isort]
 line_length = 120
-src_paths = ["torchcam", "tests"]
+src_paths = ["torchcam", "tests", "scripts", "docs", "demo", ".github"]
 skip_glob = "**/__init__.py"
 known_third_party = ["torch", "torchvision"]
 
