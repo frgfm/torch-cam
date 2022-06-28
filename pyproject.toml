@@ -6,8 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "torchcam"
 description = "Class activation maps for your PyTorch CNN models"
 authors = [
-    {email = "fg-feedback@protonmail.com"},
-    {name = "François-Guillaume Fernandez"}
+    {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.6,<4"
