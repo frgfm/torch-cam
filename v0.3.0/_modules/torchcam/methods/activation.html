@@ -245,13 +245,12 @@
 <span class="sd">    and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k` in the fully</span>
 <span class="sd">    connected layer..</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import CAM</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = CAM(model, &#39;layer4&#39;, &#39;fc&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import CAM</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = CAM(model, &#39;layer4&#39;, &#39;fc&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
@@ -335,13 +334,12 @@
 
 <span class="sd">    where :math:`\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import ScoreCAM</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ScoreCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import ScoreCAM</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = ScoreCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
@@ -477,13 +475,12 @@
 <span class="sd">    :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution</span>
 <span class="sd">    with a standard deviation of :math:`\sigma`.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import SSCAM</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = SSCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import SSCAM</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = SSCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
@@ -579,13 +576,12 @@
 
 <span class="sd">    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import ISSCAM</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = ISCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import ISSCAM</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = ISCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>

@@ -297,13 +297,12 @@
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import GradCAM</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = GradCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import GradCAM</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = GradCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
@@ -350,13 +349,12 @@
 
 <span class="sd">    if :math:`\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1` else :math:`0`.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import GradCAMpp</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = GradCAMpp(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import GradCAMpp</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = GradCAMpp(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
@@ -426,13 +424,12 @@
 <span class="sd">    Please note the difference in the numerator of :math:`\alpha_k^{(c)}(i, j)`,</span>
 <span class="sd">    which is actually :math:`\frac{1}{n} \sum\limits_{k=1}^n D^{(c, 1)}_k(i,j)` in the paper.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import SmoothGradCAMpp</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = SmoothGradCAMpp(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import SmoothGradCAMpp</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = SmoothGradCAMpp(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
@@ -539,13 +536,12 @@
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import XGradCAM</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; cam = XGradCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import XGradCAM</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; cam = XGradCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>
@@ -582,14 +578,13 @@
 <span class="sd">    position :math:`(x, y)`,</span>
 <span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.methods import LayerCAM</span>
-<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
-<span class="sd">        &gt;&gt;&gt; extractor = LayerCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
-<span class="sd">        &gt;&gt;&gt; cams = extractor(class_idx=100, scores=scores)</span>
-<span class="sd">        &gt;&gt;&gt; fused_cam = extractor.fuse_cams(cams)</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.methods import LayerCAM</span>
+<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; extractor = LayerCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">    &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; cams = extractor(class_idx=100, scores=scores)</span>
+<span class="sd">    &gt;&gt;&gt; fused_cam = extractor.fuse_cams(cams)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        model: input model</span>

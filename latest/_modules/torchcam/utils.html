@@ -224,13 +224,12 @@
 <div class="viewcode-block" id="overlay_mask"><a class="viewcode-back" href="../../utils.html#torchcam.utils.overlay_mask">[docs]</a><span class="k">def</span> <span class="nf">overlay_mask</span><span class="p">(</span><span class="n">img</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">colormap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;jet&quot;</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.7</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;Overlay a colormapped mask on a background image</span>
 
-<span class="sd">    Example::</span>
-<span class="sd">        &gt;&gt;&gt; from PIL import Image</span>
-<span class="sd">        &gt;&gt;&gt; import matplotlib.pyplot as plt</span>
-<span class="sd">        &gt;&gt;&gt; from torchcam.utils import overlay_mask</span>
-<span class="sd">        &gt;&gt;&gt; img = ...</span>
-<span class="sd">        &gt;&gt;&gt; cam = ...</span>
-<span class="sd">        &gt;&gt;&gt; overlay = overlay_mask(img, cam)</span>
+<span class="sd">    &gt;&gt;&gt; from PIL import Image</span>
+<span class="sd">    &gt;&gt;&gt; import matplotlib.pyplot as plt</span>
+<span class="sd">    &gt;&gt;&gt; from torchcam.utils import overlay_mask</span>
+<span class="sd">    &gt;&gt;&gt; img = ...</span>
+<span class="sd">    &gt;&gt;&gt; cam = ...</span>
+<span class="sd">    &gt;&gt;&gt; overlay = overlay_mask(img, cam)</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        img: background image</span>
