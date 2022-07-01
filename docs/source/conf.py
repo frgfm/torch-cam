@@ -98,6 +98,7 @@ html_theme_options = {
     ],
     "source_repository": "https://github.com/frgfm/torch-cam/",
     "source_branch": "main",
+    "source_directory": "docs/source/",
 }
 
 
