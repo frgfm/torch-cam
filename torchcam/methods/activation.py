@@ -32,13 +32,12 @@ class CAM(_CAM):
     and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k` in the fully
     connected layer..
 
-    Example::
-        >>> from torchvision.models import resnet18
-        >>> from torchcam.methods import CAM
-        >>> model = resnet18(pretrained=True).eval()
-        >>> cam = CAM(model, 'layer4', 'fc')
-        >>> with torch.no_grad(): out = model(input_tensor)
-        >>> cam(class_idx=100)
+    >>> from torchvision.models import resnet18
+    >>> from torchcam.methods import CAM
+    >>> model = resnet18(pretrained=True).eval()
+    >>> cam = CAM(model, 'layer4', 'fc')
+    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> cam(class_idx=100)
 
     Args:
         model: input model
@@ -122,13 +121,12 @@ class ScoreCAM(_CAM):
 
     where :math:`\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.
 
-    Example::
-        >>> from torchvision.models import resnet18
-        >>> from torchcam.methods import ScoreCAM
-        >>> model = resnet18(pretrained=True).eval()
-        >>> cam = ScoreCAM(model, 'layer4')
-        >>> with torch.no_grad(): out = model(input_tensor)
-        >>> cam(class_idx=100)
+    >>> from torchvision.models import resnet18
+    >>> from torchcam.methods import ScoreCAM
+    >>> model = resnet18(pretrained=True).eval()
+    >>> cam = ScoreCAM(model, 'layer4')
+    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> cam(class_idx=100)
 
     Args:
         model: input model
@@ -264,13 +262,12 @@ class SSCAM(ScoreCAM):
     :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution
     with a standard deviation of :math:`\sigma`.
 
-    Example::
-        >>> from torchvision.models import resnet18
-        >>> from torchcam.methods import SSCAM
-        >>> model = resnet18(pretrained=True).eval()
-        >>> cam = SSCAM(model, 'layer4')
-        >>> with torch.no_grad(): out = model(input_tensor)
-        >>> cam(class_idx=100)
+    >>> from torchvision.models import resnet18
+    >>> from torchcam.methods import SSCAM
+    >>> model = resnet18(pretrained=True).eval()
+    >>> cam = SSCAM(model, 'layer4')
+    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> cam(class_idx=100)
 
     Args:
         model: input model
@@ -366,13 +363,12 @@ class ISCAM(ScoreCAM):
 
     where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.
 
-    Example::
-        >>> from torchvision.models import resnet18
-        >>> from torchcam.methods import ISSCAM
-        >>> model = resnet18(pretrained=True).eval()
-        >>> cam = ISCAM(model, 'layer4')
-        >>> with torch.no_grad(): out = model(input_tensor)
-        >>> cam(class_idx=100)
+    >>> from torchvision.models import resnet18
+    >>> from torchcam.methods import ISSCAM
+    >>> model = resnet18(pretrained=True).eval()
+    >>> cam = ISCAM(model, 'layer4')
+    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> cam(class_idx=100)
 
     Args:
         model: input model
