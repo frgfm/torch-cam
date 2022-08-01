@@ -91,6 +91,8 @@ class ClassificationMetric:
             cam = self.cam_extractor.fuse_cams(cams)
             probs = probs.gather(1, preds.unsqueeze(1)).squeeze(1)
         self.cam_extractor._hooks_enabled = False
+        # Safeguard: replace NaNs
+        cam[torch.isnan(cam)] = 0
         # Resize the CAM
         cam = torch.nn.functional.interpolate(cam.unsqueeze(1), input_tensor.shape[-2:], mode="bilinear")
         # Create the explanation map & get the new probs
@@ -101,8 +103,8 @@ class ClassificationMetric:
             if isinstance(class_idx, int)
             else masked_probs.gather(1, preds.unsqueeze(1)).squeeze(1)
         )
-        # Drop
-        drop = torch.relu(probs - masked_probs) / probs
+        # Drop (avoid division by zero)
+        drop = torch.relu(probs - masked_probs).div(probs + 1e-7)
 
         # Increase
         increase = probs < masked_probs
