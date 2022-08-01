@@ -1,4 +1,4 @@
-from torchvision.models import resnet18, mobilenet_v3_large
+from torchvision.models import mobilenet_v3_large, resnet18
 
 from torchcam.methods import _utils
 
