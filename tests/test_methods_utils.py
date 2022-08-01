@@ -1,4 +1,4 @@
-from torchvision.models import resnet18
+from torchvision.models import resnet18, mobilenet_v3_large
 
 from torchcam.methods import _utils
 
@@ -7,6 +7,10 @@ def test_locate_candidate_layer(mock_img_model):
     # ResNet-18
     mod = resnet18().eval()
     assert _utils.locate_candidate_layer(mod) == "layer4"
+
+    # Mobilenet V3 Large
+    mod = mobilenet_v3_large().eval()
+    assert _utils.locate_candidate_layer(mod) == "features"
 
     # Custom model
     mod = mock_img_model.train()

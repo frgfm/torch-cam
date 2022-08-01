@@ -51,12 +51,11 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
 
     # Check output shapes
     candidate_layer = None
-    for layer_name, output_shape in output_shapes:
+    for layer_name, output_shape in output_shapes[::-1]:
         # Stop before flattening or global pooling
-        if len(output_shape) != (len(input_shape) + 1) or all(v == 1 for v in output_shape[2:]):
-            break
-        else:
+        if len(output_shape) == (len(input_shape) + 1) and any(v != 1 for v in output_shape[2:]):
             candidate_layer = layer_name
+            break
 
     return candidate_layer
 
