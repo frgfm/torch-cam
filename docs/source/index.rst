@@ -51,6 +51,7 @@ Gradient-based methods
    :hidden:
 
    methods
+   metrics
    utils
 
 
