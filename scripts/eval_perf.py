@@ -60,7 +60,7 @@ def main(args):
     )
 
     # Hook the corresponding layer in the model
-    cam_extractor = methods.__dict__[args.method](model, args.target)
+    cam_extractor = methods.__dict__[args.method](model, args.target.split(","))
     metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
 
     # Evaluation runs
