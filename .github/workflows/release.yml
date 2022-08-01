@@ -26,15 +26,14 @@ jobs:
       - name: Get release tag
         id: release_tag
         run: |
-          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//:1}
       - name: Build and publish
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-          VERSION: ${{ steps.release_tag.outputs.VERSION }}
+          BUILD_VERSION: ${{ steps.release_tag.outputs.VERSION }}
         run: |
-          VERSION="${VERSION:1}"
-          BUILD_VERSION=$VERSION python setup.py sdist bdist_wheel
+          python setup.py sdist bdist_wheel
           twine check dist/*
           twine upload dist/*
 
@@ -71,13 +70,12 @@ jobs:
       - name: Get release tag
         id: release_tag
         run: |
-          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//:1}
       - name: Build and publish
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
-          VERSION: ${{ steps.release_tag.outputs.VERSION }}
+          BUILD_VERSION: ${{ steps.release_tag.outputs.VERSION }}
         run: |
-          export BUILD_VERSION="${VERSION:1}"
           python setup.py sdist
           mkdir conda-dist
           conda-build .conda/ -c pytorch --output-folder conda-dist
