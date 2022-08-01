@@ -1,0 +1,10 @@
+method,architecture,input_shape,dataset,avg_drop,conf_increase
+CAM,mobilenet_v3_large,"(224, 224)",imagenette,nan,nan
+ScoreCAM,mobilenet_v3_large,"(224, 224)",imagenette,tbd,tbd
+SSCAM,mobilenet_v3_large,"(224, 224)",imagenette,tbd,tbd
+ISCAM,mobilenet_v3_large,"(224, 224)",imagenette,tbd,tbd
+GradCAM,mobilenet_v3_large,"(224, 224)",imagenette,0.4063,0.1368
+GradCAMpp,mobilenet_v3_large,"(224, 224)",imagenette,0.3320,0.1445
+SmoothGradCAMpp,mobilenet_v3_large,"(224, 224)",imagenette,0.3028,0.1478
+XGradCAM,mobilenet_v3_large,"(224, 224)",imagenette,0.4063,0.1368
+LayerCAM,mobilenet_v3_large,"(224, 224)",imagenette,0.2790,0.1712
