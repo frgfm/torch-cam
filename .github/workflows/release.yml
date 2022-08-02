@@ -27,14 +27,14 @@ jobs:
       - name: Get release tag
         id: release_tag
         run: |
-          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//:1}
+          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
       - name: Build and publish
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-          BUILD_VERSION: ${{ steps.release_tag.outputs.VERSION }}
+          VERSION: ${{ steps.release_tag.outputs.VERSION }}
         run: |
-          python setup.py sdist bdist_wheel
+          BUILD_VERSION=${VERSION:1} python setup.py sdist bdist_wheel
           twine check dist/*
           twine upload dist/*
 
@@ -72,17 +72,17 @@ jobs:
       - name: Get release tag
         id: release_tag
         run: |
-          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//:1}
+          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
       - name: Build and publish
         env:
           ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
-          BUILD_VERSION: ${{ steps.release_tag.outputs.VERSION }}
+          VERSION: ${{ steps.release_tag.outputs.VERSION }}
         run: |
-          python setup.py sdist
+          BUILD_VERSION=${VERSION:1} python setup.py sdist
           mkdir conda-dist
           conda-build .conda/ -c pytorch --output-folder conda-dist
           ls -l conda-dist/noarch/*tar.bz2
-          anaconda upload conda-dist/noarch/*tar.bz2 -u frgfm
+          anaconda upload conda-dist/noarch/*tar.bz2
 
   conda-check:
     if: "!github.event.release.prerelease"
