@@ -10,7 +10,7 @@ from pathlib import Path
 from setuptools import setup
 
 PKG_NAME = "torchcam"
-VERSION = os.getenv("BUILD_VERSION", "0.3.2.dev0")
+VERSION = os.getenv("BUILD_VERSION", "0.4.0.dev0")
 
 
 if __name__ == "__main__":
