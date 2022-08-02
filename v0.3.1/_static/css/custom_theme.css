@@ -1,0 +1,48 @@
+h1 {
+    font-size: 240%;
+}
+
+/* Github button */
+
+.github-repo {
+    display: flex;
+    justify-content: center;
+}
+
+/* Version control */
+
+.version-button {
+    color: gray;
+    border: none;
+    padding: 5px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.version-button:hover, .version-button:focus {
+    color: white;
+    background-color: gray;
+}
+
+.version-dropdown {
+    display: none;
+    min-width: 160px;
+    overflow: auto;
+    font-size: 15px;
+}
+
+.version-dropdown a {
+    color: gray;
+    padding: 3px 4px;
+    text-decoration: none;
+    display: block;
+}
+
+.version-dropdown a:hover {
+    color: white;
+    background-color: gray;
+}
+
+.version-show {
+    display: block;
+}

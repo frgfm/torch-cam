@@ -1,0 +1,660 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark">
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-148140560-4"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'UA-148140560-4');
+</script>
+    <link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" />
+
+    <meta name="generator" content="sphinx-5.1.1, furo 2022.06.21"/>
+        <title>torchcam.cams.gradcam - TorchCAM</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/css/custom_theme.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f0f0f0;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #272822;
+  --color-code-foreground: #f8f8f2;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #272822;
+  --color-code-foreground: #f8f8f2;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../../index.html"><div class="brand">TorchCAM</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../../index.html">
+  
+  
+  <span class="sidebar-brand-text">TorchCAM</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installing.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notebooks.html">TorchCAM Notebooks</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../cams.html">torchcam.cams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../utils.html">torchcam.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <h1>Source code for torchcam.cams.gradcam</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright (C) 2020-2021, François-Guillaume Fernandez.</span>
+
+<span class="c1"># This program is licensed under the Apache License version 2.</span>
+<span class="c1"># See LICENSE or go to &lt;https://www.apache.org/licenses/LICENSE-2.0.txt&gt; for full license details.</span>
+
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">nn</span>
+
+<span class="kn">from</span> <span class="nn">.core</span> <span class="kn">import</span> <span class="n">_CAM</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;GradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;GradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;SmoothGradCAMpp&#39;</span><span class="p">,</span> <span class="s1">&#39;XGradCAM&#39;</span><span class="p">,</span> <span class="s1">&#39;LayerCAM&#39;</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">_GradCAM</span><span class="p">(</span><span class="n">_CAM</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Implements a gradient-based class activation map extractor</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># Init hook</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_names</span><span class="p">)</span>  <span class="c1"># type: ignore[list-item]</span>
+        <span class="c1"># Ensure ReLU is applied before normalization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># Model output is used by the extractor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">target_names</span><span class="p">):</span>
+            <span class="c1"># Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">submodule_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_hook_g</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_store_grad</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">grad</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">grad</span><span class="o">.</span><span class="n">data</span>
+
+    <span class="k">def</span> <span class="nf">_hook_g</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Gradient hook&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">register_hook</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_grad</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_backprop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Backpropagate the loss for a specific output class&quot;&quot;&quot;</span>
+
+        <span class="c1"># Backpropagate to get the gradients on the hooked layer</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[:,</span> <span class="n">class_idx</span><span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+        <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">,</span> <span class="n">scores</span><span class="p">):</span>
+
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<div class="viewcode-block" id="GradCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.GradCAM">[docs]</a><span class="k">class</span> <span class="nc">GradCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Grad-CAM: Visual Explanations from Deep Networks</span>
+<span class="sd">    via Gradient-based Localization&quot; &lt;https://arxiv.org/pdf/1610.02391.pdf&gt;`_.</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{Grad-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)} = \\frac{1}{H \\cdot W} \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W</span>
+<span class="sd">        \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.cams import GradCAM</span>
+<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">        &gt;&gt;&gt; cam = GradCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+        <span class="c1"># Global average pool the gradients over spatial dimensions</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">grad</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">grad</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="GradCAMpp"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.GradCAMpp">[docs]</a><span class="k">class</span> <span class="nc">GradCAMpp</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Grad-CAM++: Improved Visual Explanations for</span>
+<span class="sd">    Deep Convolutional Networks&quot; &lt;https://arxiv.org/pdf/1710.11063.pdf&gt;`_.</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{Grad-CAM++}(x, y) = \\sum\\limits_k w_k^{(c)} A_k(x, y)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot</span>
+<span class="sd">        ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,</span>
+<span class="sd">    and :math:`\\alpha_k^{(c)}(i, j)` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        \\alpha_k^{(c)}(i, j) = \\frac{1}{\\sum\\limits_{i, j} \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}}</span>
+<span class="sd">        = \\frac{\\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2}}{2 \\cdot</span>
+<span class="sd">        \\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2} + \\sum\\limits_{a,b} A_k (a,b) \\cdot</span>
+<span class="sd">        \\frac{\\partial^3 Y^{(c)}}{(\\partial A_k(i,j))^3}}</span>
+
+<span class="sd">    if :math:`\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} = 1` else :math:`0`.</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.cams import GradCAMpp</span>
+<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">        &gt;&gt;&gt; cam = GradCAMpp(model, &#39;layer4&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+        <span class="c1"># Alpha coefficient for each pixel</span>
+        <span class="n">grad_2</span> <span class="o">=</span> <span class="p">[</span><span class="n">grad</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">grad</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">]</span>
+        <span class="n">grad_3</span> <span class="o">=</span> <span class="p">[</span><span class="n">g2</span> <span class="o">*</span> <span class="n">grad</span> <span class="k">for</span> <span class="n">g2</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grad_2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">)]</span>
+        <span class="c1"># Watch out for NaNs produced by underflow</span>
+        <span class="n">spatial_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span>  <span class="c1"># type: ignore[union-attr]</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="mi">2</span> <span class="o">*</span> <span class="n">g2</span> <span class="o">+</span> <span class="p">(</span><span class="n">g3</span> <span class="o">*</span> <span class="n">act</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[(</span><span class="o">...</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">spatial_dims</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">g2</span><span class="p">,</span> <span class="n">g3</span><span class="p">,</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grad_2</span><span class="p">,</span> <span class="n">grad_3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="n">nan_mask</span> <span class="o">=</span> <span class="p">[</span><span class="n">g2</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">g2</span> <span class="ow">in</span> <span class="n">grad_2</span><span class="p">]</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">grad_2</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">mask</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">grad_2</span><span class="p">)),</span> <span class="n">denom</span><span class="p">,</span> <span class="n">nan_mask</span><span class="p">):</span>
+            <span class="n">alpha</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">mask</span><span class="p">]</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span>
+
+        <span class="c1"># Apply pixel coefficient in each weight</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">)</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="SmoothGradCAMpp"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.SmoothGradCAMpp">[docs]</a><span class="k">class</span> <span class="nc">SmoothGradCAMpp</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Smooth Grad-CAM++: An Enhanced Inference Level</span>
+<span class="sd">    Visualization Technique for Deep Convolutional Neural Network Models&quot; &lt;https://arxiv.org/pdf/1908.01224.pdf&gt;`_</span>
+<span class="sd">    with a personal correction to the paper (alpha coefficient numerator).</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{Smooth Grad-CAM++}(x, y) = \\sum\\limits_k w_k^{(c)} A_k(x, y)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W \\alpha_k^{(c)}(i, j) \\cdot</span>
+<span class="sd">        ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}\\Big)</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,</span>
+<span class="sd">    and :math:`\\alpha_k^{(c)}(i, j)` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        \\alpha_k^{(c)}(i, j)</span>
+<span class="sd">        = \\frac{\\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2}}{2 \\cdot</span>
+<span class="sd">        \\frac{\\partial^2 Y^{(c)}}{(\\partial A_k(i,j))^2} + \\sum\\limits_{a,b} A_k (a,b) \\cdot</span>
+<span class="sd">        \\frac{\\partial^3 Y^{(c)}}{(\\partial A_k(i,j))^3}}</span>
+<span class="sd">        = \\frac{\\frac{1}{n} \\sum\\limits_{m=1}^n D^{(c, 2)}_k(i, j)}{</span>
+<span class="sd">        \\frac{2}{n} \\sum\\limits_{m=1}^n D^{(c, 2)}_k(i, j) + \\sum\\limits_{a,b} A_k (a,b) \\cdot</span>
+<span class="sd">        \\frac{1}{n} \\sum\\limits_{m=1}^n D^{(c, 3)}_k(i, j)}</span>
+
+<span class="sd">    if :math:`\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} = 1` else :math:`0`. Here :math:`D^{(c, p)}_k(i, j)`</span>
+<span class="sd">    refers to the p-th partial derivative of the class score of class :math:`c` relatively to the activation in layer</span>
+<span class="sd">    :math:`k` at position :math:`(i, j)`, and :math:`n` is the number of samples used to get the gradient estimate.</span>
+
+<span class="sd">    Please note the difference in the numerator of :math:`\\alpha_k^{(c)}(i, j)`,</span>
+<span class="sd">    which is actually :math:`\\frac{1}{n} \\sum\\limits_{k=1}^n D^{(c, 1)}_k(i,j)` in the paper.</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.cams import SmoothGradCAMpp</span>
+<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">        &gt;&gt;&gt; cam = SmoothGradCAMpp(model, &#39;layer4&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">        &gt;&gt;&gt; cam(class_idx=100)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
+<span class="sd">        num_samples: number of samples to use for smoothing</span>
+<span class="sd">        std: standard deviation of the noise</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+        <span class="n">target_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span>
+        <span class="n">input_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="p">,</span> <span class="n">input_shape</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># Model scores is not used by the extractor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_score_used</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Input hook</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hook_handles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">register_forward_pre_hook</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_store_input</span><span class="p">))</span>
+        <span class="c1"># Noise distribution</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span> <span class="o">=</span> <span class="n">num_samples</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">std</span> <span class="o">=</span> <span class="n">std</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_distrib</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">distributions</span><span class="o">.</span><span class="n">normal</span><span class="o">.</span><span class="n">Normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="p">)</span>
+        <span class="c1"># Specific input hook updater</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ihook_enabled</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">_store_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;Store model input tensor&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ihook_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="c1"># Disable input update</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ihook_enabled</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># Keep initial activation</span>
+        <span class="n">init_fmap</span> <span class="o">=</span> <span class="p">[</span><span class="n">act</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">]</span>
+        <span class="c1"># Initialize our gradient estimates</span>
+        <span class="n">grad_2</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">act</span><span class="p">)</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">]</span>
+        <span class="n">grad_3</span> <span class="o">=</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">act</span><span class="p">)</span> <span class="k">for</span> <span class="n">act</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">]</span>
+        <span class="c1"># Perform the operations N times</span>
+        <span class="k">for</span> <span class="n">_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">):</span>
+            <span class="c1"># Add noise</span>
+            <span class="n">noisy_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_distrib</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">size</span><span class="p">())</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="c1"># Forward &amp; Backward</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">noisy_input</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+
+            <span class="c1"># Sum partial derivatives</span>
+            <span class="n">grad_2</span> <span class="o">=</span> <span class="p">[</span><span class="n">g2</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span> <span class="k">for</span> <span class="n">g2</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grad_2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">)]</span>
+            <span class="n">grad_3</span> <span class="o">=</span> <span class="p">[</span><span class="n">g3</span><span class="o">.</span><span class="n">add_</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span> <span class="k">for</span> <span class="n">g3</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grad_3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">)]</span>
+
+        <span class="c1"># Reenable input update</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ihook_enabled</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Average the gradient estimates</span>
+        <span class="n">grad_2</span> <span class="o">=</span> <span class="p">[</span><span class="n">g2</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">)</span> <span class="k">for</span> <span class="n">g2</span> <span class="ow">in</span> <span class="n">grad_2</span><span class="p">]</span>
+        <span class="n">grad_3</span> <span class="o">=</span> <span class="p">[</span><span class="n">g3</span><span class="o">.</span><span class="n">div_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="p">)</span> <span class="k">for</span> <span class="n">g3</span> <span class="ow">in</span> <span class="n">grad_3</span><span class="p">]</span>
+
+        <span class="c1"># Alpha coefficient for each pixel</span>
+        <span class="n">spatial_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">g2</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">g2</span> <span class="o">+</span> <span class="p">(</span><span class="n">g3</span> <span class="o">*</span> <span class="n">act</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)[(</span><span class="o">...</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="kc">None</span><span class="p">,)</span> <span class="o">*</span> <span class="n">spatial_dims</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">g2</span><span class="p">,</span> <span class="n">g3</span><span class="p">,</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">grad_2</span><span class="p">,</span> <span class="n">grad_3</span><span class="p">,</span> <span class="n">init_fmap</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Apply pixel coefficient in each weight</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="n">a</span><span class="o">.</span><span class="n">squeeze_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">mul_</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">grad</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">)</span>
+        <span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;target_layer=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">target_names</span><span class="si">}</span><span class="s2">, num_samples=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_samples</span><span class="si">}</span><span class="s2">, std=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">std</span><span class="si">}</span><span class="s2">&quot;</span></div>
+
+
+<div class="viewcode-block" id="XGradCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.XGradCAM">[docs]</a><span class="k">class</span> <span class="nc">XGradCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;Axiom-based Grad-CAM: Towards Accurate</span>
+<span class="sd">    Visualization and Explanation of CNNs&quot; &lt;https://arxiv.org/pdf/2008.02312.pdf&gt;`_.</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{XGrad-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)} A_k(x, y)\\Big)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)} = \\sum\\limits_{i=1}^H \\sum\\limits_{j=1}^W</span>
+<span class="sd">        \\Big( \\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)} \\cdot</span>
+<span class="sd">        \\frac{A_k(i, j)}{\\sum\\limits_{m=1}^H \\sum\\limits_{n=1}^W A_k(m, n)} \\Big)</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.cams import XGradCAM</span>
+<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">        &gt;&gt;&gt; cam = XGradCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">        &gt;&gt;&gt; cam(class_idx=100, scores=scores)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">grad</span> <span class="o">*</span> <span class="n">act</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="n">act</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">act</span><span class="p">,</span> <span class="n">grad</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">)</span>
+        <span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="LayerCAM"><a class="viewcode-back" href="../../../cams.html#torchcam.cams.LayerCAM">[docs]</a><span class="k">class</span> <span class="nc">LayerCAM</span><span class="p">(</span><span class="n">_GradCAM</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements a class activation map extractor as described in `&quot;LayerCAM: Exploring Hierarchical Class Activation</span>
+<span class="sd">    Maps for Localization&quot; &lt;http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf&gt;`_.</span>
+
+<span class="sd">    The localization map is computed as follows:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        L^{(c)}_{Layer-CAM}(x, y) = ReLU\\Big(\\sum\\limits_k w_k^{(c)}(x, y) \\cdot A_k(x, y)\\Big)</span>
+
+<span class="sd">    with the coefficient :math:`w_k^{(c)}(x, y)` being defined as:</span>
+
+<span class="sd">    .. math::</span>
+<span class="sd">        w_k^{(c)}(x, y) = ReLU\\Big(\\frac{\\partial Y^{(c)}}{\\partial A_k(i, j)}(x, y)\\Big)</span>
+
+<span class="sd">    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at</span>
+<span class="sd">    position :math:`(x, y)`,</span>
+<span class="sd">    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.</span>
+
+<span class="sd">    Example::</span>
+<span class="sd">        &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">        &gt;&gt;&gt; from torchcam.cams import LayerCAM</span>
+<span class="sd">        &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">        &gt;&gt;&gt; extractor = LayerCAM(model, &#39;layer4&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; scores = model(input_tensor)</span>
+<span class="sd">        &gt;&gt;&gt; cams = extractor(class_idx=100, scores=scores)</span>
+<span class="sd">        &gt;&gt;&gt; fused_cam = extractor.fuse_cams(cams)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        model: input model</span>
+<span class="sd">        target_layer: either the target layer itself or its name, or a list of those</span>
+<span class="sd">        input_shape: shape of the expected input tensor excluding the batch dimension</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scores</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>  <span class="c1"># type: ignore[override]</span>
+        <span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps&quot;&quot;&quot;</span>
+
+        <span class="c1"># Backpropagate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_backprop</span><span class="p">(</span><span class="n">scores</span><span class="p">,</span> <span class="n">class_idx</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">grad</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">grad</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">hook_g</span><span class="p">]</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_scale_cams</span><span class="p">(</span><span class="n">cams</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">gamma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
+        <span class="c1"># cf. Equation 9 in the paper</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">gamma</span> <span class="o">*</span> <span class="n">cam</span><span class="p">)</span> <span class="k">for</span> <span class="n">cam</span> <span class="ow">in</span> <span class="n">cams</span><span class="p">]</span></div>
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2020-2022, François-Guillaume Fernandez
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/frgfm/torch-cam" aria-label="GitHub">
+                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+                </svg>
+            </a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/scripts/furo.js"></script>
+    <script src="../../../_static/clipboard.min.js"></script>
+    <script src="../../../_static/copybutton.js"></script>
+    <script src="../../../_static/js/custom.js"></script>
+    </body>
+</html>
