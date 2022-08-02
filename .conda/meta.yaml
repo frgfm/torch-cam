@@ -32,6 +32,7 @@ test:
   imports:
     - torchcam
     - torchcam.methods
+    - torchcam.metrics
     - torchcam.utils
   requires:
     - python
