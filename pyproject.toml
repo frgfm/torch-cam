@@ -65,7 +65,7 @@ docs = [
 ]
 demo = [
     "streamlit>=0.65.0,<2.0.0",
-    "torchvision>=0.8.0,<1.0.0",
+    "torchvision>=0.12.0,<1.0.0",
 ]
 dev = [
     # test
