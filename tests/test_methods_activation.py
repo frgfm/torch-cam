@@ -20,7 +20,7 @@ def _verify_cam(activation_map, output_size):
     # Simple verifications
     assert isinstance(activation_map, torch.Tensor)
     assert activation_map.shape == output_size
-    assert not torch.any(torch.isnan(activation_map))
+    assert not torch.isnan(activation_map).any()
 
 
 @pytest.mark.parametrize(

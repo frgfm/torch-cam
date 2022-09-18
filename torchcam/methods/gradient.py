@@ -149,7 +149,9 @@ class GradCAMpp(_GradCAM):
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(
+        self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
+    ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
 
         # Backpropagate
@@ -168,7 +170,7 @@ class GradCAMpp(_GradCAM):
         nan_mask = [g2 > 0 for g2 in grad_2]
         alpha = grad_2
         for idx, d, mask in zip(range(len(grad_2)), denom, nan_mask):
-            alpha[idx][mask].div_(d[mask])
+            alpha[idx][mask].div_(d[mask] + eps)
 
         # Apply pixel coefficient in each weight
         return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, self.hook_g)]
@@ -256,7 +258,7 @@ class SmoothGradCAMpp(_GradCAM):
             self._input = input[0].data.clone()
 
     def _get_weights(
-        self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None, **kwargs: Any
+        self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None, eps: float = 1e-8, **kwargs: Any
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
 
@@ -292,7 +294,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Alpha coefficient for each pixel
         spatial_dims = self.hook_a[0].ndim - 2
         alpha = [
-            g2 / (2 * g2 + (g3 * act).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims])
+            g2 / (2 * g2 + (g3 * act).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims] + eps)
             for g2, g3, act in zip(grad_2, grad_3, init_fmap)
         ]
 
@@ -336,7 +338,9 @@ class XGradCAM(_GradCAM):
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(
+        self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
+    ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
 
         # Backpropagate
@@ -344,7 +348,10 @@ class XGradCAM(_GradCAM):
 
         self.hook_a: List[Tensor]  # type: ignore[assignment]
         self.hook_g: List[Tensor]  # type: ignore[assignment]
-        return [(grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1) for act, grad in zip(self.hook_a, self.hook_g)]
+        return [
+            (grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1).add(eps)
+            for act, grad in zip(self.hook_a, self.hook_g)
+        ]
 
 
 class LayerCAM(_GradCAM):
