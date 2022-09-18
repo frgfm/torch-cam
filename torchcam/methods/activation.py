@@ -204,7 +204,7 @@ class ScoreCAM(_CAM):
 
         # Normalize the activation
         # (N, C, H', W')
-        upsampled_a = [self._normalize(act, act.ndim - 2) for act in self.hook_a]
+        upsampled_a = [self._normalize(act.clone(), act.ndim - 2) for act in self.hook_a]
 
         # Upsample it to input_size
         # (N, C, H, W)
