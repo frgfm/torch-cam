@@ -46,6 +46,10 @@ Simple way to leverage the class-specific activation of convolutional layers in 
 
 ## Quick Tour
 
+[Video tutorial(Chinese)](https://www.bilibili.com/video/BV1JG4y1s74x)
+
+[Jupyter notebook tutorial(Chinese)](https://github.com/TommyZihao/Train_Custom_Dataset/tree/main/%E5%9B%BE%E5%83%8F%E5%88%86%E7%B1%BB/6-%E5%8F%AF%E8%A7%A3%E9%87%8A%E6%80%A7%E5%88%86%E6%9E%90%E3%80%81%E6%98%BE%E8%91%97%E6%80%A7%E5%88%86%E6%9E%90)
+
 ### Setting your CAM
 
 TorchCAM leverages [PyTorch hooking mechanisms](https://pytorch.org/tutorials/beginner/former_torchies/nnft_tutorial.html#forward-and-backward-function-hooks) to seamlessly retrieve all required information to produce the class activation without additional efforts from the user. Each CAM object acts as a wrapper around your model.
