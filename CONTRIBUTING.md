@@ -12,7 +12,7 @@ Whatever the way you wish to contribute to the project, please respect the [code
 - [tests](https://github.com/frgfm/torch-cam/blob/main/tests) - Python unit tests
 - [docs](https://github.com/frgfm/torch-cam/blob/main/docs) - Sphinx documentation building
 - [scripts](https://github.com/frgfm/torch-cam/blob/main/scripts) - Example and utilities scripts
-- [demo](https://github.com/frgfm/torch-cam//blob/main/demo) - Small demo app to showcase TorchCAM capabilities 
+- [demo](https://github.com/frgfm/torch-cam//blob/main/demo) - Small demo app to showcase TorchCAM capabilities
 
 
 
@@ -32,7 +32,7 @@ As a contributor, you will only have to ensure coverage of your code by adding a
 
 ### Feature requests & bug report
 
-Whether you encountered a problem, or you have a feature suggestion, your input has value and can be used by contributors to reference it in their developments. For this purpose, we advise you to use Github [issues](https://github.com/frgfm/torch-cam/issues). 
+Whether you encountered a problem, or you have a feature suggestion, your input has value and can be used by contributors to reference it in their developments. For this purpose, we advise you to use Github [issues](https://github.com/frgfm/torch-cam/issues).
 
 First, check whether the topic wasn't already covered in an open / closed issue. If not, feel free to open a new one! When doing so, use issue templates whenever possible and provide enough information for other contributors to jump in.
 

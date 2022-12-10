@@ -51,6 +51,9 @@ quality = [
     "mypy>=0.812",
     "pydocstyle[toml]>=6.0.0",
     "black>=22.1,<23.0",
+    "autoflake>=1.5.0,<2.0.0",
+    "bandit[toml]>=1.7.0,<1.8.0",
+    "pre-commit>=2.17.0,<3.0.0",
 ]
 docs = [
     "sphinx>=3.0.0,!=3.5.0",
@@ -135,3 +138,12 @@ source = ["torchcam"]
 [tool.black]
 line-length = 120
 target-version = ['py38']
+
+[tool.autoflake]
+remove-unused-variables = true
+remove-all-unused-imports = true
+ignore-init-module-imports = true
+
+[tool.bandit]
+exclude_dirs = [".github/collect_env.py"]
+skips = ["B101"]
