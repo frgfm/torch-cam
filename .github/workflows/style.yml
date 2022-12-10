@@ -111,3 +111,22 @@ jobs:
           pip install black
           black --version
           black --check --diff .
+
+  bandit:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python: [3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - name: Run bandit
+        run: |
+          pip install bandit[toml]
+          bandit --version
+          bandit -r . -c pyproject.toml
