@@ -147,7 +147,7 @@ pip install -e torch-cam/.
 This project is developed and maintained by the repo owner, but the implementation was based on the following research papers:
 
 - [Learning Deep Features for Discriminative Localization](https://arxiv.org/abs/1512.04150): the original CAM paper
-- [Grad-CAM](https://arxiv.org/abs/1610.02391): GradCAM paper, generalizing CAM to models without global average pooling. 
+- [Grad-CAM](https://arxiv.org/abs/1610.02391): GradCAM paper, generalizing CAM to models without global average pooling.
 - [Grad-CAM++](https://arxiv.org/abs/1710.11063): improvement of GradCAM++ for more accurate pixel-level contribution to the activation.
 - [Smooth Grad-CAM++](https://arxiv.org/abs/1908.01224): SmoothGrad mechanism coupled with GradCAM.
 - [Score-CAM](https://arxiv.org/abs/1910.01279): score-weighting of class activation for better interpretability.
@@ -172,7 +172,7 @@ This project is developed and maintained by the repo owner, but the implementati
 
 The full package documentation is available [here](https://frgfm.github.io/torch-cam/) for detailed specifications.
 
-### Demo app 
+### Demo app
 
 A minimal demo app is provided for you to play with the supported CAM methods! Feel free to check out the live demo on [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam)
 

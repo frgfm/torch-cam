@@ -79,12 +79,12 @@ better reflect your use case.
     usage: eval_latency.py [-h] [--arch ARCH] [--size SIZE]
                            [--class-idx CLASS_IDX] [--device DEVICE] [--it IT]
                            method
-    
+
     CAM method latency benchmark
-    
+
     positional arguments:
       method                CAM method to use
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --arch ARCH           Name of the torchvision architecture (default:
@@ -146,4 +146,3 @@ As mentioned, we’ll consider MobileNet V3 here.
     WARNING:root:no value was provided for `target_layer`, thus set to 'features.4.block.1'.
     LayerCAM w/ mobilenet_v3_large (100 runs on (224, 224) inputs)
     mean 148.76ms, std 7.86ms
-
