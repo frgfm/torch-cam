@@ -1,0 +1,32 @@
+'module: methods':
+- torchcam/methods/*
+
+'module: metrics':
+- torchcam/metrics.py
+
+'module: utils':
+- torchcam/utils.py
+
+'ext: demo':
+- demo/*
+
+'ext: docs':
+- docs/*
+
+'ext: scripts':
+- scripts/*
+
+'ext: tests':
+- tests/*
+
+'topic: ci':
+- .github/*
+
+'topic: documentation':
+- notebooks/*
+- README.md
+- CONTRIBUTING.md
+
+'topic: build':
+- setup.py
+- pyproject.toml
