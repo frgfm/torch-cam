@@ -77,6 +77,10 @@ class _CAM:
         # Model output is used by the extractor
         self._score_used = False
 
+    def __del__(self):
+        self.reset_hooks()
+        self.remove_hooks()
+
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
         """Resolves the name of a given layer inside the hooked model."""
         _found = False
