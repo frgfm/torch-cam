@@ -21,6 +21,21 @@ def test_cam_constructor(mock_img_model):
         _ = core._CAM(model, torch.nn.ReLU())
 
 
+def test_cam_destructor(mock_img_model):
+    model = mock_img_model.eval()
+    extractor = core._CAM(model)
+    # Model is hooked
+    assert sum(len(mod._forward_hooks) for mod in model.modules()) == 1
+    # Delete should remove hooks
+    del extractor
+    assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
+
+    core._CAM(model)
+    assert sum(len(mod._forward_hooks) for mod in model.modules()) == 1
+    # Dereference should also remove hooks
+    assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
+
+
 def test_cam_precheck(mock_img_model, mock_img_tensor):
     model = mock_img_model.eval()
     extractor = core._CAM(model, "0.3")
