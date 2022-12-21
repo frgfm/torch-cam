@@ -77,16 +77,16 @@ from torchvision.models import resnet18
 from torchcam.methods import SmoothGradCAMpp
 
 model = resnet18(pretrained=True).eval()
-cam_extractor = SmoothGradCAMpp(model)
 # Get your input
 img = read_image("path/to/your/image.png")
 # Preprocess it for your chosen model
 input_tensor = normalize(resize(img, (224, 224)) / 255., [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 
-# Preprocess your data and feed it to the model
-out = model(input_tensor.unsqueeze(0))
-# Retrieve the CAM by passing the class index and the model output
-activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
+with SmoothGradCAMpp(model) as cam_extractor:
+  # Preprocess your data and feed it to the model
+  out = model(input_tensor.unsqueeze(0))
+  # Retrieve the CAM by passing the class index and the model output
+  activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
 ```
 
 If you want to visualize your heatmap, you only need to cast the CAM to a numpy ndarray:
