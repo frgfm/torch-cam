@@ -35,22 +35,21 @@ def main(args):
         with torch.no_grad():
             _ = model(img_tensor)
 
-    # Hook the corresponding layer in the model
-    cam_extractor = methods.__dict__[args.method](model)
     timings = []
 
     # Evaluation runs
-    for _ in range(args.it):
-        model.zero_grad()
-        scores = model(img_tensor)
+    with methods.__dict__[args.method](model) as cam_extractor:
+        for _ in range(args.it):
+            model.zero_grad()
+            scores = model(img_tensor)
 
-        # Select the class index
-        class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
+            # Select the class index
+            class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
 
-        # Use the hooked data to compute activation map
-        start_ts = time.perf_counter()
-        _ = cam_extractor(class_idx, scores)
-        timings.append(time.perf_counter() - start_ts)
+            # Use the hooked data to compute activation map
+            start_ts = time.perf_counter()
+            _ = cam_extractor(class_idx, scores)
+            timings.append(time.perf_counter() - start_ts)
 
     _timings = np.array(timings)
     print(f"{args.method} w/ {args.arch} ({args.it} runs on ({args.size}, {args.size}) inputs)")

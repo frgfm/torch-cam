@@ -60,14 +60,14 @@ def main(args):
     )
 
     # Hook the corresponding layer in the model
-    cam_extractor = methods.__dict__[args.method](model, args.target.split(","))
-    metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
+    with methods.__dict__[args.method](model, args.target.split(",")) as cam_extractor:
+        metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
 
-    # Evaluation runs
-    for x, _ in loader:
-        model.zero_grad()
-        x = x.to(device=device)
-        metric.update(x)
+        # Evaluation runs
+        for x, _ in loader:
+            model.zero_grad()
+            x = x.to(device=device)
+            metric.update(x)
 
     print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
     metrics_dict = metric.summary()
