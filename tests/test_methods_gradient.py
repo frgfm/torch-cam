@@ -30,30 +30,30 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
-    extractor = gradient.__dict__[cam_name](model, target_layer)
+    with gradient.__dict__[cam_name](model, target_layer) as extractor:
 
-    scores = model(mock_img_tensor.repeat((batch_size,) + (1,) * (mock_img_tensor.ndim - 1)))
-    # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores, retain_graph=True)[0], (batch_size, *output_size))
-    # Multiple class indices
-    _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
+        scores = model(mock_img_tensor.repeat((batch_size,) + (1,) * (mock_img_tensor.ndim - 1)))
+        # Use the hooked data to compute activation map
+        _verify_cam(extractor(scores[0].argmax().item(), scores, retain_graph=True)[0], (batch_size, *output_size))
+        # Multiple class indices
+        _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
 
-    # Inplace model
-    model = nn.Sequential(
-        nn.Conv2d(3, 8, 3, padding=1),
-        nn.ReLU(),
-        nn.Conv2d(8, 8, 3, padding=1),
-        nn.ReLU(inplace=True),
-        nn.AdaptiveAvgPool2d((1, 1)),
-        nn.Flatten(1),
-        nn.Linear(8, 10),
-    )
+        # Inplace model
+        model = nn.Sequential(
+            nn.Conv2d(3, 8, 3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(8, 8, 3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(1),
+            nn.Linear(8, 10),
+        )
 
     # Hook before the inplace ops
-    extractor = gradient.__dict__[cam_name](model, "2")
-    scores = model(mock_img_tensor)
-    # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 224, 224))
+    with gradient.__dict__[cam_name](model, "2") as extractor:
+        scores = model(mock_img_tensor)
+        # Use the hooked data to compute activation map
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 224, 224))
 
 
 @pytest.mark.parametrize(
@@ -69,20 +69,18 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
 def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_video_tensor):
     model = mock_video_model.eval()
     # Hook the corresponding layer in the model
-    extractor = gradient.__dict__[cam_name](model, target_layer)
-
-    scores = model(mock_video_tensor)
-    # Use the hooked data to compute activation map
-    _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
+    with gradient.__dict__[cam_name](model, target_layer) as extractor:
+        scores = model(mock_video_tensor)
+        # Use the hooked data to compute activation map
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
 
 
 def test_smoothgradcampp_repr():
     model = mobilenet_v2(pretrained=False).eval()
 
     # Hook the corresponding layer in the model
-    extractor = gradient.SmoothGradCAMpp(model, "features.18.0")
-
-    assert repr(extractor) == "SmoothGradCAMpp(target_layer=['features.18.0'], num_samples=4, std=0.3)"
+    with gradient.SmoothGradCAMpp(model, "features.18.0") as extractor:
+        assert repr(extractor) == "SmoothGradCAMpp(target_layer=['features.18.0'], num_samples=4, std=0.3)"
 
 
 def test_layercam_fuse_cams(mock_img_model):
