@@ -1,6 +1,6 @@
 name: 🚀 Feature request
 description: Submit a proposal/request for a new feature for TorchCAM
-labels: enhancement
+labels: 'type: new feature'
 assignees: frgfm
 
 body:
