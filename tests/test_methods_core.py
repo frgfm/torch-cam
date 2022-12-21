@@ -8,57 +8,51 @@ def test_cam_constructor(mock_img_model):
     model = mock_img_model.eval()
     # Check that wrong target_layer raises an error
     with pytest.raises(ValueError):
-        _ = core._CAM(model, "3")
+        core._CAM(model, "3")
 
     # Wrong types
     with pytest.raises(TypeError):
-        _ = core._CAM(model, 3)
+        core._CAM(model, 3)
     with pytest.raises(TypeError):
-        _ = core._CAM(model, [3])
+        core._CAM(model, [3])
 
     # Unrelated module
     with pytest.raises(ValueError):
-        _ = core._CAM(model, torch.nn.ReLU())
+        core._CAM(model, torch.nn.ReLU())
 
 
-def test_cam_destructor(mock_img_model):
+def test_cam_context_manager(mock_img_model):
     model = mock_img_model.eval()
-    extractor = core._CAM(model)
-    # Model is hooked
-    assert sum(len(mod._forward_hooks) for mod in model.modules()) == 1
-    # Delete should remove hooks
-    del extractor
-    assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
-
-    core._CAM(model)
-    assert sum(len(mod._forward_hooks) for mod in model.modules()) == 1
-    # Dereference should also remove hooks
+    with core._CAM(model):
+        # Model is hooked
+        assert sum(len(mod._forward_hooks) for mod in model.modules()) == 1
+    # Exit should remove hooks
     assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
 
 
 def test_cam_precheck(mock_img_model, mock_img_tensor):
     model = mock_img_model.eval()
-    extractor = core._CAM(model, "0.3")
-    with torch.no_grad():
-        # Check missing forward raises Error
-        with pytest.raises(AssertionError):
-            extractor(0)
-
-        # Correct forward
-        _ = model(mock_img_tensor)
-
-        # Check incorrect class index
-        with pytest.raises(ValueError):
-            extractor(-1)
-
-        # Check incorrect class index
-        with pytest.raises(ValueError):
-            extractor([-1])
-
-        # Check missing score
-        if extractor._score_used:
-            with pytest.raises(ValueError):
+    with core._CAM(model, "0.3") as extractor:
+        with torch.no_grad():
+            # Check missing forward raises Error
+            with pytest.raises(AssertionError):
                 extractor(0)
+
+            # Correct forward
+            model(mock_img_tensor)
+
+            # Check incorrect class index
+            with pytest.raises(ValueError):
+                extractor(-1)
+
+            # Check incorrect class index
+            with pytest.raises(ValueError):
+                extractor([-1])
+
+            # Check missing score
+            if extractor._score_used:
+                with pytest.raises(ValueError):
+                    extractor(0)
 
 
 @pytest.mark.parametrize(
@@ -83,30 +77,28 @@ def test_cam_normalize(input_shape, spatial_dims):
 
 def test_cam_remove_hooks(mock_img_model):
     model = mock_img_model.eval()
-    extractor = core._CAM(model, "0.3")
+    with core._CAM(model, "0.3") as extractor:
+        assert len(extractor.hook_handles) == 1
+        # Check that there is only one hook on the model
+        assert all(act is None for act in extractor.hook_a)
+        with torch.no_grad():
+            _ = model(torch.rand((1, 3, 32, 32)))
+        assert all(isinstance(act, torch.Tensor) for act in extractor.hook_a)
 
-    assert len(extractor.hook_handles) == 1
-    # Check that there is only one hook on the model
-    assert all(act is None for act in extractor.hook_a)
-    with torch.no_grad():
-        _ = model(torch.rand((1, 3, 32, 32)))
-    assert all(isinstance(act, torch.Tensor) for act in extractor.hook_a)
-
-    # Remove it
-    extractor.remove_hooks()
-    assert len(extractor.hook_handles) == 0
-    # Reset the hooked values
-    extractor.reset_hooks()
-    with torch.no_grad():
-        _ = model(torch.rand((1, 3, 32, 32)))
-    assert all(act is None for act in extractor.hook_a)
+        # Remove it
+        extractor.remove_hooks()
+        assert len(extractor.hook_handles) == 0
+        # Reset the hooked values
+        extractor.reset_hooks()
+        with torch.no_grad():
+            _ = model(torch.rand((1, 3, 32, 32)))
+        assert all(act is None for act in extractor.hook_a)
 
 
 def test_cam_repr(mock_img_model):
     model = mock_img_model.eval()
-    extractor = core._CAM(model, "0.3")
-
-    assert repr(extractor) == "_CAM(target_layer=['0.3'])"
+    with core._CAM(model, "0.3") as extractor:
+        assert repr(extractor) == "_CAM(target_layer=['0.3'])"
 
 
 def test_fuse_cams():
