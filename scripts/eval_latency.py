@@ -32,6 +32,7 @@ def main(args):
 
     # Input
     img_tensor = torch.rand((1, 3, args.size, args.size)).to(device=device)
+    img_tensor.requires_grad_(True)
 
     # Warmup
     for _ in range(10):

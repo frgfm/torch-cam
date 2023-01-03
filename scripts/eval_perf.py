@@ -70,6 +70,7 @@ def main(args):
         for x, _ in loader:
             model.zero_grad()
             x = x.to(device=device)
+            x.requires_grad_(True)
             metric.update(x)
 
     print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
