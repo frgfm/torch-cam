@@ -46,6 +46,7 @@ def main(args):
     img_tensor = normalize(to_tensor(resize(pil_img, (224, 224))), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]).to(
         device=device
     )
+    img_tensor.requires_grad_(True)
 
     if isinstance(args.method, str):
         cam_methods = args.method.split(",")
@@ -62,7 +63,9 @@ def main(args):
             "LayerCAM",
         ]
     # Hook the corresponding layer in the model
-    cam_extractors = [methods.__dict__[name](model, enable_hooks=False) for name in cam_methods]
+    cam_extractors = [
+        methods.__dict__[name](model, target_layer=args.target, enable_hooks=False) for name in cam_methods
+    ]
 
     # Homogenize number of elements in each row
     num_cols = math.ceil((len(cam_extractors) + 1) / args.rows)
@@ -130,6 +133,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default=None, help="Default device to perform computation on")
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
     parser.add_argument("--method", type=str, default=None, help="CAM method to use")
+    parser.add_argument("--target", type=str, default=None, help="the target layer")
     parser.add_argument("--alpha", type=float, default=0.5, help="Transparency of the heatmap")
     parser.add_argument("--rows", type=int, default=1, help="Number of rows for the layout")
     parser.add_argument("--noblock", dest="noblock", help="Disables blocking visualization", action="store_true")
