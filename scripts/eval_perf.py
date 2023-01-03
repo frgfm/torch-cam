@@ -31,6 +31,9 @@ def main(args):
 
     # Pretrained imagenet model
     model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    # Freeze the model
+    for p in model.parameters():
+        p.requires_grad_(False)
 
     eval_tf = []
     crop_pct = 0.875

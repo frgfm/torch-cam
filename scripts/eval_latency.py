@@ -26,6 +26,9 @@ def main(args):
 
     # Pretrained imagenet model
     model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    # Freeze the model
+    for p in model.parameters():
+        p.requires_grad_(False)
 
     # Input
     img_tensor = torch.rand((1, 3, args.size, args.size)).to(device=device)
@@ -40,7 +43,6 @@ def main(args):
     # Evaluation runs
     with methods.__dict__[args.method](model) as cam_extractor:
         for _ in range(args.it):
-            model.zero_grad()
             scores = model(img_tensor)
 
             # Select the class index
