@@ -13,7 +13,7 @@
 </script>
     <link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" />
 
-    <!-- Generated with Sphinx 5.3.0 and Furo 2022.12.07 -->
+    <!-- Generated with Sphinx 6.0.0 and Furo 2022.12.07 -->
         <title>torchcam.metrics - TorchCAM</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=91d0f0d1c444bdcb17a68e833c7a53903343c195" />
@@ -212,7 +212,7 @@
         </div>
         <article role="main">
           <h1>Source code for torchcam.metrics</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright (C) 2022, François-Guillaume Fernandez.</span>
+<span></span><span class="c1"># Copyright (C) 2022-2023, François-Guillaume Fernandez.</span>
 
 <span class="c1"># This program is licensed under the Apache License 2.0.</span>
 <span class="c1"># See LICENSE or go to &lt;https://www.apache.org/licenses/LICENSE-2.0&gt; for full license details.</span>
@@ -225,7 +225,7 @@
 
 
 <div class="viewcode-block" id="ClassificationMetric"><a class="viewcode-back" href="../../metrics.html#torchcam.metrics.ClassificationMetric">[docs]</a><span class="k">class</span> <span class="nc">ClassificationMetric</span><span class="p">:</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements Average Drop and Increase in Confidence from `&quot;Grad-CAM++: Improved Visual Explanations for Deep</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Implements Average Drop and Increase in Confidence from `&quot;Grad-CAM++: Improved Visual Explanations for Deep</span>
 <span class="sd">    Convolutional Networks.&quot; &lt;https://arxiv.org/pdf/1710.11063.pdf&gt;`_.</span>
 
 <span class="sd">    The raw aggregated metric is computed as follows:</span>
@@ -285,7 +285,7 @@
         <span class="n">input_tensor</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">class_idx</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="sd">&quot;&quot;&quot;Update the state of the metric with new predictions</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update the state of the metric with new predictions</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            input_tensor: preprocessed input tensor for the model</span>
@@ -330,7 +330,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">total</span> <span class="o">+=</span> <span class="n">input_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
 
 <div class="viewcode-block" id="ClassificationMetric.summary"><a class="viewcode-back" href="../../metrics.html#torchcam.metrics.ClassificationMetric.summary">[docs]</a>    <span class="k">def</span> <span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
-        <span class="sd">&quot;&quot;&quot;Computes the aggregated metrics</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the aggregated metrics</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            a dictionary with the average drop and the increase in confidence</span>
@@ -359,7 +359,7 @@
         <div class="bottom-of-page">
           <div class="left-details">
             <div class="copyright">
-                Copyright &#169; 2020-2022, François-Guillaume Fernandez
+                Copyright &#169; 2020-2023, François-Guillaume Fernandez
             </div>
             Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
             
@@ -387,9 +387,6 @@
     </aside>
   </div>
 </div><script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
-    <script src="../../_static/jquery.js"></script>
-    <script src="../../_static/underscore.js"></script>
-    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../../_static/doctools.js"></script>
     <script src="../../_static/sphinx_highlight.js"></script>
     <script src="../../_static/scripts/furo.js"></script>
