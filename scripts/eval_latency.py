@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2022, François-Guillaume Fernandez.
+# Copyright (C) 2021-2023, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
@@ -26,9 +26,13 @@ def main(args):
 
     # Pretrained imagenet model
     model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    # Freeze the model
+    for p in model.parameters():
+        p.requires_grad_(False)
 
     # Input
     img_tensor = torch.rand((1, 3, args.size, args.size)).to(device=device)
+    img_tensor.requires_grad_(True)
 
     # Warmup
     for _ in range(10):
@@ -40,7 +44,6 @@ def main(args):
     # Evaluation runs
     with methods.__dict__[args.method](model) as cam_extractor:
         for _ in range(args.it):
-            model.zero_grad()
             scores = model(img_tensor)
 
             # Select the class index

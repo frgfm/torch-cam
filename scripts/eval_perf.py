@@ -1,4 +1,4 @@
-# Copyright (C) 2022, François-Guillaume Fernandez.
+# Copyright (C) 2022-2023, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
@@ -31,6 +31,9 @@ def main(args):
 
     # Pretrained imagenet model
     model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    # Freeze the model
+    for p in model.parameters():
+        p.requires_grad_(False)
 
     eval_tf = []
     crop_pct = 0.875
@@ -67,6 +70,7 @@ def main(args):
         for x, _ in loader:
             model.zero_grad()
             x = x.to(device=device)
+            x.requires_grad_(True)
             metric.update(x)
 
     print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
