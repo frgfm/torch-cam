@@ -44,7 +44,7 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_g[idx] = grad.data
 
-    def _hook_g(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
+    def _hook_g(self, module: nn.Module, input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
             self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
