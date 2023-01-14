@@ -7,6 +7,8 @@ from torchcam.methods import activation
 
 def test_base_cam_constructor(mock_img_model):
     model = mobilenet_v2(pretrained=False).eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
     # Check that multiple target layers is disabled for base CAM
     with pytest.raises(ValueError):
         activation.CAM(model, ["classifier.1", "classifier.2"])
@@ -38,6 +40,8 @@ def _verify_cam(activation_map, output_size):
 )
 def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, batch_size, mock_img_tensor):
     model = mobilenet_v2(pretrained=False).eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
     kwargs = {}
     # Speed up testing by reducing the number of samples
     if isinstance(num_samples, int):
