@@ -221,7 +221,7 @@ class ScoreCAM(_CAM):
         origin_mode = self.model.training
         self.model.eval()
 
-        weights = self._get_score_weights(upsampled_a, class_idx)
+        weights: List[Tensor] = self._get_score_weights(upsampled_a, class_idx)
 
         # Reenable hook updates
         self._hooks_enabled = True

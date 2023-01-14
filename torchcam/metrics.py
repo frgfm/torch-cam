@@ -3,7 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, cast
 
 import torch
 
@@ -64,7 +64,7 @@ class ClassificationMetric:
 
     def _get_probs(self, input_tensor: torch.Tensor) -> torch.Tensor:
         logits = self.cam_extractor.model(input_tensor)
-        return logits if self.logits_fn is None else self.logits_fn(logits)
+        return cast(torch.Tensor, logits if self.logits_fn is None else self.logits_fn(logits))
 
     def update(
         self,
