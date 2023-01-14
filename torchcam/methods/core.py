@@ -4,8 +4,10 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
+from abc import abstractmethod
 from functools import partial
-from typing import Any, List, Optional, Tuple, Union
+from types import TracebackType
+from typing import Any, List, Optional, Tuple, Type, Union, cast
 
 import torch
 import torch.nn.functional as F
@@ -77,16 +79,17 @@ class _CAM:
         # Model output is used by the extractor
         self._score_used = False
 
-    def __enter__(self):
+    def __enter__(self) -> "_CAM":
         return self
 
-    def __exit__(self, exct_type, exce_value, traceback):
+    def __exit__(self, exct_type: Type[BaseException], exce_value: BaseException, traceback: TracebackType) -> None:
         self.remove_hooks()
         self.reset_hooks()
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
         """Resolves the name of a given layer inside the hooked model."""
         _found = False
+        target_name: str
         for k, v in self.submodule_dict.items():
             if id(v) == id(target_layer):
                 target_name = k
@@ -124,7 +127,8 @@ class _CAM:
 
         return cams
 
-    def _get_weights(self, class_idx, scores, **kwargs):
+    @abstractmethod
+    def _get_weights(self, class_idx, scores, **kwargs):  # type: ignore[no-untyped-def]
         raise NotImplementedError
 
     def _precheck(self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None) -> None:
@@ -256,4 +260,4 @@ class _CAM:
         ]
 
         # Fuse them
-        return torch.stack(scaled_cams).max(dim=0).values.squeeze(1)
+        return cast(Tensor, torch.stack(scaled_cams).max(dim=0).values.squeeze(1))
