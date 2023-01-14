@@ -100,7 +100,7 @@ class _CAM:
 
         return target_name
 
-    def _hook_a(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
+    def _hook_a(self, module: nn.Module, input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""
         if self._hooks_enabled:
             self.hook_a[idx] = output.data

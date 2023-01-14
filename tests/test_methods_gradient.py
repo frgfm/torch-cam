@@ -27,6 +27,8 @@ def _verify_cam(activation_map, output_size):
 )
 def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
     model = mobilenet_v2(pretrained=False).eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
@@ -38,16 +40,18 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
         # Multiple class indices
         _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
 
-        # Inplace model
-        model = nn.Sequential(
-            nn.Conv2d(3, 8, 3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(8, 8, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(1),
-            nn.Linear(8, 10),
-        )
+    # Inplace model
+    model = nn.Sequential(
+        nn.Conv2d(3, 8, 3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(8, 8, 3, padding=1),
+        nn.ReLU(inplace=True),
+        nn.AdaptiveAvgPool2d((1, 1)),
+        nn.Flatten(1),
+        nn.Linear(8, 10),
+    )
+    for p in model.parameters():
+        p.requires_grad_(False)
 
     # Hook before the inplace ops
     with gradient.__dict__[cam_name](model, "2") as extractor:

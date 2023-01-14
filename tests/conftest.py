@@ -23,17 +23,18 @@ def mock_img_tensor():
     except ConnectionError:
         img_tensor = torch.rand((1, 3, 224, 224))
 
+    img_tensor.requires_grad_(True)
     return img_tensor
 
 
 @pytest.fixture(scope="session")
 def mock_video_tensor():
-    return torch.rand((1, 3, 8, 16, 16))
+    return torch.rand((1, 3, 8, 16, 16), requires_grad=True)
 
 
 @pytest.fixture(scope="session")
 def mock_video_model():
-    return nn.Sequential(
+    model = nn.Sequential(
         nn.Sequential(
             nn.Conv3d(3, 8, 3, padding=1),
             nn.ReLU(),
@@ -44,11 +45,14 @@ def mock_video_model():
         nn.Flatten(1),
         nn.Linear(16, 1),
     )
+    for p in model:
+        p.requires_grad_(False)
+    return model
 
 
 @pytest.fixture(scope="session")
 def mock_img_model():
-    return nn.Sequential(
+    model = nn.Sequential(
         nn.Sequential(
             nn.Conv2d(3, 8, 3, padding=1),
             nn.ReLU(),
@@ -59,11 +63,14 @@ def mock_img_model():
         nn.Flatten(1),
         nn.Linear(16, 1),
     )
+    for p in model:
+        p.requires_grad_(False)
+    return model
 
 
 @pytest.fixture(scope="session")
 def mock_fullyconv_model():
-    return nn.Sequential(
+    model = nn.Sequential(
         nn.Sequential(
             nn.Conv2d(3, 8, 3, padding=1),
             nn.ReLU(),
@@ -74,3 +81,6 @@ def mock_fullyconv_model():
         nn.Conv2d(16, 1, 1),
         nn.Flatten(1),
     )
+    for p in model:
+        p.requires_grad_(False)
+    return model

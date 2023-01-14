@@ -44,7 +44,7 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_g[idx] = grad.data
 
-    def _hook_g(self, module: nn.Module, input: Tensor, output: Tensor, idx: int = 0) -> None:
+    def _hook_g(self, module: nn.Module, input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
             self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
@@ -275,6 +275,7 @@ class SmoothGradCAMpp(_GradCAM):
         for _idx in range(self.num_samples):
             # Add noise
             noisy_input = self._input + self._distrib.sample(self._input.size()).to(device=self._input.device)
+            noisy_input.requires_grad_(True)
             # Forward & Backward
             out = self.model(noisy_input)
             self.model.zero_grad()
