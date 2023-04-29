@@ -11,6 +11,7 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: debug-statements
+        language_version: python3
       - id: check-merge-conflict
       - id: no-commit-to-branch
         args: ['--branch', 'main']
@@ -22,12 +23,8 @@ repos:
     rev: 5.10.1
     hooks:
       - id: isort
-  - repo: https://github.com/PyCQA/flake8
-    rev: 4.0.1
+        exclude: "(__init__.py)$"
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.260'
     hooks:
-      - id: flake8
-        exclude: docs
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v1.7.7
-    hooks:
-      - id: autoflake
+      - id: ruff
