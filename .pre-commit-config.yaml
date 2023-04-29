@@ -28,3 +28,4 @@ repos:
     rev: 'v0.0.260'
     hooks:
       - id: ruff
+        exclude: "(__init__.py)$"
