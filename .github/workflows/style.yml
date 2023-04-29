@@ -7,7 +7,7 @@ on:
     branches: main
 
 jobs:
-  flake8:
+  ruff:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -16,15 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          pip install flake8
-          flake8 --version
-          flake8
+          pip install ruff
+          ruff --version
+          ruff check --diff .
 
   isort:
     runs-on: ${{ matrix.os }}
@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
@@ -83,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
@@ -102,13 +102,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
       - name: Run black
         run: |
-          pip install black
+          pip install "black==22.3.0"
           black --version
           black --check --diff .
 
@@ -121,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
           architecture: x64

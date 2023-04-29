@@ -9,7 +9,7 @@ authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.6,<4"
+requires-python = ">=3.8,<4"
 license = {file = "LICENSE"}
 keywords = ["pytorch", "deep learning", "class activation map", "cnn", "gradcam"]
 classifiers = [
@@ -20,10 +20,9 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -46,12 +45,11 @@ test = [
     "torchvision>=0.4.0,<1.0.0",
 ]
 quality = [
-    "flake8>=3.9.0",
+    "ruff>=0.0.260,<1.0.0",
     "isort>=5.7.0",
-    "mypy>=0.812",
+    "mypy>=1.2.0",
     "pydocstyle[toml]>=6.0.0",
-    "black>=22.1,<23.0",
-    "autoflake>=1.5.0,<2.0.0",
+    "black==22.3.0",
     "bandit[toml]>=1.7.0,<1.8.0",
     "pre-commit>=2.17.0,<3.0.0",
 ]
@@ -77,11 +75,13 @@ dev = [
     "requests>=2.20.0,<3.0.0",
     "torchvision>=0.4.0,<1.0.0",
     # style
-    "flake8>=3.9.0",
+    "ruff>=0.0.260,<1.0.0",
     "isort>=5.7.0",
-    "mypy>=0.812",
+    "mypy>=1.2.0",
     "pydocstyle[toml]>=6.0.0",
-    "black>=22.1,<23.0",
+    "black==22.3.0",
+    "bandit[toml]>=1.7.0,<1.8.0",
+    "pre-commit>=2.17.0,<3.0.0",
     # docs
     "sphinx>=3.0.0,!=3.5.0",
     "furo>=2022.3.4",
@@ -104,6 +104,20 @@ zip-safe = true
 [tool.setuptools.packages.find]
 exclude = ["demo*", "docs*", "notebooks*", "scripts*", "tests*"]
 
+[tool.coverage.run]
+source = ["torchcam"]
+
+[tool.ruff]
+ignore = ["E402", "F403", "E731"]
+exclude = [".git", "venv*", "build", "docs"]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.per-file-ignores]
+"**/__init__.py" = ["F401"]
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
 
 [tool.mypy]
 files = "torchcam/"
@@ -134,17 +148,9 @@ known_third_party = ["torch", "torchvision"]
 select = "D300,D301,D417"
 match = ".*\\.py"
 
-[tool.coverage.run]
-source = ["torchcam"]
-
 [tool.black]
 line-length = 120
 target-version = ['py38']
-
-[tool.autoflake]
-remove-unused-variables = true
-remove-all-unused-imports = true
-ignore-init-module-imports = true
 
 [tool.bandit]
 exclude_dirs = [".github/collect_env.py"]
