@@ -107,6 +107,18 @@ exclude = ["demo*", "docs*", "notebooks*", "scripts*", "tests*"]
 [tool.coverage.run]
 source = ["torchcam"]
 
+[tool.ruff]
+ignore = ["E402", "F403", "E731"]
+exclude = [".git", "venv*", "build", "docs"]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.per-file-ignores]
+"**/__init__.py" = ["F401"]
+
+[tool.ruff.flake8-quotes]
+docstring-quotes = "double"
+
 [tool.mypy]
 files = "torchcam/"
 show_error_codes = true
