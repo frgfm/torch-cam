@@ -23,7 +23,6 @@ from torchcam.utils import overlay_mask
 
 
 def main(args):
-
     if args.device is None:
         args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -37,7 +36,7 @@ def main(args):
 
     # Image
     if args.img.startswith("http"):
-        img_path = BytesIO(requests.get(args.img).content)
+        img_path = BytesIO(requests.get(args.img, timeout=5).content)
     else:
         img_path = args.img
     pil_img = Image.open(img_path, mode="r").convert("RGB")

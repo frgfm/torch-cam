@@ -18,7 +18,6 @@ from torchcam import methods
 
 
 def main(args):
-
     if args.device is None:
         args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 

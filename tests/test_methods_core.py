@@ -102,7 +102,6 @@ def test_cam_repr(mock_img_model):
 
 
 def test_fuse_cams():
-
     with pytest.raises(TypeError):
         core._CAM.fuse_cams(torch.zeros((3, 32, 32)))
 

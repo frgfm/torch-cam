@@ -30,7 +30,6 @@ class _GradCAM(_CAM):
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
-
         super().__init__(model, target_layer, input_shape, **kwargs)
         # Ensure ReLU is applied before normalization
         self._relu = True
@@ -51,7 +50,6 @@ class _GradCAM(_CAM):
 
     def _backprop(self, scores: Tensor, class_idx: Union[int, List[int]], retain_graph: bool = False) -> None:
         """Backpropagate the loss for a specific output class"""
-
         # Backpropagate to get the gradients on the hooked layer
         if isinstance(class_idx, int):
             loss = scores[:, class_idx].sum()
@@ -61,7 +59,6 @@ class _GradCAM(_CAM):
         loss.backward(retain_graph=retain_graph)
 
     def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
-
         raise NotImplementedError
 
 
@@ -99,7 +96,6 @@ class GradCAM(_GradCAM):
 
     def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
-
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
@@ -153,7 +149,6 @@ class GradCAMpp(_GradCAM):
         self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
-
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
         self.hook_a: List[Tensor]  # type: ignore[assignment]
@@ -237,13 +232,12 @@ class SmoothGradCAMpp(_GradCAM):
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
-
         super().__init__(model, target_layer, input_shape, **kwargs)
         # Model scores is not used by the extractor
         self._score_used = False
 
         # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))  # type: ignore[arg-type]
         # Noise distribution
         self.num_samples = num_samples
         self.std = std
@@ -253,7 +247,6 @@ class SmoothGradCAMpp(_GradCAM):
 
     def _store_input(self, module: nn.Module, input: Tensor) -> None:
         """Store model input tensor."""
-
         if self._ihook_enabled:
             self._input = input[0].data.clone()
 
@@ -261,7 +254,6 @@ class SmoothGradCAMpp(_GradCAM):
         self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None, eps: float = 1e-8, **kwargs: Any
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
-
         # Disable input update
         self._ihook_enabled = False
         # Keep initial activation
@@ -343,7 +335,6 @@ class XGradCAM(_GradCAM):
         self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
-
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
@@ -389,7 +380,6 @@ class LayerCAM(_GradCAM):
 
     def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
-
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 

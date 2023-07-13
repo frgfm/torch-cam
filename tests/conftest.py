@@ -13,7 +13,7 @@ def mock_img_tensor():
     try:
         # Get a dog image
         URL = "https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg"
-        response = requests.get(URL)
+        response = requests.get(URL, timeout=5)
 
         # Forward an image
         pil_img = Image.open(BytesIO(response.content), mode="r").convert("RGB")

@@ -28,12 +28,12 @@ TV_MODELS = [
     "convnext_small",
 ]
 LABEL_MAP = requests.get(
-    "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
+    "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json",
+    timeout=10,
 ).json()
 
 
 def main():
-
     # Wide mode
     st.set_page_config(layout="wide")
 
@@ -91,19 +91,17 @@ def main():
         )
 
     class_choices = [f"{idx + 1} - {class_name}" for idx, class_name in enumerate(LABEL_MAP)]
-    class_selection = st.sidebar.selectbox("Class selection", ["Predicted class (argmax)"] + class_choices)
+    class_selection = st.sidebar.selectbox("Class selection", ["Predicted class (argmax)", *class_choices])
 
     # For newline
     st.sidebar.write("\n")
 
     if st.sidebar.button("Compute CAM"):
-
         if uploaded_file is None:
             st.sidebar.error("Please upload an image first")
 
         else:
             with st.spinner("Analyzing..."):
-
                 # Preprocess image
                 img_tensor = normalize(to_tensor(resize(img, (224, 224))), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 

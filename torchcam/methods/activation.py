@@ -54,7 +54,6 @@ class CAM(_CAM):
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
-
         if isinstance(target_layer, list) and len(target_layer) > 1:
             raise ValueError("base CAM does not support multiple target layers")
 
@@ -82,13 +81,12 @@ class CAM(_CAM):
             self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
 
     @torch.no_grad()
-    def _get_weights(
+    def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
         *args: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
-
         # Take the FC weights of the target class
         if isinstance(class_idx, int):
             return [self._fc_weights[class_idx, :].unsqueeze(0)]
@@ -143,24 +141,21 @@ class ScoreCAM(_CAM):
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
-
         super().__init__(model, target_layer, input_shape, **kwargs)
 
         # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))  # type: ignore[arg-type]
         self.bs = batch_size
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
     def _store_input(self, module: nn.Module, input: Tensor) -> None:
         """Store model input tensor."""
-
         if self._hooks_enabled:
             self._input = input[0].data.clone()
 
     @torch.no_grad()
     def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
-
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [
@@ -178,7 +173,6 @@ class ScoreCAM(_CAM):
         for idx, scored_input in enumerate(scored_inputs):
             # Process by chunk (GPU RAM limitation)
             for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-
                 _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                 # Get the softmax probabilities of the target class
                 # (*, M)
@@ -193,13 +187,12 @@ class ScoreCAM(_CAM):
         return [torch.softmax(w.view(b, c), -1) for w in weights]
 
     @torch.no_grad()
-    def _get_weights(
+    def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
         *args: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
-
         self.hook_a: List[Tensor]  # type: ignore[assignment]
 
         # Normalize the activation
@@ -288,7 +281,6 @@ class SSCAM(ScoreCAM):
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
-
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
         self.num_samples = num_samples
@@ -297,7 +289,6 @@ class SSCAM(ScoreCAM):
 
     @torch.no_grad()
     def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
-
         b, c = activations[0].shape[:2]
 
         # Initialize weights
@@ -319,7 +310,6 @@ class SSCAM(ScoreCAM):
 
                 # Process by chunk (GPU RAM limitation)
                 for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-
                     _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
                     cic = self.model(scored_input[_slice]) - logits[idcs[_slice]]
@@ -387,14 +377,12 @@ class ISCAM(ScoreCAM):
         input_shape: Tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
-
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
         self.num_samples = num_samples
 
     @torch.no_grad()
     def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
-
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [
@@ -416,7 +404,6 @@ class ISCAM(ScoreCAM):
 
                 # Process by chunk (GPU RAM limitation)
                 for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-
                     _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
                     cic = self.model(_coeff * scored_input[_slice]) - logits[idcs[_slice]]

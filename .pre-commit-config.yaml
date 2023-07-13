@@ -1,31 +1,29 @@
+default_language_version:
+    python: python3.9
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.3.0
+    rev: v4.4.0
     hooks:
-      - id: check-ast
       - id: check-yaml
         exclude: .conda
       - id: check-toml
-      - id: check-json
       - id: check-added-large-files
       - id: end-of-file-fixer
       - id: trailing-whitespace
-      - id: debug-statements
-        language_version: python3
+      - id: check-ast
+      - id: check-json
       - id: check-merge-conflict
       - id: no-commit-to-branch
         args: ['--branch', 'main']
+      - id: debug-statements
+        language_version: python3
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 23.3.0
     hooks:
       - id: black
-  - repo: https://github.com/pycqa/isort
-    rev: 5.10.1
-    hooks:
-      - id: isort
-        exclude: "(__init__.py)$"
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.0.260'
+    rev: 'v0.0.278'
     hooks:
       - id: ruff
-        exclude: "(__init__.py)$"
+        args:
+          - --fix

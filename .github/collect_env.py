@@ -136,7 +136,7 @@ def get_cudnn_version(run_lambda):
     if not files:
         return None
     # Alphabetize the result because the order is non-deterministic otherwise
-    files = list(sorted(files))
+    files = sorted(files)
     if len(files) == 1:
         return files[0]
     result = "\n".join(files)
@@ -292,7 +292,7 @@ def pretty_str(envinfo):
         "nvidia_gpu_models",
         "nvidia_driver_version",
     ]
-    all_cuda_fields = dynamic_cuda_fields + ["cudnn_version"]
+    all_cuda_fields = [*dynamic_cuda_fields, "cudnn_version"]
     all_dynamic_cuda_fields_missing = all(mutable_dict[field] is None for field in dynamic_cuda_fields)
     if TORCH_AVAILABLE and not torch.cuda.is_available() and all_dynamic_cuda_fields_missing:
         for field in all_cuda_fields:

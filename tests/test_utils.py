@@ -5,7 +5,6 @@ from torchcam import utils
 
 
 def test_overlay_mask():
-
     img = Image.fromarray(np.zeros((4, 4, 3)).astype(np.uint8))
     mask = Image.fromarray(255 * np.ones((4, 4)).astype(np.uint8))
 
