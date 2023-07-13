@@ -109,7 +109,7 @@ source = ["torchcam"]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
-    # "D101", "D103",  # pydocstyle missing docstring in public function/class
+    "D101", "D103",  # pydocstyle missing docstring in public function/class
     "D201","D202","D207","D208","D214","D215","D300","D301","D417", "D419",  # pydocstyle
     "F",  # pyflakes
     "I",  # isort
@@ -133,7 +133,9 @@ target-version = "py39"
 "**/__init__.py" = ["I001", "F401"]
 "scripts/**.py" = ["D"]
 ".github/**.py" = ["D"]
-"docs/**.py" = ["E402"]
+"docs/**.py" = ["E402", "D103"]
+"tests/**.py" = ["D103"]
+"demo/**.py" = ["D103"]
 
 [tool.ruff.flake8-quotes]
 docstring-quotes = "double"
