@@ -115,7 +115,12 @@ select = [
     "I",  # isort
     "C",  # flake8-comprehensions
     "B",  # flake8-bugbear
-    "CPY001",  # copyright
+    "CPY",  # flake8-copyright
+    "ISC",  # flake8-implicit-str-concat
+    "PYI",  # flake8-pyi
+    "NPY",  # numpy
+    "PERF",  # perflint
+    "RUF",  # ruff specific
 ]
 ignore = [
     "E501",  # line too long, handled by black
