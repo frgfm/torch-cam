@@ -237,7 +237,7 @@ class SmoothGradCAMpp(_GradCAM):
         self._score_used = False
 
         # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))  # type: ignore[arg-type]
         # Noise distribution
         self.num_samples = num_samples
         self.std = std

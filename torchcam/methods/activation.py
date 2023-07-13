@@ -81,7 +81,7 @@ class CAM(_CAM):
             self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
 
     @torch.no_grad()
-    def _get_weights(
+    def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
         *args: Any,
@@ -144,7 +144,7 @@ class ScoreCAM(_CAM):
         super().__init__(model, target_layer, input_shape, **kwargs)
 
         # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))  # type: ignore[arg-type]
         self.bs = batch_size
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
@@ -187,7 +187,7 @@ class ScoreCAM(_CAM):
         return [torch.softmax(w.view(b, c), -1) for w in weights]
 
     @torch.no_grad()
-    def _get_weights(
+    def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
         *args: Any,

@@ -149,6 +149,7 @@ known-first-party = ["app"]
 known-third-party = ["torch", "torchvision"]
 
 [tool.mypy]
+python_version = "3.8"
 files = "torchcam/"
 show_error_codes = true
 pretty = true
