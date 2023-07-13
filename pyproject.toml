@@ -47,7 +47,6 @@ test = [
 quality = [
     "ruff>=0.0.273,<1.0.0",
     "mypy>=1.2.0",
-    "pydocstyle[toml]>=6.0.0",
     "black==23.3.0",
     "bandit[toml]>=1.7.0,<1.8.0",
     "pre-commit>=2.17.0,<3.0.0",
@@ -76,7 +75,6 @@ dev = [
     # style
     "ruff>=0.0.273,<1.0.0",
     "mypy>=1.2.0",
-    "pydocstyle[toml]>=6.0.0",
     "black==23.3.0",
     "bandit[toml]>=1.7.0,<1.8.0",
     "pre-commit>=2.17.0,<3.0.0",
@@ -168,10 +166,6 @@ module = [
     "matplotlib"
 ]
 ignore_missing_imports = true
-
-[tool.pydocstyle]
-select = "D300,D301,D417"
-match = ".*\\.py"
 
 [tool.black]
 line-length = 120

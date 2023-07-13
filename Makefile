@@ -1,9 +1,7 @@
 # this target runs checks on all files
 quality:
-	isort . -c
 	ruff check .
 	mypy
-	pydocstyle
 	black --check .
 	bandit -r . -c pyproject.toml
 
