@@ -28,7 +28,8 @@ TV_MODELS = [
     "convnext_small",
 ]
 LABEL_MAP = requests.get(
-    "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json"
+    "https://raw.githubusercontent.com/anishathalye/imagenet-simple-labels/master/imagenet-simple-labels.json",
+    timeout=10,
 ).json()
 
 
