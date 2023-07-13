@@ -46,7 +46,7 @@ test = [
 ]
 quality = [
     "ruff>=0.0.273,<1.0.0",
-    "mypy==1.4.0",
+    "mypy==1.4.1",
     "black==23.3.0",
     "bandit[toml]>=1.7.0,<1.8.0",
     "pre-commit>=2.17.0,<3.0.0",
@@ -74,7 +74,7 @@ dev = [
     "torchvision>=0.4.0,<1.0.0",
     # style
     "ruff>=0.0.273,<1.0.0",
-    "mypy==1.4.0",
+    "mypy==1.4.1",
     "black==23.3.0",
     "bandit[toml]>=1.7.0,<1.8.0",
     "pre-commit>=2.17.0,<3.0.0",
