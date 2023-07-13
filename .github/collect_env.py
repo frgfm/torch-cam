@@ -136,7 +136,7 @@ def get_cudnn_version(run_lambda):
     if not files:
         return None
     # Alphabetize the result because the order is non-deterministic otherwise
-    files = list(sorted(files))
+    files = sorted(files)
     if len(files) == 1:
         return files[0]
     result = "\n".join(files)

@@ -35,7 +35,6 @@ class _CAM:
         input_shape: Tuple[int, ...] = (3, 224, 224),
         enable_hooks: bool = True,
     ) -> None:
-
         # Obtain a mapping from module name to module instance for each layer in the model
         self.submodule_dict = dict(model.named_modules())
 
@@ -133,7 +132,6 @@ class _CAM:
 
     def _precheck(self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None) -> None:
         """Check for invalid computation cases."""
-
         for fmap in self.hook_a:
             # Check that forward has already occurred
             if not isinstance(fmap, Tensor):
@@ -159,7 +157,6 @@ class _CAM:
         normalized: bool = True,
         **kwargs: Any,
     ) -> List[Tensor]:
-
         # Integrity check
         self._precheck(class_idx, scores)
 
@@ -180,13 +177,13 @@ class _CAM:
                 the list needs to have valid class indices and have a length equal to the batch size.
             scores: forward output scores of the hooked model of shape (N, K)
             normalized: whether the CAM should be normalized
+            kwargs: keyword args of `_get_weights` method
 
         Returns:
             list of class activation maps of shape (N, H, W), one for each hooked layer. If a list of class indices
                 was passed to arg `class_idx`, the k-th element along the batch axis will be the activation map for
                 the k-th element of the input batch for class index equal to the k-th element of `class_idx`.
         """
-
         # Get map weight & unsqueeze it
         weights = self._get_weights(class_idx, scores, **kwargs)
 
@@ -229,7 +226,6 @@ class _CAM:
         Returns:
             torch.Tensor: fused class activation map
         """
-
         if not isinstance(cams, list) or any(not isinstance(elt, Tensor) for elt in cams):
             raise TypeError("invalid argument type for `cams`")
 

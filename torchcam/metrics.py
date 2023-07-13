@@ -57,7 +57,6 @@ class ClassificationMetric:
         cam_extractor: _CAM,
         logits_fn: Union[Callable[[torch.Tensor], torch.Tensor], None] = None,
     ) -> None:
-
         self.cam_extractor = cam_extractor
         self.logits_fn = logits_fn
         self.reset()
@@ -77,7 +76,6 @@ class ClassificationMetric:
             input_tensor: preprocessed input tensor for the model
             class_idx: class index to focus on (default: index of the top predicted class for each sample)
         """
-
         self.cam_extractor.model.eval()
         probs = self._get_probs(input_tensor)
         # Take the top preds for the cam
@@ -124,10 +122,10 @@ class ClassificationMetric:
         if self.total == 0:
             raise AssertionError("you need to update the metric before getting the summary")
 
-        return dict(
-            avg_drop=self.drop / self.total,
-            conf_increase=self.increase / self.total,
-        )
+        return {
+            "avg_drop": self.drop / self.total,
+            "conf_increase": self.increase / self.total,
+        }
 
     def reset(self) -> None:
         self.drop = 0.0

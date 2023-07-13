@@ -22,7 +22,6 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
     Returns:
         str: the candidate layer for CAM
     """
-
     # Set module in eval mode
     module_mode = mod.training
     mod.eval()
@@ -69,7 +68,6 @@ def locate_linear_layer(mod: nn.Module) -> Optional[str]:
     Returns:
         str: the candidate layer
     """
-
     candidate_layer = None
     for layer_name, m in mod.named_modules():
         if isinstance(m, nn.Linear):
