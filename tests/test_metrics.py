@@ -8,7 +8,6 @@ from torchcam.methods import LayerCAM
 
 
 def test_classification_metric():
-
     model = mobilenet_v3_small(pretrained=False)
     with LayerCAM(model, "features.12") as extractor:
         metric = metrics.ClassificationMetric(extractor, partial(torch.softmax, dim=-1))

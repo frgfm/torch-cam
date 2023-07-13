@@ -25,7 +25,6 @@ def test_locate_candidate_layer(mock_img_model):
 
 
 def test_locate_linear_layer(mock_img_model):
-
     # ResNet-18
     mod = resnet18().eval()
     for p in mod.parameters():

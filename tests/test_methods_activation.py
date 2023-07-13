@@ -87,7 +87,6 @@ def test_video_cams(cam_name, target_layer, num_samples, output_size, mock_video
 
     # Hook the corresponding layer in the model
     with activation.__dict__[cam_name](model, target_layer, **kwargs) as extractor:
-
         with torch.no_grad():
             scores = model(mock_video_tensor)
             # Use the hooked data to compute activation map
