@@ -14,15 +14,15 @@ def _verify_cam(activation_map, output_size):
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, output_size, batch_size",
+    ("cam_name", "target_layer", "output_size", "batch_size"),
     [
-        ["GradCAM", "features.18.0", (7, 7), 1],
-        ["GradCAMpp", "features.18.0", (7, 7), 1],
-        ["SmoothGradCAMpp", lambda m: m.features[18][0], (7, 7), 1],
-        ["SmoothGradCAMpp", "features.18.0", (7, 7), 1],
-        ["XGradCAM", "features.18.0", (7, 7), 1],
-        ["LayerCAM", "features.18.0", (7, 7), 1],
-        ["LayerCAM", "features.18.0", (7, 7), 2],
+        ("GradCAM", "features.18.0", (7, 7), 1),
+        ("GradCAMpp", "features.18.0", (7, 7), 1),
+        ("SmoothGradCAMpp", lambda m: m.features[18][0], (7, 7), 1),
+        ("SmoothGradCAMpp", "features.18.0", (7, 7), 1),
+        ("XGradCAM", "features.18.0", (7, 7), 1),
+        ("LayerCAM", "features.18.0", (7, 7), 1),
+        ("LayerCAM", "features.18.0", (7, 7), 2),
     ],
 )
 def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
@@ -60,13 +60,13 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, output_size",
+    ("cam_name", "target_layer", "output_size"),
     [
-        ["GradCAM", "0.3", (1, 8, 16, 16)],
-        ["GradCAMpp", "0.3", (1, 8, 16, 16)],
-        ["SmoothGradCAMpp", "0.3", (1, 8, 16, 16)],
-        ["XGradCAM", "0.3", (1, 8, 16, 16)],
-        ["LayerCAM", "0.3", (1, 8, 16, 16)],
+        ("GradCAM", "0.3", (1, 8, 16, 16)),
+        ("GradCAMpp", "0.3", (1, 8, 16, 16)),
+        ("SmoothGradCAMpp", "0.3", (1, 8, 16, 16)),
+        ("XGradCAM", "0.3", (1, 8, 16, 16)),
+        ("LayerCAM", "0.3", (1, 8, 16, 16)),
     ],
 )
 def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_video_tensor):

@@ -16,7 +16,8 @@ import os
 import re
 import subprocess
 import sys
-from collections import namedtuple
+from pathlib import Path
+from typing import NamedTuple
 
 try:
     import torchcam
@@ -36,20 +37,16 @@ PY3 = sys.version_info >= (3, 0)
 
 
 # System Environment Information
-SystemEnv = namedtuple(
-    "SystemEnv",
-    [
-        "torchcam_version",
-        "torch_version",
-        "os",
-        "python_version",
-        "is_cuda_available",
-        "cuda_runtime_version",
-        "nvidia_driver_version",
-        "nvidia_gpu_models",
-        "cudnn_version",
-    ],
-)
+class SystemEnv(NamedTuple):
+    torchcam_version: str
+    torch_version: str
+    os: str
+    python_version: str
+    is_cuda_available: bool
+    cuda_runtime_version: str
+    nvidia_driver_version: str
+    nvidia_gpu_models: str
+    cudnn_version: str
 
 
 def run(command):
@@ -125,13 +122,13 @@ def get_cudnn_version(run_lambda):
     # find will return 1 if there are permission errors or if not found
     if len(out) == 0 or rc not in (1, 0):
         lib = os.environ.get("CUDNN_LIBRARY")
-        if lib is not None and os.path.isfile(lib):
+        if lib is not None and Path(lib).is_file():
             return os.path.realpath(lib)
         return None
     files = set()
     for fn in out.split("\n"):
         fn = os.path.realpath(fn)  # eliminate symbolic links
-        if os.path.isfile(fn):
+        if Path(fn).is_file():
             files.add(fn)
     if not files:
         return None
@@ -149,11 +146,11 @@ def get_nvidia_smi():
     if get_platform() == "win32":
         system_root = os.environ.get("SYSTEMROOT", "C:\\Windows")
         program_files_root = os.environ.get("PROGRAMFILES", "C:\\Program Files")
-        legacy_path = os.path.join(program_files_root, "NVIDIA Corporation", "NVSMI", smi)
-        new_path = os.path.join(system_root, "System32", smi)
+        legacy_path = Path(program_files_root) / "NVIDIA Corporation" / "NVSMI" / smi
+        new_path = Path(system_root) / "System32" / smi
         smis = [new_path, legacy_path]
         for candidate_smi in smis:
-            if os.path.exists(candidate_smi):
+            if Path(candidate_smi).exists():
                 smi = '"{}"'.format(candidate_smi)
                 break
     return smi

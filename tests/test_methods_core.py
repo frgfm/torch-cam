@@ -56,13 +56,13 @@ def test_cam_precheck(mock_img_model, mock_img_tensor):
 
 
 @pytest.mark.parametrize(
-    "input_shape, spatial_dims",
+    ("input_shape", "spatial_dims"),
     [
-        [(8, 8), None],
-        [(8, 8, 8), None],
-        [(8, 8, 8), 2],
-        [(8, 8, 8, 8), None],
-        [(8, 8, 8, 8), 3],
+        ((8, 8), None),
+        ((8, 8, 8), None),
+        ((8, 8, 8), 2),
+        ((8, 8, 8, 8), None),
+        ((8, 8, 8, 8), 3),
     ],
 )
 def test_cam_normalize(input_shape, spatial_dims):
@@ -72,7 +72,8 @@ def test_cam_normalize(input_shape, spatial_dims):
     assert normalized_tensor.shape == input_shape
     # Value check
     assert not torch.any(torch.isnan(normalized_tensor))
-    assert torch.all(normalized_tensor <= 1) and torch.all(normalized_tensor >= 0)
+    assert torch.all(normalized_tensor <= 1)
+    assert torch.all(normalized_tensor >= 0)
 
 
 def test_cam_remove_hooks(mock_img_model):

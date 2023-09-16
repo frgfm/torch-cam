@@ -35,7 +35,7 @@ LABEL_MAP = requests.get(
 
 def main():
     # Wide mode
-    st.set_page_config(layout="wide")
+    st.set_page_config(page_title="TorchCAM - Class activation explorer", layout="wide")
 
     # Designing the interface
     st.title("TorchCAM: class activation explorer")

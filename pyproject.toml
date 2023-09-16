@@ -23,6 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -30,10 +31,12 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
     # cf. https://github.com/frgfm/torch-cam/discussions/148
-    "torch>=1.7.0,<2.0.0",
+    "torch>=2.0.0,<3.0.0",
     "numpy>=1.14.0,<2.0.0",
     # cf. https://github.com/advisories/GHSA-98vv-pw6r-q6q4
-    "Pillow>=8.3.2",
+    # cf. https://github.com/pytorch/vision/issues/4934
+    # https://github.com/frgfm/Holocron/security/dependabot/5
+    "Pillow>=8.4.0,!=9.2.0",
     "matplotlib>=3.0.0,<4.0.0",
 ]
 
@@ -42,10 +45,10 @@ test = [
     "pytest>=5.3.2",
     "coverage[toml]>=4.5.4",
     "requests>=2.20.0,<3.0.0",
-    "torchvision>=0.4.0,<1.0.0",
+    "torchvision>=0.15.0,<1.0.0",
 ]
 quality = [
-    "ruff>=0.0.273,<1.0.0",
+    "ruff>=0.0.290,<1.0.0",
     "mypy==1.4.1",
     "black==23.3.0",
     "bandit[toml]>=1.7.0,<1.8.0",
@@ -64,16 +67,16 @@ docs = [
 ]
 demo = [
     "streamlit>=0.65.0,<2.0.0",
-    "torchvision>=0.12.0,<1.0.0",
+    "torchvision>=0.15.0,<1.0.0",
 ]
 dev = [
     # test
     "pytest>=5.3.2",
     "coverage[toml]>=4.5.4",
     "requests>=2.20.0,<3.0.0",
-    "torchvision>=0.4.0,<1.0.0",
+    "torchvision>=0.15.0,<1.0.0",
     # style
-    "ruff>=0.0.273,<1.0.0",
+    "ruff>=0.0.290,<1.0.0",
     "mypy==1.4.1",
     "black==23.3.0",
     "bandit[toml]>=1.7.0,<1.8.0",
@@ -111,7 +114,7 @@ select = [
     "D201","D202","D207","D208","D214","D215","D300","D301","D417", "D419",  # pydocstyle
     "F",  # pyflakes
     "I",  # isort
-    "C",  # flake8-comprehensions
+    "C4",  # flake8-comprehensions
     "B",  # flake8-bugbear
     "CPY001",  # flake8-copyright
     "ISC",  # flake8-implicit-str-concat
@@ -119,6 +122,13 @@ select = [
     "NPY",  # numpy
     "PERF",  # perflint
     "RUF",  # ruff specific
+    "PTH",  # flake8-use-pathlib
+    "S",  # flake8-bandit
+    "N",  # pep8-naming
+    "T10",  # flake8-debugger
+    "T20",  # flake8-print
+    "PT",  # flake8-pytest-style
+    "LOG",  # flake8-logging
 ]
 ignore = [
     "E501",  # line too long, handled by black
@@ -128,28 +138,31 @@ ignore = [
     "F403",  # star imports
     "E731",  # lambda assignment
     "C416",  # list comprehension to list()
+    "N812",  # lowercase imported as non-lowercase
 ]
 exclude = [".git"]
 line-length = 120
 target-version = "py39"
+preview = true
 
 [tool.ruff.per-file-ignores]
 "**/__init__.py" = ["I001", "F401", "CPY001"]
-"scripts/**.py" = ["D"]
-".github/**.py" = ["D"]
+"scripts/**.py" = ["D", "T201", "N812"]
+".github/**.py" = ["D", "T201", "S602"]
 "docs/**.py" = ["E402", "D103"]
-"tests/**.py" = ["D103", "CPY001"]
+"tests/**.py" = ["D103", "CPY001", "S101", "PT011",]
 "demo/**.py" = ["D103"]
+"setup.py" = ["T201"]
 
 [tool.ruff.flake8-quotes]
 docstring-quotes = "double"
 
 [tool.ruff.isort]
-known-first-party = ["app"]
+known-first-party = ["torchcam", "app"]
 known-third-party = ["torch", "torchvision"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 files = "torchcam/"
 show_error_codes = true
 pretty = true
