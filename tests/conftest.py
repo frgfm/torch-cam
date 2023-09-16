@@ -12,8 +12,8 @@ from torchvision.transforms.functional import normalize, resize, to_tensor
 def mock_img_tensor():
     try:
         # Get a dog image
-        URL = "https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg"
-        response = requests.get(URL, timeout=5)
+        url = "https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg"
+        response = requests.get(url, timeout=5)
 
         # Forward an image
         pil_img = Image.open(BytesIO(response.content), mode="r").convert("RGB")

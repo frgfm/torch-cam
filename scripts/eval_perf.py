@@ -11,6 +11,7 @@ import argparse
 import math
 import os
 from functools import partial
+from pathlib import Path
 
 import torch
 from torch.utils.data import SequentialSampler
@@ -49,7 +50,7 @@ def main(args):
     )
 
     ds = ImageFolder(
-        os.path.join(args.data_path, "val"),
+        Path(args.data_path).joinpath("val"),
         T.Compose(eval_tf),
     )
     loader = torch.utils.data.DataLoader(

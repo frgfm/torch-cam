@@ -81,7 +81,12 @@ class _CAM:
     def __enter__(self) -> "_CAM":
         return self
 
-    def __exit__(self, exct_type: Type[BaseException], exce_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(
+        self,
+        exct_type: Union[Type[BaseException], None],
+        exce_value: Union[BaseException, None],
+        traceback: Union[TracebackType, None],
+    ) -> None:
         self.remove_hooks()
         self.reset_hooks()
 

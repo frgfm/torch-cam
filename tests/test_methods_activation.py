@@ -10,11 +10,11 @@ def test_base_cam_constructor(mock_img_model):
     for p in model.parameters():
         p.requires_grad_(False)
     # Check that multiple target layers is disabled for base CAM
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="base CAM does not support multiple target layers"):
         activation.CAM(model, ["classifier.1", "classifier.2"])
 
     # FC layer checks
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="invalid argument type for `target_layer`"):
         activation.CAM(model, fc_layer=3)
 
 
@@ -26,16 +26,16 @@ def _verify_cam(activation_map, output_size):
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, fc_layer, num_samples, output_size, batch_size",
+    ("cam_name", "target_layer", "fc_layer", "num_samples", "output_size", "batch_size"),
     [
-        ["CAM", None, None, None, (7, 7), 1],
-        ["CAM", None, None, None, (7, 7), 2],
-        ["CAM", None, "classifier.1", None, (7, 7), 1],
-        ["CAM", None, lambda m: m.classifier[1], None, (7, 7), 1],
-        ["ScoreCAM", "features.16.conv.3", None, None, (7, 7), 1],
-        ["ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7), 1],
-        ["SSCAM", "features.16.conv.3", None, 4, (7, 7), 1],
-        ["ISCAM", "features.16.conv.3", None, 4, (7, 7), 1],
+        ("CAM", None, None, None, (7, 7), 1),
+        ("CAM", None, None, None, (7, 7), 2),
+        ("CAM", None, "classifier.1", None, (7, 7), 1),
+        ("CAM", None, lambda m: m.classifier[1], None, (7, 7), 1),
+        ("ScoreCAM", "features.16.conv.3", None, None, (7, 7), 1),
+        ("ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7), 1),
+        ("SSCAM", "features.16.conv.3", None, 4, (7, 7), 1),
+        ("ISCAM", "features.16.conv.3", None, 4, (7, 7), 1),
     ],
 )
 def test_img_cams(cam_name, target_layer, fc_layer, num_samples, output_size, batch_size, mock_img_tensor):
@@ -70,12 +70,12 @@ def test_cam_conv1x1(mock_fullyconv_model):
 
 
 @pytest.mark.parametrize(
-    "cam_name, target_layer, num_samples, output_size",
+    ("cam_name", "target_layer", "num_samples", "output_size"),
     [
-        ["CAM", "0.3", None, (1, 8, 16, 16)],
-        ["ScoreCAM", "0.3", None, (1, 8, 16, 16)],
-        ["SSCAM", "0.3", 4, (1, 8, 16, 16)],
-        ["ISCAM", "0.3", 4, (1, 8, 16, 16)],
+        ("CAM", "0.3", None, (1, 8, 16, 16)),
+        ("ScoreCAM", "0.3", None, (1, 8, 16, 16)),
+        ("SSCAM", "0.3", 4, (1, 8, 16, 16)),
+        ("ISCAM", "0.3", 4, (1, 8, 16, 16)),
     ],
 )
 def test_video_cams(cam_name, target_layer, num_samples, output_size, mock_video_model, mock_video_tensor):
