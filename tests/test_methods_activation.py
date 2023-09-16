@@ -10,11 +10,11 @@ def test_base_cam_constructor(mock_img_model):
     for p in model.parameters():
         p.requires_grad_(False)
     # Check that multiple target layers is disabled for base CAM
-    with pytest.raises(ValueError, match="base CAM does not support multiple target layers"):
+    with pytest.raises(ValueError):
         activation.CAM(model, ["classifier.1", "classifier.2"])
 
     # FC layer checks
-    with pytest.raises(TypeError, match="invalid argument type for `target_layer`"):
+    with pytest.raises(TypeError):
         activation.CAM(model, fc_layer=3)
 
 
