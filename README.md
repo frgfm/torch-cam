@@ -1,5 +1,5 @@
 <h1 align="center">
- TorchCAM: class activation explorer
+  TorchCAM: class activation explorer
 </h1>
 
 <p align="center">
