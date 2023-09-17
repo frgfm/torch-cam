@@ -83,45 +83,22 @@ make test
 
 #### Code quality
 
-To run all quality checks together
+The CI will also run some sanity checks (header format, dependency consistency, etc.), which you can run as follows:
 
 ```shell
 make quality
 ```
 
-##### Lint verification
+This will read `pyproject.toml` and run:
+- lint checking ([ruff](https://docs.astral.sh/ruff/))
+- type annotation checking ([mypy](https://github.com/python/mypy))
+- code formatting ([black](https://github.com/psf/black))
+- security checking ([bandit](https://github.com/PyCQA/bandit))
 
-To ensure that your incoming PR complies with the lint settings, you need to install [flake8](https://flake8.pycqa.org/en/latest/) and run the following command from the repository's root folder:
-
-```shell
-flake8 ./
-```
-This will read the `.flake8` setting file and let you know whether your commits need some adjustments.
-
-##### Import order
-
-In order to ensure there is a common import order convention, run [isort](https://github.com/PyCQA/isort) as follows:
+You can apply automatic fix to most of those by running:
 
 ```shell
-isort **/*.py
-```
-This will reorder the imports of your local files.
-
-##### Annotation typing
-
-Additionally, to catch type-related issues and have a cleaner codebase, annotation typing are expected. After installing [mypy](https://github.com/python/mypy), you can run the verifications as follows:
-
-```shell
-mypy
-```
-The `pyproject.toml` file will be read to check your typing.
-
-##### Code formatting
-
-Finally, code formatting is a good practice for shareable projects. After installing [black](https://github.com/psf/black), you can run the verifications as follows:
-
-```shell
-black .
+make style
 ```
 
 ### Submit your modifications
