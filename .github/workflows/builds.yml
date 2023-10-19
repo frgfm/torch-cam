@@ -66,8 +66,8 @@ jobs:
           auto-activate-base: true
       - name: Install dependencies
         run: |
-          mamba env list
-          mamba list -n base | grep '^python\s'
+          conda env list
+          conda list -n base | grep '^python\s'
           conda install -y conda-build conda-verify
       - run: |
           python setup.py sdist
