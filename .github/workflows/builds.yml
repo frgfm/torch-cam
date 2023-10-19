@@ -65,15 +65,12 @@ jobs:
           python-version: "3.9"
       - name: Install dependencies
         shell: bash -el {0}
-        run: |
-          conda env list
-          conda list -n base | grep '^python\s'
-          conda list -n test | grep '^python\s'
-          conda install -y conda-build conda-verify
+        run: conda install -y conda-build conda-verify
       - name: Build conda
         shell: bash -el {0}
         run: |
           python setup.py sdist
           mkdir conda-dist
-          conda-build .conda/ -c pytorch --output-folder conda-dist
+          conda env list
+          conda build .conda/ -c pytorch --output-folder conda-dist
           ls -l conda-dist/noarch/*tar.bz2
