@@ -65,11 +65,12 @@ jobs:
           python-version: "3.9"
           auto-activate-base: true
       - name: Install dependencies
-        run: conda install -y conda-build conda-verify
+        run: |
+          mamba env list
+          mamba list -n base | grep '^python\s'
+          conda install -y conda-build conda-verify
       - run: |
           python setup.py sdist
           mkdir conda-dist
-          mamba env list | grep -v "^$\|#" |awk '{print $1;}'|xargs -I{} -d "\n" sh -c 'printf "Env: {}\t"; conda list -n {} |grep "^python\s";
-          mamba env list
           conda-build .conda/ -c pytorch --output-folder conda-dist
           ls -l conda-dist/noarch/*tar.bz2
