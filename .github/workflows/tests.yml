@@ -32,9 +32,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]" --upgrade
       - name: Run unittests
-        run: |
-          coverage run -m pytest tests/
-          coverage xml
+        run: pytest --cov=torchcam --cov-report xml tests/ -n auto
       - uses: actions/upload-artifact@v2
         with:
           name: coverage-main
@@ -44,11 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: pytest
     steps:
-      - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v3
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
           fail_ci_if_error: true
 
