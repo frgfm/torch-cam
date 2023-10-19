@@ -22,7 +22,7 @@ jobs:
           architecture: x64
       - name: Run ruff
         run: |
-          pip install ruff
+          pip install ruff==0.1.0
           ruff --version
           ruff check --diff .
 
@@ -47,8 +47,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . --upgrade
-          pip install "mypy==1.4.1"
+          pip install -e ".[quality]" --upgrade
       - name: Run mypy
         run: |
           mypy --version
