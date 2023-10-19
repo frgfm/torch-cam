@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import numpy as np
-from matplotlib import cm
+from matplotlib import colormaps as cm
 from PIL import Image
 
 
