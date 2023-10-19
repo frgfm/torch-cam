@@ -12,10 +12,10 @@
   gtag('js', new Date());
   gtag('config', 'UA-148140560-4');
 </script>
-    <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="torchcam.methods" href="methods.html" /><link rel="prev" title="Installation" href="installing.html" />
+    <link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="torchcam.utils" href="utils.html" /><link rel="prev" title="torchcam.methods" href="methods.html" />
 
     <!-- Generated with Sphinx 7.2.6 and Furo 2023.09.10 -->
-        <title>TorchCAM Notebooks - TorchCAM</title>
+        <title>torchcam.metrics - TorchCAM</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=649a27d8" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=135e06be" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
@@ -145,7 +145,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <div class="visually-hidden">Toggle table of contents sidebar</div>
         <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
       </label>
@@ -166,14 +166,14 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
-<ul class="current">
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="installing.html">Installation</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">TorchCAM Notebooks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks.html">TorchCAM Notebooks</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="methods.html">torchcam.methods</a></li>
-<li class="toctree-l1"><a class="reference internal" href="metrics.html">torchcam.metrics</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">torchcam.metrics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="utils.html">torchcam.utils</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Notes</span></p>
@@ -199,7 +199,7 @@
         </a>
         <div class="content-icon-container">
           <div class="edit-this-page">
-  <a class="muted-link" href="https://github.com/frgfm/torch-cam/edit/main/docs/source/notebooks.md" title="Edit this page">
+  <a class="muted-link" href="https://github.com/frgfm/torch-cam/edit/main/docs/source/metrics.rst" title="Edit this page">
     <svg aria-hidden="true" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
       <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
       <path d="M4 20h4l10.5 -10.5a1.5 1.5 0 0 0 -4 -4l-10.5 10.5v4" />
@@ -215,59 +215,107 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <div class="visually-hidden">Toggle table of contents sidebar</div>
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
         <article role="main">
-          <section id="torchcam-notebooks">
-<h1>TorchCAM Notebooks<a class="headerlink" href="#torchcam-notebooks" title="Link to this heading">#</a></h1>
-<p>Here are some notebooks compiled for users to better leverage the library capabilities:</p>
-<table border="1" class="docutils">
-<thead>
-<tr>
-<th style="text-align: left;">Notebook</th>
-<th style="text-align: left;">Description</th>
-<th style="text-align: right;"></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td style="text-align: left;"><a href="https://github.com/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb">Quicktour</a></td>
-<td style="text-align: left;">A presentation of the main features of TorchCAM</td>
-<td style="text-align: right;"><a href="https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></td>
-</tr>
-<tr>
-<td style="text-align: left;"><a href="https://github.com/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb">Latency benchmark</a></td>
-<td style="text-align: left;">How to benchmark the latency of a CAM method</td>
-<td style="text-align: right;"><a href="https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></td>
-</tr>
-</tbody>
-</table></section>
+          <section id="torchcam-metrics">
+<h1>torchcam.metrics<a class="headerlink" href="#torchcam-metrics" title="Link to this heading">#</a></h1>
+<p>Apart from qualitative visual comparison, it is important to have a refined evaluation metric for class activation maps. This submodule is dedicated to the evaluation of CAM methods.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="torchcam.metrics.ClassificationMetric">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">torchcam.metrics.</span></span><span class="sig-name descname"><span class="pre">ClassificationMetric</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cam_extractor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">_CAM</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logits_fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/torchcam/metrics.html#ClassificationMetric"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#torchcam.metrics.ClassificationMetric" title="Link to this definition">#</a></dt>
+<dd><p>Implements Average Drop and Increase in Confidence from <a class="reference external" href="https://arxiv.org/pdf/1710.11063.pdf">“Grad-CAM++: Improved Visual Explanations for Deep
+Convolutional Networks.”</a>.</p>
+<p>The raw aggregated metric is computed as follows:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}\forall N, H, W \in \mathbb{N}, \forall X \in \mathbb{R}^{N*3*H*W},
+\forall m \in \mathcal{M}, \forall c \in \mathcal{C}, \\
+AvgDrop_{m, c}(X) = \frac{1}{N} \sum\limits_{i=1}^N f_{m, c}(X_i) \\
+IncrConf_{m, c}(X) = \frac{1}{N} \sum\limits_{i=1}^N g_{m, c}(X_i)\end{split}\]</div>
+</div>
+<p>where <span class="math notranslate nohighlight">\(\mathcal{C}\)</span> is the set of class activation generators,
+<span class="math notranslate nohighlight">\(\mathcal{M}\)</span> is the set of classification models,
+with the function <span class="math notranslate nohighlight">\(f_{m, c}\)</span> defined as:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\forall x \in \mathbb{R}^{3*H*W},
+f_{m, c}(x) = \frac{\max(0, m(x) - m(E_{m, c}(x) * x))}{m(x)}\]</div>
+</div>
+<p>where <span class="math notranslate nohighlight">\(E_{m, c}(x)\)</span> is the class activation map of <span class="math notranslate nohighlight">\(m\)</span> for input <span class="math notranslate nohighlight">\(x\)</span> with method <span class="math notranslate nohighlight">\(m\)</span>,
+resized to (H, W),</p>
+<p>and with the function <span class="math notranslate nohighlight">\(g_{m, c}\)</span> defined as:</p>
+<div class="math-wrapper docutils container">
+<div class="math notranslate nohighlight">
+\[\begin{split}\forall x \in \mathbb{R}^{3*H*W},
+g_{m, c}(x) = \left\{
+    \begin{array}{ll}
+        1 &amp; \mbox{if } m(x) &lt; m(E_{m, c}(x) * x) \\
+        0 &amp; \mbox{otherwise.}
+    \end{array}
+\right.\end{split}\]</div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">partial</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">torchcam.metrics</span> <span class="kn">import</span> <span class="n">ClassificationMetric</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">metric</span> <span class="o">=</span> <span class="n">ClassificationMetric</span><span class="p">(</span><span class="n">cam_extractor</span><span class="p">,</span> <span class="n">partial</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">softmax</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">metric</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">metric</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="torchcam.metrics.ClassificationMetric.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_tensor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="_modules/torchcam/metrics.html#ClassificationMetric.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#torchcam.metrics.ClassificationMetric.update" title="Link to this definition">#</a></dt>
+<dd><p>Update the state of the metric with new predictions</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_tensor</strong> – preprocessed input tensor for the model</p></li>
+<li><p><strong>class_idx</strong> – class index to focus on (default: index of the top predicted class for each sample)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="torchcam.metrics.ClassificationMetric.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="_modules/torchcam/metrics.html#ClassificationMetric.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#torchcam.metrics.ClassificationMetric.summary" title="Link to this definition">#</a></dt>
+<dd><p>Computes the aggregated metrics</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>a dictionary with the average drop and the increase in confidence</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
 
         </article>
       </div>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="methods.html">
+          <a class="next-page" href="utils.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">torchcam.methods</div>
+                <div class="title">torchcam.utils</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="installing.html">
+          <a class="prev-page" href="methods.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Installation</div>
+                <div class="title">torchcam.methods</div>
                 
               </div>
             </a>
@@ -296,8 +344,31 @@
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">torchcam.metrics</a><ul>
+<li><a class="reference internal" href="#torchcam.metrics.ClassificationMetric"><code class="docutils literal notranslate"><span class="pre">ClassificationMetric</span></code></a><ul>
+<li><a class="reference internal" href="#torchcam.metrics.ClassificationMetric.update"><code class="docutils literal notranslate"><span class="pre">ClassificationMetric.update()</span></code></a></li>
+<li><a class="reference internal" href="#torchcam.metrics.ClassificationMetric.summary"><code class="docutils literal notranslate"><span class="pre">ClassificationMetric.summary()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
@@ -309,5 +380,6 @@
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="_static/copybutton.js?v=f281be69"></script>
     <script src="_static/js/custom.js?v=d052c7dc"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>

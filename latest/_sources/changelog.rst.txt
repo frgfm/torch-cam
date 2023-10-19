@@ -1,6 +1,10 @@
 Changelog
 =========
 
+v0.4.0 (2023-10-19)
+-------------------
+Release note: `v0.4.0 <https://github.com/frgfm/torch-cam/releases/tag/v0.4.0>`_
+
 v0.3.2 (2022-08-02)
 -------------------
 Release note: `v0.3.2 <https://github.com/frgfm/torch-cam/releases/tag/v0.3.2>`_
