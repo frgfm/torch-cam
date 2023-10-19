@@ -12,7 +12,7 @@ style:
 
 # Run tests for the library
 test:
-	coverage run -m pytest tests/
+	pytest --cov=torchcam tests/ -n auto
 
 # Build documentation for current version
 single-docs:
