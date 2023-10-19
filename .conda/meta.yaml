@@ -6,11 +6,11 @@
 # {% set urls = pyproject.get('project', {}).get('urls') %}
 package:
   name: torchcam
-  version: "{{ environ.get('BUILD_VERSION', '0.4.0.dev0') }}"
+  version: "{{ environ.get('BUILD_VERSION', '0.4.1.dev0') }}"
 
 source:
-  fn: torchcam-{{ environ.get('BUILD_VERSION', '0.4.0.dev0') }}.tar.gz
-  url: ../dist/torchcam-{{ environ.get('BUILD_VERSION', '0.4.0.dev0') }}.tar.gz
+  fn: torchcam-{{ environ.get('BUILD_VERSION', '0.4.1.dev0') }}.tar.gz
+  url: ../dist/torchcam-{{ environ.get('BUILD_VERSION', '0.4.1.dev0') }}.tar.gz
 
 build:
   noarch: python
