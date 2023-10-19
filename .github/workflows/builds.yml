@@ -68,6 +68,7 @@ jobs:
         run: |
           conda env list
           conda list -n base | grep '^python\s'
+          conda list -n test | grep '^python\s'
           conda install -y conda-build conda-verify
       - run: |
           python setup.py sdist
