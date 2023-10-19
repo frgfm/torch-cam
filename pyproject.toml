@@ -37,7 +37,7 @@ dependencies = [
     # cf. https://github.com/pytorch/vision/issues/4934
     # https://github.com/frgfm/Holocron/security/dependabot/5
     "Pillow>=8.4.0,!=9.2.0",
-    "matplotlib>=3.0.0,<4.0.0",
+    "matplotlib>=3.7.0,<4.0.0",
 ]
 
 [project.optional-dependencies]
