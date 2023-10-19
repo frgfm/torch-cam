@@ -32,7 +32,7 @@ dynamic = ["version"]
 dependencies = [
     # cf. https://github.com/frgfm/torch-cam/discussions/148
     "torch>=2.0.0,<3.0.0",
-    "numpy>=1.14.0,<2.0.0",
+    "numpy>=1.17.2,<2.0.0",
     # cf. https://github.com/advisories/GHSA-98vv-pw6r-q6q4
     # cf. https://github.com/pytorch/vision/issues/4934
     # https://github.com/frgfm/Holocron/security/dependabot/5
