@@ -26,7 +26,7 @@ def _verify_cam(activation_map, output_size):
     ],
 )
 def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
-    model = mobilenet_v2(pretrained=False).eval()
+    model = mobilenet_v2(weights=None).eval()
     for p in model.parameters():
         p.requires_grad_(False)
 
@@ -79,7 +79,7 @@ def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_
 
 
 def test_smoothgradcampp_repr():
-    model = mobilenet_v2(pretrained=False).eval()
+    model = mobilenet_v2(weights=None).eval()
 
     # Hook the corresponding layer in the model
     with gradient.SmoothGradCAMpp(model, "features.18.0") as extractor:
