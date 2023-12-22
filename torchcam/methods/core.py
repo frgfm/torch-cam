@@ -7,7 +7,7 @@ import logging
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import List, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn.functional as F
@@ -61,7 +61,7 @@ class _CAM:
         else:
             raise TypeError("invalid argument type for `target_layer`")
 
-        if any(name not in self.submodule_dict.keys() for name in target_names):
+        if any(name not in self.submodule_dict for name in target_names):
             raise ValueError(f"Unable to find all submodules {target_names} in the model")
         self.target_names = target_names
         self.model = model
@@ -104,7 +104,7 @@ class _CAM:
 
         return target_name
 
-    def _hook_a(self, module: nn.Module, input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
+    def _hook_a(self, _: nn.Module, _input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""
         if self._hooks_enabled:
             self.hook_a[idx] = output.data
@@ -132,7 +132,7 @@ class _CAM:
         return cams
 
     @abstractmethod
-    def _get_weights(self, class_idx, scores, **kwargs):  # type: ignore[no-untyped-def]
+    def _get_weights(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         raise NotImplementedError
 
     def _precheck(self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None) -> None:
@@ -160,7 +160,7 @@ class _CAM:
         class_idx: Union[int, List[int]],
         scores: Optional[Tensor] = None,
         normalized: bool = True,
-        **kwargs: Any,
+        **kwargs,
     ) -> List[Tensor]:
         # Integrity check
         self._precheck(class_idx, scores)
@@ -173,7 +173,7 @@ class _CAM:
         class_idx: Union[int, List[int]],
         scores: Optional[Tensor] = None,
         normalized: bool = True,
-        **kwargs: Any,
+        **kwargs,
     ) -> List[Tensor]:
         """Compute the CAM for a specific output class.
 
@@ -257,7 +257,13 @@ class _CAM:
         # Interpolate all CAMs
         interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
         scaled_cams = [
-            F.interpolate(cam.unsqueeze(1), target_shape, mode=interpolation_mode, align_corners=False) for cam in cams
+            F.interpolate(
+                cam.unsqueeze(1),
+                target_shape,
+                mode=interpolation_mode,
+                align_corners=False,
+            )
+            for cam in cams
         ]
 
         # Fuse them

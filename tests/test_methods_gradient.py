@@ -35,7 +35,10 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
     with gradient.__dict__[cam_name](model, target_layer) as extractor:
         scores = model(mock_img_tensor.repeat((batch_size,) + (1,) * (mock_img_tensor.ndim - 1)))
         # Use the hooked data to compute activation map
-        _verify_cam(extractor(scores[0].argmax().item(), scores, retain_graph=True)[0], (batch_size, *output_size))
+        _verify_cam(
+            extractor(scores[0].argmax().item(), scores, retain_graph=True)[0],
+            (batch_size, *output_size),
+        )
         # Multiple class indices
         _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
 
@@ -86,7 +89,7 @@ def test_smoothgradcampp_repr():
         assert repr(extractor) == "SmoothGradCAMpp(target_layer=['features.18.0'], num_samples=4, std=0.3)"
 
 
-def test_layercam_fuse_cams(mock_img_model):
+def test_layercam_fuse_cams():
     with pytest.raises(TypeError):
         gradient.LayerCAM.fuse_cams(torch.zeros((3, 32, 32)))
 

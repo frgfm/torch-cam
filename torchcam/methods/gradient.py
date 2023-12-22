@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 from functools import partial
-from typing import Any, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor, nn
@@ -28,7 +28,7 @@ class _GradCAM(_CAM):
         model: nn.Module,
         target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
         # Ensure ReLU is applied before normalization
@@ -43,12 +43,17 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_g[idx] = grad.data
 
-    def _hook_g(self, module: nn.Module, input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
+    def _hook_g(self, _: nn.Module, _input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
             self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
 
-    def _backprop(self, scores: Tensor, class_idx: Union[int, List[int]], retain_graph: bool = False) -> None:
+    def _backprop(
+        self,
+        scores: Tensor,
+        class_idx: Union[int, List[int]],
+        retain_graph: bool = False,
+    ) -> None:
         """Backpropagate the loss for a specific output class"""
         # Backpropagate to get the gradients on the hooked layer
         if isinstance(class_idx, int):
@@ -58,7 +63,7 @@ class _GradCAM(_CAM):
         self.model.zero_grad()
         loss.backward(retain_graph=retain_graph)
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs) -> List[Tensor]:
         raise NotImplementedError
 
 
@@ -94,7 +99,7 @@ class GradCAM(_GradCAM):
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
@@ -146,7 +151,11 @@ class GradCAMpp(_GradCAM):
     """
 
     def _get_weights(
-        self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
+        self,
+        class_idx: Union[int, List[int]],
+        scores: Tensor,
+        eps: float = 1e-8,
+        **kwargs,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
@@ -230,7 +239,7 @@ class SmoothGradCAMpp(_GradCAM):
         num_samples: int = 4,
         std: float = 0.3,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
         # Model scores is not used by the extractor
@@ -245,13 +254,17 @@ class SmoothGradCAMpp(_GradCAM):
         # Specific input hook updater
         self._ihook_enabled = True
 
-    def _store_input(self, module: nn.Module, input: Tensor) -> None:
+    def _store_input(self, _: nn.Module, _input: Tensor) -> None:
         """Store model input tensor."""
         if self._ihook_enabled:
-            self._input = input[0].data.clone()
+            self._input = _input[0].data.clone()
 
     def _get_weights(
-        self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None, eps: float = 1e-8, **kwargs: Any
+        self,
+        class_idx: Union[int, List[int]],
+        _: Optional[Tensor] = None,
+        eps: float = 1e-8,
+        **kwargs,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Disable input update
@@ -332,7 +345,11 @@ class XGradCAM(_GradCAM):
     """
 
     def _get_weights(
-        self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
+        self,
+        class_idx: Union[int, List[int]],
+        scores: Tensor,
+        eps: float = 1e-8,
+        **kwargs,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
@@ -378,7 +395,7 @@ class LayerCAM(_GradCAM):
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)

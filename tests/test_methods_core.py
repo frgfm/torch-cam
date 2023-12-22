@@ -32,27 +32,26 @@ def test_cam_context_manager(mock_img_model):
 
 def test_cam_precheck(mock_img_model, mock_img_tensor):
     model = mock_img_model.eval()
-    with core._CAM(model, "0.3") as extractor:
-        with torch.no_grad():
-            # Check missing forward raises Error
-            with pytest.raises(AssertionError):
+    with core._CAM(model, "0.3") as extractor, torch.no_grad():
+        # Check missing forward raises Error
+        with pytest.raises(AssertionError):
+            extractor(0)
+
+        # Correct forward
+        model(mock_img_tensor)
+
+        # Check incorrect class index
+        with pytest.raises(ValueError):
+            extractor(-1)
+
+        # Check incorrect class index
+        with pytest.raises(ValueError):
+            extractor([-1])
+
+        # Check missing score
+        if extractor._score_used:
+            with pytest.raises(ValueError):
                 extractor(0)
-
-            # Correct forward
-            model(mock_img_tensor)
-
-            # Check incorrect class index
-            with pytest.raises(ValueError):
-                extractor(-1)
-
-            # Check incorrect class index
-            with pytest.raises(ValueError):
-                extractor([-1])
-
-            # Check missing score
-            if extractor._score_used:
-                with pytest.raises(ValueError):
-                    extractor(0)
 
 
 @pytest.mark.parametrize(

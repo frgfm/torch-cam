@@ -5,7 +5,7 @@
 
 import logging
 import math
-from typing import Any, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -52,7 +52,7 @@ class CAM(_CAM):
         target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         fc_layer: Optional[Union[nn.Module, str]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         if isinstance(target_layer, list) and len(target_layer) > 1:
             raise ValueError("base CAM does not support multiple target layers")
@@ -84,7 +84,7 @@ class CAM(_CAM):
     def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
-        *args: Any,
+        *_,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Take the FC weights of the target class
@@ -139,7 +139,7 @@ class ScoreCAM(_CAM):
         target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         batch_size: int = 32,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
 
@@ -149,10 +149,10 @@ class ScoreCAM(_CAM):
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
-    def _store_input(self, module: nn.Module, input: Tensor) -> None:
+    def _store_input(self, _: nn.Module, _input: Tensor) -> None:
         """Store model input tensor."""
         if self._hooks_enabled:
-            self._input = input[0].data.clone()
+            self._input = _input[0].data.clone()
 
     @torch.no_grad()
     def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
@@ -190,7 +190,7 @@ class ScoreCAM(_CAM):
     def _get_weights(  # type: ignore[override]
         self,
         class_idx: Union[int, List[int]],
-        *args: Any,
+        *_,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         self.hook_a: List[Tensor]  # type: ignore[assignment]
@@ -204,7 +204,12 @@ class ScoreCAM(_CAM):
         spatial_dims = self._input.ndim - 2
         interpolation_mode = "bilinear" if spatial_dims == 2 else "trilinear" if spatial_dims == 3 else "nearest"
         upsampled_a = [
-            F.interpolate(up_a, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
+            F.interpolate(
+                up_a,
+                self._input.shape[2:],
+                mode=interpolation_mode,
+                align_corners=False,
+            )
             for up_a in upsampled_a
         ]
 
@@ -279,7 +284,7 @@ class SSCAM(ScoreCAM):
         num_samples: int = 35,
         std: float = 2.0,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
@@ -375,7 +380,7 @@ class ISCAM(ScoreCAM):
         batch_size: int = 32,
         num_samples: int = 10,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs: Any,
+        **kwargs,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 

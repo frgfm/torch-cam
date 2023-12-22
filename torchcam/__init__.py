@@ -1,6 +1,5 @@
+from contextlib import suppress
 from torchcam import methods, metrics, utils
 
-try:
+with suppress(ImportError):
     from .version import __version__
-except ImportError:
-    pass
