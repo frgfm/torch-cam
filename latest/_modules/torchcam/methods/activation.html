@@ -297,10 +297,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_fc_weights</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="mi">2</span><span class="p">])</span>
 
     <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
-    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">class_idx</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-        <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">_</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps.&quot;&quot;&quot;</span>
         <span class="c1"># Take the FC weights of the target class</span>
@@ -368,10 +368,10 @@
         <span class="c1"># Ensure ReLU is applied to CAM before normalization</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span> <span class="o">=</span> <span class="kc">True</span>
 
-    <span class="k">def</span> <span class="nf">_store_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="nb">input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">_store_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">_input</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Store model input tensor.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hooks_enabled</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">=</span> <span class="nb">input</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_input</span> <span class="o">=</span> <span class="n">_input</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
 
     <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
     <span class="k">def</span> <span class="nf">_get_score_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">activations</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">class_idx</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
@@ -406,10 +406,10 @@
         <span class="k">return</span> <span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">]</span>
 
     <span class="nd">@torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">()</span>
-    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span>  <span class="c1"># type: ignore[override]</span>
+    <span class="k">def</span> <span class="nf">_get_weights</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">class_idx</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
-        <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="o">*</span><span class="n">_</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the weight coefficients of the hooked activation maps.&quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hook_a</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tensor</span><span class="p">]</span>  <span class="c1"># type: ignore[assignment]</span>
@@ -423,7 +423,12 @@
         <span class="n">spatial_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">2</span>
         <span class="n">interpolation_mode</span> <span class="o">=</span> <span class="s2">&quot;bilinear&quot;</span> <span class="k">if</span> <span class="n">spatial_dims</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">else</span> <span class="s2">&quot;trilinear&quot;</span> <span class="k">if</span> <span class="n">spatial_dims</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">else</span> <span class="s2">&quot;nearest&quot;</span>
         <span class="n">upsampled_a</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">up_a</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:],</span> <span class="n">mode</span><span class="o">=</span><span class="n">interpolation_mode</span><span class="p">,</span> <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+                <span class="n">up_a</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">interpolation_mode</span><span class="p">,</span>
+                <span class="n">align_corners</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">)</span>
             <span class="k">for</span> <span class="n">up_a</span> <span class="ow">in</span> <span class="n">upsampled_a</span>
         <span class="p">]</span>
 
