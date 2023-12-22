@@ -51,8 +51,8 @@ test = [
 ]
 quality = [
     "ruff==0.1.9",
-    "mypy==1.6.1",
-    "pre-commit>=2.17.0,<3.0.0",
+    "mypy==1.8.0",
+    "pre-commit>=3.0.0,<4.0.0",
 ]
 docs = [
     "sphinx>=3.0.0,!=3.5.0",
@@ -79,8 +79,8 @@ dev = [
     "pytest-pretty>=1.0.0,<2.0.0",
     # style
     "ruff==0.1.9",
-    "mypy==1.6.1",
-    "pre-commit>=2.17.0,<3.0.0",
+    "mypy==1.8.0",
+    "pre-commit>=3.0.0,<4.0.0",
     # docs
     "sphinx>=3.0.0,!=3.5.0",
     "furo>=2022.3.4",
@@ -155,6 +155,7 @@ ignore = [
     "COM812",  # trailing comma missing
     "N812",  # lowercase imported as non-lowercase
     "ISC001",  # implicit string concatenation (handled by format)
+    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
 ]
 exclude = [".git"]
 line-length = 120

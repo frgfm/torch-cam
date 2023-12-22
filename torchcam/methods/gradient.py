@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 from functools import partial
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union, cast
 
 import torch
 from torch import Tensor, nn
@@ -28,7 +28,7 @@ class _GradCAM(_CAM):
         model: nn.Module,
         target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
         # Ensure ReLU is applied before normalization
@@ -63,9 +63,6 @@ class _GradCAM(_CAM):
         self.model.zero_grad()
         loss.backward(retain_graph=retain_graph)
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs) -> List[Tensor]:
-        raise NotImplementedError
-
 
 class GradCAM(_GradCAM):
     r"""Implements a class activation map extractor as described in `"Grad-CAM: Visual Explanations from Deep Networks
@@ -99,7 +96,7 @@ class GradCAM(_GradCAM):
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs) -> List[Tensor]:
+    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
@@ -155,7 +152,7 @@ class GradCAMpp(_GradCAM):
         class_idx: Union[int, List[int]],
         scores: Tensor,
         eps: float = 1e-8,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
@@ -239,7 +236,7 @@ class SmoothGradCAMpp(_GradCAM):
         num_samples: int = 4,
         std: float = 0.3,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
         # Model scores is not used by the extractor
@@ -262,9 +259,9 @@ class SmoothGradCAMpp(_GradCAM):
     def _get_weights(
         self,
         class_idx: Union[int, List[int]],
-        _: Optional[Tensor] = None,
+        _: Union[Tensor, None] = None,
         eps: float = 1e-8,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Disable input update
@@ -349,7 +346,7 @@ class XGradCAM(_GradCAM):
         class_idx: Union[int, List[int]],
         scores: Tensor,
         eps: float = 1e-8,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
@@ -395,7 +392,7 @@ class LayerCAM(_GradCAM):
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs) -> List[Tensor]:
+    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
@@ -407,4 +404,4 @@ class LayerCAM(_GradCAM):
     @staticmethod
     def _scale_cams(cams: List[Tensor], gamma: float = 2.0) -> List[Tensor]:
         # cf. Equation 9 in the paper
-        return [torch.tanh(gamma * cam) for cam in cams]
+        return [torch.tanh(cast(Tensor, gamma * cam)) for cam in cams]

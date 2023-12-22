@@ -7,7 +7,7 @@ import logging
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
-from typing import List, Optional, Tuple, Type, Union
+from typing import Any, List, Optional, Tuple, Type, Union, cast
 
 import torch
 import torch.nn.functional as F
@@ -132,7 +132,7 @@ class _CAM:
         return cams
 
     @abstractmethod
-    def _get_weights(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+    def _get_weights(self, class_idx: Union[int, List[int]], *args: Any, **kwargs: Any) -> List[Tensor]:
         raise NotImplementedError
 
     def _precheck(self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None) -> None:
@@ -160,7 +160,7 @@ class _CAM:
         class_idx: Union[int, List[int]],
         scores: Optional[Tensor] = None,
         normalized: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[Tensor]:
         # Integrity check
         self._precheck(class_idx, scores)
@@ -173,7 +173,7 @@ class _CAM:
         class_idx: Union[int, List[int]],
         scores: Optional[Tensor] = None,
         normalized: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[Tensor]:
         """Compute the CAM for a specific output class.
 
@@ -243,7 +243,7 @@ class _CAM:
             if isinstance(target_shape, tuple):
                 _shape = target_shape
             else:
-                _shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))  # type: ignore[assignment]
+                _shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))
             # Scale cams
             scaled_cams = cls._scale_cams(cams)
             return cls._fuse_cams(scaled_cams, _shape)
@@ -267,4 +267,4 @@ class _CAM:
         ]
 
         # Fuse them
-        return torch.stack(scaled_cams).max(dim=0).values.squeeze(1)
+        return cast(Tensor, torch.stack(scaled_cams).max(dim=0).values.squeeze(1))

@@ -5,7 +5,7 @@
 
 import logging
 import math
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -52,7 +52,7 @@ class CAM(_CAM):
         target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         fc_layer: Optional[Union[nn.Module, str]] = None,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         if isinstance(target_layer, list) and len(target_layer) > 1:
             raise ValueError("base CAM does not support multiple target layers")
@@ -81,10 +81,10 @@ class CAM(_CAM):
             self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
 
     @torch.no_grad()
-    def _get_weights(  # type: ignore[override]
+    def _get_weights(
         self,
         class_idx: Union[int, List[int]],
-        *_,
+        *_: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Take the FC weights of the target class
@@ -139,7 +139,7 @@ class ScoreCAM(_CAM):
         target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
         batch_size: int = 32,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
 
@@ -187,10 +187,10 @@ class ScoreCAM(_CAM):
         return [torch.softmax(w.view(b, c), -1) for w in weights]
 
     @torch.no_grad()
-    def _get_weights(  # type: ignore[override]
+    def _get_weights(
         self,
         class_idx: Union[int, List[int]],
-        *_,
+        *_: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         self.hook_a: List[Tensor]  # type: ignore[assignment]
@@ -284,7 +284,7 @@ class SSCAM(ScoreCAM):
         num_samples: int = 35,
         std: float = 2.0,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
@@ -380,7 +380,7 @@ class ISCAM(ScoreCAM):
         batch_size: int = 32,
         num_samples: int = 10,
         input_shape: Tuple[int, ...] = (3, 224, 224),
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
