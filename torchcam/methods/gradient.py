@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 from functools import partial
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union, cast
 
 import torch
 from torch import Tensor, nn
@@ -43,12 +43,17 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_g[idx] = grad.data
 
-    def _hook_g(self, module: nn.Module, input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
+    def _hook_g(self, _: nn.Module, _input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
             self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
 
-    def _backprop(self, scores: Tensor, class_idx: Union[int, List[int]], retain_graph: bool = False) -> None:
+    def _backprop(
+        self,
+        scores: Tensor,
+        class_idx: Union[int, List[int]],
+        retain_graph: bool = False,
+    ) -> None:
         """Backpropagate the loss for a specific output class"""
         # Backpropagate to get the gradients on the hooked layer
         if isinstance(class_idx, int):
@@ -57,9 +62,6 @@ class _GradCAM(_CAM):
             loss = scores.gather(1, torch.tensor(class_idx, device=scores.device).view(-1, 1)).sum()
         self.model.zero_grad()
         loss.backward(retain_graph=retain_graph)
-
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
-        raise NotImplementedError
 
 
 class GradCAM(_GradCAM):
@@ -146,7 +148,11 @@ class GradCAMpp(_GradCAM):
     """
 
     def _get_weights(
-        self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
+        self,
+        class_idx: Union[int, List[int]],
+        scores: Tensor,
+        eps: float = 1e-8,
+        **kwargs: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
@@ -245,13 +251,17 @@ class SmoothGradCAMpp(_GradCAM):
         # Specific input hook updater
         self._ihook_enabled = True
 
-    def _store_input(self, module: nn.Module, input: Tensor) -> None:
+    def _store_input(self, _: nn.Module, _input: Tensor) -> None:
         """Store model input tensor."""
         if self._ihook_enabled:
-            self._input = input[0].data.clone()
+            self._input = _input[0].data.clone()
 
     def _get_weights(
-        self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None, eps: float = 1e-8, **kwargs: Any
+        self,
+        class_idx: Union[int, List[int]],
+        _: Union[Tensor, None] = None,
+        eps: float = 1e-8,
+        **kwargs: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Disable input update
@@ -332,7 +342,11 @@ class XGradCAM(_GradCAM):
     """
 
     def _get_weights(
-        self, class_idx: Union[int, List[int]], scores: Tensor, eps: float = 1e-8, **kwargs: Any
+        self,
+        class_idx: Union[int, List[int]],
+        scores: Tensor,
+        eps: float = 1e-8,
+        **kwargs: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
@@ -390,4 +404,4 @@ class LayerCAM(_GradCAM):
     @staticmethod
     def _scale_cams(cams: List[Tensor], gamma: float = 2.0) -> List[Tensor]:
         # cf. Equation 9 in the paper
-        return [torch.tanh(gamma * cam) for cam in cams]
+        return [torch.tanh(cast(Tensor, gamma * cam)) for cam in cams]

@@ -81,10 +81,10 @@ class CAM(_CAM):
             self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
 
     @torch.no_grad()
-    def _get_weights(  # type: ignore[override]
+    def _get_weights(
         self,
         class_idx: Union[int, List[int]],
-        *args: Any,
+        *_: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Take the FC weights of the target class
@@ -149,10 +149,10 @@ class ScoreCAM(_CAM):
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
-    def _store_input(self, module: nn.Module, input: Tensor) -> None:
+    def _store_input(self, _: nn.Module, _input: Tensor) -> None:
         """Store model input tensor."""
         if self._hooks_enabled:
-            self._input = input[0].data.clone()
+            self._input = _input[0].data.clone()
 
     @torch.no_grad()
     def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
@@ -187,10 +187,10 @@ class ScoreCAM(_CAM):
         return [torch.softmax(w.view(b, c), -1) for w in weights]
 
     @torch.no_grad()
-    def _get_weights(  # type: ignore[override]
+    def _get_weights(
         self,
         class_idx: Union[int, List[int]],
-        *args: Any,
+        *_: Any,
     ) -> List[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         self.hook_a: List[Tensor]  # type: ignore[assignment]
@@ -204,7 +204,12 @@ class ScoreCAM(_CAM):
         spatial_dims = self._input.ndim - 2
         interpolation_mode = "bilinear" if spatial_dims == 2 else "trilinear" if spatial_dims == 3 else "nearest"
         upsampled_a = [
-            F.interpolate(up_a, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
+            F.interpolate(
+                up_a,
+                self._input.shape[2:],
+                mode=interpolation_mode,
+                align_corners=False,
+            )
             for up_a in upsampled_a
         ]
 

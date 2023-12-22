@@ -18,7 +18,9 @@ def mock_img_tensor():
         # Forward an image
         pil_img = Image.open(BytesIO(response.content), mode="r").convert("RGB")
         img_tensor = normalize(
-            to_tensor(resize(pil_img, (224, 224))), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
+            to_tensor(resize(pil_img, (224, 224))),
+            [0.485, 0.456, 0.406],
+            [0.229, 0.224, 0.225],
         ).unsqueeze(0)
     except ConnectionError:
         img_tensor = torch.rand((1, 3, 224, 224))

@@ -40,14 +40,12 @@ def main(args):
     scale_size = min(int(math.floor(args.size / crop_pct)), 320)
     if scale_size < 320:
         eval_tf.append(T.Resize(scale_size))
-    eval_tf.extend(
-        [
-            T.CenterCrop(args.size),
-            T.PILToTensor(),
-            T.ConvertImageDtype(torch.float32),
-            T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ]
-    )
+    eval_tf.extend([
+        T.CenterCrop(args.size),
+        T.PILToTensor(),
+        T.ConvertImageDtype(torch.float32),
+        T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    ])
 
     ds = ImageFolder(
         Path(args.data_path).joinpath("val"),
@@ -80,17 +78,32 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="CAM method performance evaluation", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="CAM method performance evaluation",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("data_path", type=str, help="path to dataset folder")
     parser.add_argument("method", type=str, help="CAM method to use")
-    parser.add_argument("--arch", type=str, default="mobilenet_v3_large", help="Name of the torchvision architecture")
+    parser.add_argument(
+        "--arch",
+        type=str,
+        default="mobilenet_v3_large",
+        help="Name of the torchvision architecture",
+    )
     parser.add_argument("--target", type=str, default=None, help="Target layer name")
     parser.add_argument("--size", type=int, default=224, help="The image input size")
     parser.add_argument("-b", "--batch-size", default=32, type=int, help="batch size")
-    parser.add_argument("--device", type=str, default=None, help="Default device to perform computation on")
     parser.add_argument(
-        "-j", "--workers", default=min(os.cpu_count(), 16), type=int, help="number of data loading workers"
+        "--device",
+        type=str,
+        default=None,
+        help="Default device to perform computation on",
+    )
+    parser.add_argument(
+        "-j",
+        "--workers",
+        default=min(os.cpu_count(), 16),
+        type=int,
+        help="number of data loading workers",
     )
     args = parser.parse_args()
 

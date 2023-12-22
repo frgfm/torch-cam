@@ -50,11 +50,9 @@ test = [
     "pytest-pretty>=1.0.0,<2.0.0",
 ]
 quality = [
-    "ruff==0.1.0",
-    "mypy==1.5.1",
-    "black==23.3.0",
-    "bandit[toml]>=1.7.0,<1.8.0",
-    "pre-commit>=2.17.0,<3.0.0",
+    "ruff==0.1.9",
+    "mypy==1.8.0",
+    "pre-commit>=3.0.0,<4.0.0",
 ]
 docs = [
     "sphinx>=3.0.0,!=3.5.0",
@@ -80,11 +78,9 @@ dev = [
     "pytest-xdist>=3.0.0,<4.0.0",
     "pytest-pretty>=1.0.0,<2.0.0",
     # style
-    "ruff==0.1.0",
-    "mypy==1.5.1",
-    "black==23.3.0",
-    "bandit[toml]>=1.7.0,<1.8.0",
-    "pre-commit>=2.17.0,<3.0.0",
+    "ruff==0.1.9",
+    "mypy==1.8.0",
+    "pre-commit>=3.0.0,<4.0.0",
     # docs
     "sphinx>=3.0.0,!=3.5.0",
     "furo>=2022.3.4",
@@ -133,6 +129,16 @@ select = [
     "T20",  # flake8-print
     "PT",  # flake8-pytest-style
     "LOG",  # flake8-logging
+    "SIM",  # flake8-simplify
+    "YTT",  # flake8-2020
+    "ANN",  # flake8-annotations
+    "ASYNC",  # flake8-async
+    "BLE",  # flake8-blind-except
+    "A",  # flake8-builtins
+    "ICN",  # flake8-import-conventions
+    "PIE",  # flake8-pie
+    "ARG",  # flake8-unused-arguments
+    "FURB",  # refurb
 ]
 ignore = [
     "E501",  # line too long, handled by black
@@ -142,20 +148,31 @@ ignore = [
     "F403",  # star imports
     "E731",  # lambda assignment
     "C416",  # list comprehension to list()
+    "ANN101",  # missing type annotations on self
+    "ANN102",  # missing type annotations on cls
+    "ANN002",  # missing type annotations on *args
+    "ANN003",  # missing type annotations on **kwargs
+    "COM812",  # trailing comma missing
     "N812",  # lowercase imported as non-lowercase
+    "ISC001",  # implicit string concatenation (handled by format)
+    "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
 ]
 exclude = [".git"]
 line-length = 120
 target-version = "py39"
 preview = true
 
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
 [tool.ruff.per-file-ignores]
 "**/__init__.py" = ["I001", "F401", "CPY001"]
-"scripts/**.py" = ["D", "T201", "N812"]
-".github/**.py" = ["D", "T201", "S602"]
-"docs/**.py" = ["E402", "D103"]
-"tests/**.py" = ["D103", "CPY001", "S101", "PT011",]
-"demo/**.py" = ["D103"]
+"scripts/**.py" = ["D", "T201", "N812", "S101", "ANN"]
+".github/**.py" = ["D", "T201", "S602", "S101", "ANN"]
+"docs/**.py" = ["E402", "D103", "ANN", "A001", "ARG001"]
+"tests/**.py" = ["D103", "CPY001", "S101", "PT011", "ANN"]
+"demo/**.py" = ["D103", "ANN"]
 "setup.py" = ["T201"]
 
 [tool.ruff.flake8-quotes]
@@ -177,6 +194,7 @@ no_implicit_optional = true
 check_untyped_defs = true
 implicit_reexport = false
 disallow_untyped_defs = true
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = [
@@ -184,11 +202,3 @@ module = [
     "matplotlib"
 ]
 ignore_missing_imports = true
-
-[tool.black]
-line-length = 120
-target-version = ['py39']
-
-[tool.bandit]
-exclude_dirs = [".github/collect_env.py"]
-skips = ["B101"]

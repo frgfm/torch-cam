@@ -60,13 +60,24 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="CAM method latency benchmark", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="CAM method latency benchmark",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("method", type=str, help="CAM method to use")
-    parser.add_argument("--arch", type=str, default="resnet18", help="Name of the torchvision architecture")
+    parser.add_argument(
+        "--arch",
+        type=str,
+        default="resnet18",
+        help="Name of the torchvision architecture",
+    )
     parser.add_argument("--size", type=int, default=224, help="The image input size")
     parser.add_argument("--class-idx", type=int, default=232, help="Index of the class to inspect")
-    parser.add_argument("--device", type=str, default=None, help="Default device to perform computation on")
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help="Default device to perform computation on",
+    )
     parser.add_argument("--it", type=int, default=100, help="Number of iterations to run")
     args = parser.parse_args()
 

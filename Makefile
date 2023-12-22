@@ -1,13 +1,12 @@
 # this target runs checks on all files
 quality:
+	ruff format --check .
 	ruff check .
 	mypy
-	black --check .
-	bandit -r . -c pyproject.toml
 
 # this target runs checks on all files and potentially modifies some of them
 style:
-	black .
+	ruff format .
 	ruff --fix .
 
 # Run tests for the library

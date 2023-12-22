@@ -19,7 +19,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, Path().resolve().parent.parent)
+sys.path.insert(0, Path().cwd().parent.parent)
 import torchcam
 
 # -- Project information -----------------------------------------------------
@@ -121,9 +121,7 @@ def add_ga_javascript(app, pagename, templatename, context, doctree):
   gtag('js', new Date());
   gtag('config', '{0}');
 </script>
-    """.format(
-        app.config.googleanalytics_id
-    )
+    """.format(app.config.googleanalytics_id)
     context["metatags"] = metatags
 
 

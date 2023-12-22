@@ -17,7 +17,17 @@ from torchcam import methods
 from torchcam.methods._utils import locate_candidate_layer
 from torchcam.utils import overlay_mask
 
-CAM_METHODS = ["CAM", "GradCAM", "GradCAMpp", "SmoothGradCAMpp", "ScoreCAM", "SSCAM", "ISCAM", "XGradCAM", "LayerCAM"]
+CAM_METHODS = [
+    "CAM",
+    "GradCAM",
+    "GradCAMpp",
+    "SmoothGradCAMpp",
+    "ScoreCAM",
+    "SSCAM",
+    "ISCAM",
+    "XGradCAM",
+    "LayerCAM",
+]
 TV_MODELS = [
     "resnet18",
     "resnet50",
@@ -87,7 +97,8 @@ def main():
     )
     if cam_method is not None:
         cam_extractor = methods.__dict__[cam_method](
-            model, target_layer=[s.strip() for s in target_layer.split("+")] if len(target_layer) > 0 else None
+            model,
+            target_layer=[s.strip() for s in target_layer.split("+")] if len(target_layer) > 0 else None,
         )
 
     class_choices = [f"{idx + 1} - {class_name}" for idx, class_name in enumerate(LABEL_MAP)]
@@ -103,7 +114,11 @@ def main():
         else:
             with st.spinner("Analyzing..."):
                 # Preprocess image
-                img_tensor = normalize(to_tensor(resize(img, (224, 224))), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                img_tensor = normalize(
+                    to_tensor(resize(img, (224, 224))),
+                    [0.485, 0.456, 0.406],
+                    [0.229, 0.224, 0.225],
+                )
 
                 if torch.cuda.is_available():
                     img_tensor = img_tensor.cuda()

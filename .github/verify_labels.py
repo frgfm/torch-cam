@@ -71,7 +71,8 @@ def parse_args():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="PR label checker", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="PR label checker",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     parser.add_argument("pr", type=int, help="PR number")

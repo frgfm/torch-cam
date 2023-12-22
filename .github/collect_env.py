@@ -217,10 +217,7 @@ def get_os(run_lambda):
 def get_env_info():
     run_lambda = run
 
-    if TORCHCAM_AVAILABLE:
-        torchcam_str = torchcam.__version__
-    else:
-        torchcam_str = "N/A"
+    torchcam_str = torchcam.__version__ if TORCHCAM_AVAILABLE else "N/A"
 
     if TORCH_AVAILABLE:
         torch_str = torch.__version__
@@ -258,14 +255,14 @@ cuDNN version: {cudnn_version}
 
 def pretty_str(envinfo):
     def replace_nones(dct, replacement="Could not collect"):
-        for key in dct.keys():
+        for key in dct:
             if dct[key] is not None:
                 continue
             dct[key] = replacement
         return dct
 
     def replace_bools(dct, true="Yes", false="No"):
-        for key in dct.keys():
+        for key in dct:
             if dct[key] is True:
                 dct[key] = true
             elif dct[key] is False:
