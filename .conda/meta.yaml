@@ -1,16 +1,14 @@
-# https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html#loading-data-from-other-files
-# https://github.com/conda/conda-build/pull/4480
-# for conda-build > 3.21.9
-# {% set pyproject = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
-# {% set project = pyproject.get('project') %}
-# {% set urls = pyproject.get('project', {}).get('urls') %}
+{% set pyproject = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
+{% set project = pyproject.get('project') %}
+{% set urls = pyproject.get('project', {}).get('urls') %}
+{% set version = environ.get('BUILD_VERSION', '0.4.1.dev0') %}
 package:
-  name: torchcam
-  version: "{{ environ.get('BUILD_VERSION', '0.4.1.dev0') }}"
+  name: {{ project.get('name') }}
+  version: {{ version }}
 
 source:
-  fn: torchcam-{{ environ.get('BUILD_VERSION', '0.4.1.dev0') }}.tar.gz
-  url: ../dist/torchcam-{{ environ.get('BUILD_VERSION', '0.4.1.dev0') }}.tar.gz
+  fn: {{ project.get('name') }}-{{ version }}.tar.gz
+  url: ../dist/{{ project.get('name') }}-{{ version }}.tar.gz
 
 build:
   noarch: python
@@ -25,7 +23,7 @@ requirements:
     - pytorch >=2.0.0, <3.0.0
     - numpy >=1.17.2, <2.0.0
     - pillow >=8.4.0, !=9.2.0
-    - matplotlib >=3.0.0, <4.0.0
+    - matplotlib >=3.7.0, <4.0.0
 
 test:
   # Python imports
@@ -38,11 +36,11 @@ test:
     - python
 
 about:
-  home: https://github.com/frgfm/torch-cam
+  home: {{ urls.get('repository') }}
   license: Apache 2.0
-  license_file: LICENSE
-  summary: 'Class activation maps for your PyTorch CNN models'
+  license_file: {{ project.get('license', {}).get('file') }}
+  summary: {{ project.get('description') }}
   # description: |
   #   {{ data['long_description'] | replace("\n", "\n    ") | replace("#", '\#')}}
-  doc_url: https://frgfm.github.io/torch-cam/
-  dev_url: https://github.com/frgfm/torch-cam
+  doc_url: {{ urls.get('documentation') }}
+  dev_url: {{ urls.get('repository') }}
