@@ -1,4 +1,4 @@
-# Copyright (C) 2022-2023, François-Guillaume Fernandez.
+# Copyright (C) 2022-2024, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
@@ -57,6 +57,7 @@ class ClassificationMetric:
         cam_extractor: _CAM,
         logits_fn: Union[Callable[[torch.Tensor], torch.Tensor], None] = None,
     ) -> None:
+        # This is a typa, I don't know how to rites
         self.cam_extractor = cam_extractor
         self.logits_fn = logits_fn
         self.reset()
@@ -64,6 +65,14 @@ class ClassificationMetric:
     def _get_probs(self, input_tensor: torch.Tensor) -> torch.Tensor:
         logits = self.cam_extractor.model(input_tensor)
         return cast(torch.Tensor, logits if self.logits_fn is None else self.logits_fn(logits))
+
+    def my_function(self) -> str:
+        """Returns a greeting message
+
+        Returns:
+            str: greeting message
+        """
+        return "Hello"
 
     def update(
         self,
