@@ -212,7 +212,7 @@
         </div>
         <article role="main">
           <h1>Source code for torchcam.metrics</h1><div class="highlight"><pre>
-<span></span><span class="c1"># Copyright (C) 2022-2023, François-Guillaume Fernandez.</span>
+<span></span><span class="c1"># Copyright (C) 2022-2024, François-Guillaume Fernandez.</span>
 
 <span class="c1"># This program is licensed under the Apache License 2.0.</span>
 <span class="c1"># See LICENSE or go to &lt;https://www.apache.org/licenses/LICENSE-2.0&gt; for full license details.</span>
@@ -273,6 +273,7 @@
         <span class="n">cam_extractor</span><span class="p">:</span> <span class="n">_CAM</span><span class="p">,</span>
         <span class="n">logits_fn</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># This is a typa, I don&#39;t know how to rites</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cam_extractor</span> <span class="o">=</span> <span class="n">cam_extractor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logits_fn</span> <span class="o">=</span> <span class="n">logits_fn</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
@@ -280,6 +281,14 @@
     <span class="k">def</span> <span class="nf">_get_probs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_tensor</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cam_extractor</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">logits</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logits_fn</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">logits_fn</span><span class="p">(</span><span class="n">logits</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">my_function</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns a greeting message</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: greeting message</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s2">&quot;Hello&quot;</span>
 
 <div class="viewcode-block" id="ClassificationMetric.update">
 <a class="viewcode-back" href="../../metrics.html#torchcam.metrics.ClassificationMetric.update">[docs]</a>
@@ -366,7 +375,7 @@
         <div class="bottom-of-page">
           <div class="left-details">
             <div class="copyright">
-                Copyright &#169; 2020-2023, François-Guillaume Fernandez
+                Copyright &#169; 2020-2024, François-Guillaume Fernandez
             </div>
             Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
             
