@@ -2,23 +2,27 @@ default_language_version:
     python: python3.9
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
-      - id: check-yaml
-        exclude: .conda
-      - id: check-toml
       - id: check-added-large-files
-      - id: end-of-file-fixer
-      - id: trailing-whitespace
       - id: check-ast
+      - id: check-case-conflict
       - id: check-json
       - id: check-merge-conflict
-      - id: no-commit-to-branch
-        args: ['--branch', 'main']
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-xml
+      - id: check-yaml
+        exclude: .conda
       - id: debug-statements
         language_version: python3
+      - id: end-of-file-fixer
+      - id: no-commit-to-branch
+        args: ['--branch', 'main']
+      - id: requirements-txt-fixer
+      - id: trailing-whitespace
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.1.9'
+    rev: 'v0.1.11'
     hooks:
       - id: ruff
         args:
