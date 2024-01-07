@@ -68,3 +68,22 @@ jobs:
           pip install ruff==0.1.11
           ruff --version
           ruff format --check --diff .
+
+  precommit-hooks:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python: [3.9]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - name: Run ruff
+        run: |
+          pip install pre-commit
+          pre-commit install
+          pre-commit --version
+          pre-commit run --all-files
