@@ -18,7 +18,7 @@ repos:
       - id: debug-statements
         language_version: python3
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.1.9'
+    rev: 'v0.1.11'
     hooks:
       - id: ruff
         args:
