@@ -81,9 +81,10 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
-      - name: Run ruff
+      - name: Run pre-commit hooks
         run: |
           pip install pre-commit
+          git checkout -b temp
           pre-commit install
           pre-commit --version
           pre-commit run --all-files
