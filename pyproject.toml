@@ -46,7 +46,6 @@ test = [
     "torchvision>=0.15.0,<1.0.0",
     "pytest>=7.3.2",
     "pytest-cov>=3.0.0,<5.0.0",
-    "pytest-xdist>=2.0.0,<4.0.0",
     "pytest-pretty>=1.0.0,<2.0.0",
 ]
 quality = [
@@ -75,7 +74,6 @@ dev = [
     "torchvision>=0.15.0,<1.0.0",
     "pytest>=7.3.2",
     "pytest-cov>=4.0.0,<5.0.0",
-    "pytest-xdist>=3.0.0,<4.0.0",
     "pytest-pretty>=1.0.0,<2.0.0",
     # style
     "ruff==0.1.11",
@@ -105,6 +103,9 @@ exclude = ["demo*", "docs*", "notebooks*", "scripts*", "tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["torchcam/"]
+
+[tool.coverage.run]
+source = ["torchcam/"]
 
 [tool.ruff]
 select = [
