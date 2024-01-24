@@ -11,7 +11,7 @@ style:
 
 # Run tests for the library
 test:
-	pytest --cov=torchcam tests/ -n auto
+	pytest --cov=torchcam tests/
 
 # Build documentation for current version
 single-docs:
