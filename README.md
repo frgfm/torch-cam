@@ -288,3 +288,5 @@ You can find a short guide in [`CONTRIBUTING`](CONTRIBUTING.md) to help grow thi
 ## License
 
 Distributed under the Apache 2.0 License. See [`LICENSE`](LICENSE) for more information.
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ffrgfm%2Ftorch-cam.svg?type=large&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Ffrgfm%2Ftorch-cam?ref=badge_large&issueType=license)
