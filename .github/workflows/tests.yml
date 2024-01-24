@@ -32,7 +32,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]" --upgrade
       - name: Run unittests
-        run: pytest --cov=torchcam --cov-report xml tests/ -n auto
+        run: pytest --cov=torchcam --cov-report xml tests/
       - uses: actions/upload-artifact@v2
         with:
           name: coverage-main
