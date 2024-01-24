@@ -21,7 +21,7 @@ jobs:
           architecture: x64
       - name: Run ruff
         run: |
-          pip install ruff==0.1.11
+          pip install ruff==0.1.14
           ruff --version
           ruff check --diff .
 
@@ -65,7 +65,7 @@ jobs:
           architecture: x64
       - name: Run ruff
         run: |
-          pip install ruff==0.1.11
+          pip install ruff==0.1.14
           ruff --version
           ruff format --check --diff .
 
