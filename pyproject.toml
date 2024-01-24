@@ -44,7 +44,7 @@ dependencies = [
 test = [
     "requests>=2.20.0,<3.0.0",
     "torchvision>=0.15.0,<1.0.0",
-    "pytest>=7.3.2",
+    "pytest==7.4.2",
     "pytest-cov>=3.0.0,<5.0.0",
     "pytest-pretty>=1.0.0,<2.0.0",
 ]
@@ -72,7 +72,7 @@ dev = [
     # test
     "requests>=2.20.0,<3.0.0",
     "torchvision>=0.15.0,<1.0.0",
-    "pytest>=7.3.2",
+    "pytest==7.4.2",
     "pytest-cov>=4.0.0,<5.0.0",
     "pytest-pretty>=1.0.0,<2.0.0",
     # style
@@ -103,6 +103,9 @@ exclude = ["demo*", "docs*", "notebooks*", "scripts*", "tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["torchcam/"]
+
+[tool.coverage.run]
+source = ["torchcam/"]
 
 [tool.ruff]
 select = [
