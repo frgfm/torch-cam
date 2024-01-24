@@ -14,7 +14,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import locale
 import os
 import re
-import subprocess
+import subprocess  # noqa S404
 import sys
 from pathlib import Path
 from typing import NamedTuple

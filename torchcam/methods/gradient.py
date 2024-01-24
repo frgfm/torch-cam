@@ -11,7 +11,7 @@ from torch import Tensor, nn
 
 from .core import _CAM
 
-__all__ = ["GradCAM", "GradCAMpp", "SmoothGradCAMpp", "XGradCAM", "LayerCAM"]
+__all__ = ["GradCAM", "GradCAMpp", "LayerCAM", "SmoothGradCAMpp", "XGradCAM"]
 
 
 class _GradCAM(_CAM):

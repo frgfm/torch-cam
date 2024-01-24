@@ -14,7 +14,7 @@ from torch import Tensor, nn
 from ._utils import locate_linear_layer
 from .core import _CAM
 
-__all__ = ["CAM", "ScoreCAM", "SSCAM", "ISCAM"]
+__all__ = ["CAM", "ISCAM", "SSCAM", "ScoreCAM"]
 
 
 class CAM(_CAM):
