@@ -33,18 +33,25 @@ jobs:
           pip install -e ".[test]"
       - name: Run unittests
         run: pytest --cov=torchcam --cov-report xml tests/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: coverage-reports
+          path: ./coverage.xml
+
+  codecov-upload:
+    runs-on: ubuntu-latest
+    needs: pytest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v2
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
+          directory: ./coverage-reports
           fail_ci_if_error: true
-      - name: Backup upload
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        run: |
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          chmod +x codecov
-          ./codecov -t ${CODECOV_TOKEN} -f ./coverage.xml --flags unittests --verbose
 
   headers:
     runs-on: ${{ matrix.os }}
