@@ -49,7 +49,7 @@ test = [
     "pytest-pretty>=1.0.0,<2.0.0",
 ]
 quality = [
-    "ruff==0.1.11",
+    "ruff==0.1.14",
     "mypy==1.8.0",
     "pre-commit>=3.0.0,<4.0.0",
 ]
