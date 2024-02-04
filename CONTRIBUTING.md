@@ -90,10 +90,8 @@ make quality
 ```
 
 This will read `pyproject.toml` and run:
-- lint checking ([ruff](https://docs.astral.sh/ruff/))
+- lint checking, formatting ([ruff](https://docs.astral.sh/ruff/))
 - type annotation checking ([mypy](https://github.com/python/mypy))
-- code formatting ([black](https://github.com/psf/black))
-- security checking ([bandit](https://github.com/PyCQA/bandit))
 
 You can apply automatic fix to most of those by running:
 
