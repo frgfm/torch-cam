@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2023, François-Guillaume Fernandez.
+# Copyright (C) 2020-2024, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
@@ -20,23 +20,25 @@ import requests
 
 # Should specify the type of change
 PRIMARY_LABELS = {
-    "type: new feature",
-    "type: bug",
-    "type: enhancement",
+    "type: feat",
+    "type: fix",
+    "type: improvement",
     "type: misc",
 }
 
 # Should specify what has been modified
 SECONDARY_LABELS = {
-    "topic: documentation",
-    "module: methods",
-    "module: utils",
+    "topic: docs",
+    "topic: build",
+    "topic: ci",
+    "topic: style",
     "ext: demo",
     "ext: docs",
     "ext: scripts",
     "ext: tests",
-    "topic: build",
-    "topic: ci",
+    "module: methods",
+    "module: metrics",
+    "module: utils",
 }
 
 GH_ORG = "frgfm"
