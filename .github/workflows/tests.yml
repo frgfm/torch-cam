@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade uv
-          uv pip install --system -e "torchcam[test] @ ."
+          uv pip install --system -e ".[test]"
       - name: Run unittests
         run: pytest --cov=torchcam --cov-report xml tests/
       - uses: actions/upload-artifact@v2

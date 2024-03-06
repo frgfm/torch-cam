@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade uv
-          uv pip install --system --upgrade -e "torchcam[quality] @ ."
+          uv pip install --system --upgrade -e ".[quality]"
       - name: Run mypy
         run: |
           mypy --version

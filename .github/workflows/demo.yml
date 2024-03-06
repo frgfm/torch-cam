@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade uv
-          uv pip install --system --upgrade -e "torchcam[demo] @ ."
+          uv pip install --system --upgrade -e ".[demo]"
 
       - name: Run demo app
         run: |
