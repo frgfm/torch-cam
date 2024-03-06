@@ -15,22 +15,16 @@ jobs:
         os: [ubuntu-latest]
         python: [3.9]
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
-      - name: Cache python modules
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}-scripts
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e . --upgrade
-          pip install -r scripts/requirements.txt
+          python -m pip install --upgrade uv
+          uv pip install --system --upgrade -e "torchcam @ ."
+          uv pip install --system -r scripts/requirements.txt
 
       - name: Run analysis script
         run: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock --method LayerCAM
@@ -43,22 +37,16 @@ jobs:
         os: [ubuntu-latest]
         python: [3.9]
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
-      - name: Cache python modules
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-python-${{ matrix.python }}-${{ hashFiles('pyproject.toml') }}-scripts
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e . --upgrade
-          pip install -r scripts/requirements.txt
+          python -m pip install --upgrade uv
+          uv pip install --system --upgrade -e "torchcam @ ."
+          uv pip install --system -r scripts/requirements.txt
 
       - name: Run analysis script
         run: python scripts/eval_latency.py --arch resnet18 LayerCAM
