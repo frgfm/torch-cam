@@ -23,7 +23,7 @@ jobs:
       - name: Install package
         run: |
           python -m pip install --upgrade uv
-          uv pip install --system --upgrade -e "torchcam @ ."
+          uv pip install --system --upgrade -e .
       - name: Import package
         run: python -c "import torchcam; print(torchcam.__version__)"
 
