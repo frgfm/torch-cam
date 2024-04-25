@@ -3,12 +3,14 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
+from typing import cast
+
 import numpy as np
 from matplotlib import colormaps as cm
-from PIL import Image
+from PIL.Image import Image, Resampling, fromarray
 
 
-def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = "jet", alpha: float = 0.7) -> Image.Image:
+def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 0.7) -> Image:
     """Overlay a colormapped mask on a background image
 
     >>> from PIL import Image
@@ -31,7 +33,7 @@ def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = "jet", alp
         TypeError: when the arguments have invalid types
         ValueError: when the alpha argument has an incorrect value
     """
-    if not isinstance(img, Image.Image) or not isinstance(mask, Image.Image):
+    if not isinstance(img, Image) or not isinstance(mask, Image):
         raise TypeError("img and mask arguments need to be PIL.Image")
 
     if not isinstance(alpha, float) or alpha < 0 or alpha >= 1:
@@ -39,9 +41,7 @@ def overlay_mask(img: Image.Image, mask: Image.Image, colormap: str = "jet", alp
 
     cmap = cm.get_cmap(colormap)
     # Resize mask and apply colormap
-    overlay = mask.resize(img.size, resample=Image.BICUBIC)
+    overlay = mask.resize(img.size, resample=Resampling.BICUBIC)
     overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, :3]).astype(np.uint8)
     # Overlay the image with the mask
-    overlayed_img = Image.fromarray((alpha * np.asarray(img) + (1 - alpha) * overlay).astype(np.uint8))
-
-    return overlayed_img
+    return fromarray((alpha * np.asarray(img) + (1 - alpha) * cast(np.ndarray, overlay)).astype(np.uint8))

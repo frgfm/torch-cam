@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 from functools import partial
-from typing import Any, List, Optional, Tuple, Union, cast
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor, nn
@@ -404,4 +404,4 @@ class LayerCAM(_GradCAM):
     @staticmethod
     def _scale_cams(cams: List[Tensor], gamma: float = 2.0) -> List[Tensor]:
         # cf. Equation 9 in the paper
-        return [torch.tanh(cast(Tensor, gamma * cam)) for cam in cams]
+        return [torch.tanh(gamma * cam) for cam in cams]
