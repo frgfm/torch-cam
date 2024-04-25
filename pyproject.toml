@@ -51,6 +51,7 @@ test = [
 quality = [
     "ruff==0.4.1",
     "mypy==1.10.0",
+    "types-Pillow",
     "pre-commit>=3.0.0,<4.0.0",
 ]
 docs = [
@@ -78,6 +79,7 @@ dev = [
     # style
     "ruff==0.4.1",
     "mypy==1.10.0",
+    "types-Pillow",
     "pre-commit>=3.0.0,<4.0.0",
     # docs
     "sphinx>=3.0.0,!=3.5.0",
