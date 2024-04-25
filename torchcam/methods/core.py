@@ -7,7 +7,7 @@ import logging
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
-from typing import Any, List, Optional, Tuple, Type, Union, cast
+from typing import Any, List, Optional, Tuple, Type, Union
 
 import torch
 import torch.nn.functional as F
@@ -267,4 +267,4 @@ class _CAM:
         ]
 
         # Fuse them
-        return cast(Tensor, torch.stack(scaled_cams).max(dim=0).values.squeeze(1))
+        return torch.stack(scaled_cams).max(dim=0).values.squeeze(1)
