@@ -50,7 +50,7 @@ test = [
 ]
 quality = [
     "ruff==0.4.10",
-    "mypy==1.10.0",
+    "mypy==1.10.1",
     "types-Pillow",
     "pre-commit>=3.0.0,<4.0.0",
 ]
@@ -78,7 +78,7 @@ dev = [
     "pytest-pretty>=1.0.0,<2.0.0",
     # style
     "ruff==0.4.10",
-    "mypy==1.10.0",
+    "mypy==1.10.1",
     "types-Pillow",
     "pre-commit>=3.0.0,<4.0.0",
     # docs
