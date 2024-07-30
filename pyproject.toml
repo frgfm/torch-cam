@@ -116,37 +116,43 @@ preview = true
 
 [tool.ruff.lint]
 select = [
+    "F",  # pyflakes
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
+    "I",  # isort
+    "N",  # pep8-naming
     "D101", "D103",  # pydocstyle missing docstring in public function/class
     "D201","D202","D207","D208","D214","D215","D300","D301","D417", "D419",  # pydocstyle
-    "F",  # pyflakes
-    "I",  # isort
-    "C4",  # flake8-comprehensions
-    "B",  # flake8-bugbear
-    "CPY001",  # flake8-copyright
-    "ISC",  # flake8-implicit-str-concat
-    "PYI",  # flake8-pyi
-    "NPY",  # numpy
-    "PERF",  # perflint
-    "RUF",  # ruff specific
-    "PTH",  # flake8-use-pathlib
-    "S",  # flake8-bandit
-    "N",  # pep8-naming
-    "T10",  # flake8-debugger
-    "T20",  # flake8-print
-    "PT",  # flake8-pytest-style
-    "LOG",  # flake8-logging
-    "SIM",  # flake8-simplify
     "YTT",  # flake8-2020
     "ANN",  # flake8-annotations
     "ASYNC",  # flake8-async
+    "S",  # flake8-bandit
     "BLE",  # flake8-blind-except
+    "B",  # flake8-bugbear
     "A",  # flake8-builtins
+    "COM",  # flake8-commas
+    "CPY",  # flake8-copyright
+    "C4",  # flake8-comprehensions
+    "T10",  # flake8-debugger
+    "ISC",  # flake8-implicit-str-concat
     "ICN",  # flake8-import-conventions
+    "LOG",  # flake8-logging
     "PIE",  # flake8-pie
+    "T20",  # flake8-print
+    "PYI",  # flake8-pyi
+    "PT",  # flake8-pytest-style
+    "Q",    # flake8-quotes
+    "RET",  # flake8-return
+    "SLF",  # flake8-self
+    "SIM",  # flake8-simplify
     "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib
+    "PERF",  # perflint
+    "NPY",  # numpy
+    "FAST",  # fastapi
     "FURB",  # refurb
+    "RUF",  # ruff specific
+    "N",  # pep8-naming
 ]
 ignore = [
     "E501",  # line too long, handled by black
@@ -179,7 +185,7 @@ known-third-party = ["torch", "torchvision"]
 "scripts/**.py" = ["D", "T201", "N812", "S101", "ANN"]
 ".github/**.py" = ["D", "T201", "S602", "S101", "ANN"]
 "docs/**.py" = ["E402", "D103", "ANN", "A001", "ARG001"]
-"tests/**.py" = ["D103", "CPY001", "S101", "PT011", "ANN"]
+"tests/**.py" = ["D103", "CPY001", "S101", "PT011", "ANN", "SLF001"]
 "demo/**.py" = ["D103", "ANN"]
 "setup.py" = ["T201"]
 
