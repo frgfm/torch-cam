@@ -90,8 +90,7 @@ class CAM(_CAM):
         # Take the FC weights of the target class
         if isinstance(class_idx, int):
             return [self._fc_weights[class_idx, :].unsqueeze(0)]
-        else:
-            return [self._fc_weights[class_idx, :]]
+        return [self._fc_weights[class_idx, :]]
 
 
 class ScoreCAM(_CAM):
@@ -214,7 +213,7 @@ class ScoreCAM(_CAM):
         ]
 
         # Disable hook updates
-        self._hooks_enabled = False
+        self.disable_hooks()
         # Switch to eval
         origin_mode = self.model.training
         self.model.eval()
@@ -222,7 +221,7 @@ class ScoreCAM(_CAM):
         weights: List[Tensor] = self._get_score_weights(upsampled_a, class_idx)
 
         # Reenable hook updates
-        self._hooks_enabled = True
+        self.enable_hooks()
         # Put back the model in the correct mode
         self.model.training = origin_mode
 

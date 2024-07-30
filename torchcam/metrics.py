@@ -97,7 +97,7 @@ class ClassificationMetric:
             cams = self.cam_extractor(preds.cpu().numpy().tolist(), probs)
             cam = self.cam_extractor.fuse_cams(cams)
             probs = probs.gather(1, preds.unsqueeze(1)).squeeze(1)
-        self.cam_extractor._hooks_enabled = False
+        self.cam_extractor.disable_hooks()
         # Safeguard: replace NaNs
         cam[torch.isnan(cam)] = 0
         # Resize the CAM
@@ -116,7 +116,7 @@ class ClassificationMetric:
         # Increase
         increase = probs < masked_probs
 
-        self.cam_extractor._hooks_enabled = True
+        self.cam_extractor.enable_hooks()
 
         self.drop += drop.sum().item()
         self.increase += increase.sum().item()

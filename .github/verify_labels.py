@@ -78,9 +78,7 @@ def parse_args():
     )
 
     parser.add_argument("pr", type=int, help="PR number")
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
