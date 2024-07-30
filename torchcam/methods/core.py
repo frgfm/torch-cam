@@ -78,6 +78,14 @@ class _CAM:
         # Model output is used by the extractor
         self._score_used = False
 
+    def enable_hooks(self) -> None:
+        """Enable hooks."""
+        self._hooks_enabled = True
+
+    def disable_hooks(self) -> None:
+        """Disable hooks."""
+        self._hooks_enabled = False
+
     def __enter__(self) -> "_CAM":
         return self
 
@@ -236,17 +244,16 @@ class _CAM:
 
         if len(cams) == 0:
             raise ValueError("argument `cams` cannot be an empty list")
-        elif len(cams) == 1:
+        if len(cams) == 1:
             return cams[0]
+        # Resize to the biggest CAM if no value was provided for `target_shape`
+        if isinstance(target_shape, tuple):
+            _shape = target_shape
         else:
-            # Resize to the biggest CAM if no value was provided for `target_shape`
-            if isinstance(target_shape, tuple):
-                _shape = target_shape
-            else:
-                _shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))
-            # Scale cams
-            scaled_cams = cls._scale_cams(cams)
-            return cls._fuse_cams(scaled_cams, _shape)
+            _shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))
+        # Scale cams
+        scaled_cams = cls._scale_cams(cams)
+        return cls._fuse_cams(scaled_cams, _shape)
 
     @staticmethod
     def _scale_cams(cams: List[Tensor]) -> List[Tensor]:

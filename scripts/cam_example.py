@@ -74,7 +74,7 @@ def main(args):
     ax.set_title("Input", size=8)
 
     for idx, extractor in zip(range(1, len(cam_extractors) + 1), cam_extractors):
-        extractor._hooks_enabled = True
+        extractor.enable_hooks()
         model.zero_grad()
         scores = model(img_tensor.unsqueeze(0))
 
@@ -85,8 +85,8 @@ def main(args):
         activation_map = extractor(class_idx, scores)[0].squeeze(0).cpu()
 
         # Clean data
+        extractor.disable_hooks()
         extractor.remove_hooks()
-        extractor._hooks_enabled = False
         # Convert it to PIL image
         # The indexing below means first image in batch
         heatmap = to_pil_image(activation_map, mode="F")
