@@ -25,6 +25,7 @@ def _verify_cam(activation_map, output_size):
         ("LayerCAM", "features.18.0", (7, 7), 2),
     ],
 )
+@pytest.mark.benchmark
 def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
     model = mobilenet_v2(weights=None).eval()
     for p in model.parameters():
@@ -72,6 +73,7 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
         ("LayerCAM", "0.3", (1, 8, 16, 16)),
     ],
 )
+@pytest.mark.benchmark
 def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_video_tensor):
     model = mock_video_model.eval()
     # Hook the corresponding layer in the model

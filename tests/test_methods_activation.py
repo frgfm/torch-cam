@@ -45,6 +45,7 @@ def _verify_cam(activation_map, output_size):
         ("ISCAM", "features.16.conv.3", None, 4, (7, 7), 1),
     ],
 )
+@pytest.mark.benchmark
 def test_img_cams(
     cam_name,
     target_layer,
@@ -75,6 +76,7 @@ def test_img_cams(
         _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
 
 
+@pytest.mark.benchmark
 def test_cam_conv1x1(mock_fullyconv_model):
     with activation.CAM(mock_fullyconv_model, fc_layer="1") as extractor, torch.no_grad():
         scores = mock_fullyconv_model(torch.rand((1, 3, 32, 32)))
@@ -91,6 +93,7 @@ def test_cam_conv1x1(mock_fullyconv_model):
         ("ISCAM", "0.3", 4, (1, 8, 16, 16)),
     ],
 )
+@pytest.mark.benchmark
 def test_video_cams(
     cam_name,
     target_layer,
