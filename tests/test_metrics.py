@@ -1,5 +1,6 @@
 from functools import partial
 
+import pytest
 import torch
 from torchvision.models import mobilenet_v3_small
 
@@ -7,6 +8,7 @@ from torchcam import metrics
 from torchcam.methods import LayerCAM
 
 
+@pytest.mark.benchmark
 def test_classification_metric():
     model = mobilenet_v3_small(weights=None)
     with LayerCAM(model, "features.12") as extractor:

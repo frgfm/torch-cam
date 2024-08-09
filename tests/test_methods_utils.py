@@ -1,8 +1,10 @@
+import pytest
 from torchvision.models import mobilenet_v3_large, resnet18
 
 from torchcam.methods import _utils
 
 
+@pytest.mark.benchmark
 def test_locate_candidate_layer(mock_img_model):
     # ResNet-18
     mod = resnet18().eval()
@@ -24,6 +26,7 @@ def test_locate_candidate_layer(mock_img_model):
     assert mod.training
 
 
+@pytest.mark.benchmark
 def test_locate_linear_layer(mock_img_model):
     # ResNet-18
     mod = resnet18().eval()
