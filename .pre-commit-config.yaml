@@ -22,7 +22,7 @@ repos:
       - id: requirements-txt-fixer
       - id: trailing-whitespace
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.5.5'
+    rev: 'v0.5.7'
     hooks:
       - id: ruff
         args:
