@@ -64,7 +64,6 @@ def test_cam_precheck(mock_img_model, mock_img_tensor):
         ((8, 8, 8, 8), 3),
     ],
 )
-@pytest.mark.benchmark
 def test_cam_normalize(input_shape, spatial_dims):
     input_tensor = torch.rand(input_shape)
     normalized_tensor = core._CAM._normalize(input_tensor, spatial_dims)
@@ -102,7 +101,6 @@ def test_cam_repr(mock_img_model):
         assert repr(extractor) == "_CAM(target_layer=['0.3'])"
 
 
-@pytest.mark.benchmark
 def test_fuse_cams():
     with pytest.raises(TypeError):
         core._CAM.fuse_cams(torch.zeros((3, 32, 32)))
