@@ -52,7 +52,7 @@ quality = [
     "ruff==0.6.1",
     "mypy==1.10.0",
     "types-Pillow",
-    "pre-commit>=3.0.0,<4.0.0",
+    "pre-commit>=3.0.0,<5.0.0",
 ]
 docs = [
     "sphinx>=3.0.0,!=3.5.0",
@@ -80,7 +80,7 @@ dev = [
     "ruff==0.6.1",
     "mypy==1.10.0",
     "types-Pillow",
-    "pre-commit>=3.0.0,<4.0.0",
+    "pre-commit>=3.0.0,<5.0.0",
     # docs
     "sphinx>=3.0.0,!=3.5.0",
     "furo>=2022.3.4",
