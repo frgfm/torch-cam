@@ -42,6 +42,10 @@ def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 
     cmap = cm.get_cmap(colormap)
     # Resize mask and apply colormap
     overlay = mask.resize(img.size, resample=Resampling.BICUBIC)
-    overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, :3]).astype(np.uint8)
+    if len(img.getbands()) == 1:
+        overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, 0]).astype(np.uint8)
+    else:
+        overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, :3]).astype(np.uint8)
+
     # Overlay the image with the mask
     return fromarray((alpha * np.asarray(img) + (1 - alpha) * cast(np.ndarray, overlay)).astype(np.uint8))
