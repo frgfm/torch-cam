@@ -39,13 +39,13 @@ def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 
     if not isinstance(alpha, float) or alpha < 0 or alpha >= 1:
         raise ValueError("alpha argument is expected to be of type float between 0 and 1")
 
+    if not len(img.getbands()) in [1, 3]:
+        raise ValueError("img argument needs to be a grayscale or RGB image")
+
     cmap = cm.get_cmap(colormap)
     # Resize mask and apply colormap
     overlay = mask.resize(img.size, resample=Resampling.BICUBIC)
-    if len(img.getbands()) == 1:
-        overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, 0]).astype(np.uint8)
-    else:
-        overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, :3]).astype(np.uint8)
+    overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, 2 if len(img.getbands())==1 else slice(0, 3)]).astype(np.uint8)
 
     # Overlay the image with the mask
     return fromarray((alpha * np.asarray(img) + (1 - alpha) * cast(np.ndarray, overlay)).astype(np.uint8))
