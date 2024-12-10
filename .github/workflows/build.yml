@@ -28,9 +28,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - name: Install package
-        run: |
-          python -m pip install --upgrade uv
-          uv pip install --system --upgrade -e .
+        run: uv pip install --system --upgrade -e .
       - name: Import package
         run: python -c "import torchcam; print(torchcam.__version__)"
 
