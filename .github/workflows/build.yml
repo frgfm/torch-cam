@@ -64,7 +64,7 @@ jobs:
           conda env list
           conda build .conda/ -c pytorch --output-folder conda-dist
           ls -l conda-dist/noarch/*tar.bz2
-  
+
   demo:
     runs-on: ubuntu-latest
     steps:
@@ -79,7 +79,7 @@ jobs:
         run: |
           screen -dm streamlit run demo/app.py --server.port 8080
           sleep 10 && nc -vz localhost 8080
-  
+
   docs:
     runs-on: ubuntu-latest
     steps:
