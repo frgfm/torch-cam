@@ -9,6 +9,7 @@ DOCS_DIR = ./docs
 
 install-quality: ${PYPROJECT_FILE}
 	uv pip install -e ".[quality]"
+	pre-commit install
 
 lint-check: ${PYPROJECT_FILE}
 	ruff format --check . --config ${PYPROJECT_FILE}
