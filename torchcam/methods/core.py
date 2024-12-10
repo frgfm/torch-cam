@@ -4,6 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
+import sys
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
@@ -16,6 +17,13 @@ from torch import Tensor, nn
 from ._utils import locate_candidate_layer
 
 __all__ = ["_CAM"]
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler(sys.stdout)
+log_formatter = logging.Formatter("%(levelname)s:     %(message)s")
+stream_handler.setFormatter(log_formatter)
+logger.addHandler(stream_handler)
 
 
 class _CAM:
@@ -54,7 +62,7 @@ class _CAM:
             target_name = locate_candidate_layer(model, input_shape)
             # Warn the user of the choice
             if isinstance(target_name, str):
-                logging.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
+                logger.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
                 target_names = [target_name]
             else:
                 raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
@@ -100,14 +108,14 @@ class _CAM:
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
         """Resolves the name of a given layer inside the hooked model."""
-        _found = False
+        found = False
         target_name: str
         for k, v in self.submodule_dict.items():
             if id(v) == id(target_layer):
                 target_name = k
-                _found = True
+                found = True
                 break
-        if not _found:
+        if not found:
             raise ValueError("unable to locate module inside the specified model.")
 
         return target_name
@@ -248,12 +256,12 @@ class _CAM:
             return cams[0]
         # Resize to the biggest CAM if no value was provided for `target_shape`
         if isinstance(target_shape, tuple):
-            _shape = target_shape
+            shape = target_shape
         else:
-            _shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))
+            shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))
         # Scale cams
         scaled_cams = cls._scale_cams(cams)
-        return cls._fuse_cams(scaled_cams, _shape)
+        return cls._fuse_cams(scaled_cams, shape)
 
     @staticmethod
     def _scale_cams(cams: List[Tensor]) -> List[Tensor]:

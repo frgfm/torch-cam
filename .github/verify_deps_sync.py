@@ -3,10 +3,9 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-import re
-import tomllib
 from pathlib import Path
 
+import tomllib
 import yaml
 
 PRECOMMIT_PATH = ".pre-commit-config.yaml"
@@ -61,9 +60,9 @@ def main():
     # Assert all deps are in sync
     troubles = []
     for dep, versions in deps_dict.items():
-        _versions = {v["version"] for v in versions}
-        if len(_versions) != 1:
-            inv_dict = {v: set() for v in _versions}
+        versions_ = {v["version"] for v in versions}
+        if len(versions_) != 1:
+            inv_dict = {v: set() for v in versions_}
             for version in versions:
                 inv_dict[version["version"]].add(version["file"])
             troubles.extend([

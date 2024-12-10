@@ -5,6 +5,7 @@
 
 import logging
 import math
+import sys
 from typing import Any, List, Optional, Tuple, Union
 
 import torch
@@ -15,6 +16,13 @@ from ._utils import locate_linear_layer
 from .core import _CAM
 
 __all__ = ["CAM", "ISCAM", "SSCAM", "ScoreCAM"]
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler(sys.stdout)
+log_formatter = logging.Formatter("%(levelname)s:     %(message)s")
+stream_handler.setFormatter(log_formatter)
+logger.addHandler(stream_handler)
 
 
 class CAM(_CAM):
@@ -69,7 +77,7 @@ class CAM(_CAM):
             fc_name = locate_linear_layer(model)  # type: ignore[assignment]
             # Warn the user of the choice
             if isinstance(fc_name, str):
-                logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
+                logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
             else:
                 raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
         else:
@@ -148,10 +156,10 @@ class ScoreCAM(_CAM):
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
-    def _store_input(self, _: nn.Module, _input: Tensor) -> None:
+    def _store_input(self, _: nn.Module, input_: Tensor) -> None:
         """Store model input tensor."""
         if self._hooks_enabled:
-            self._input = _input[0].data.clone()
+            self._input = input_[0].data.clone()
 
     @torch.no_grad()
     def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
@@ -172,15 +180,15 @@ class ScoreCAM(_CAM):
         for idx, scored_input in enumerate(scored_inputs):
             # Process by chunk (GPU RAM limitation)
             for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                 # Get the softmax probabilities of the target class
                 # (*, M)
-                cic = self.model(scored_input[_slice]) - logits[idcs[_slice]]
+                cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
                 if isinstance(class_idx, int):
-                    weights[idx][_slice] = cic[:, class_idx]
+                    weights[idx][slice_] = cic[:, class_idx]
                 else:
-                    _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
-                    weights[idx][_slice] = cic.gather(1, _target.view(-1, 1)).squeeze(1)
+                    target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
+                    weights[idx][slice_] = cic.gather(1, target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
         return [torch.softmax(w.view(b, c), -1) for w in weights]
@@ -314,14 +322,14 @@ class SSCAM(ScoreCAM):
 
                 # Process by chunk (GPU RAM limitation)
                 for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                    slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
-                    cic = self.model(scored_input[_slice]) - logits[idcs[_slice]]
+                    cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
                     if isinstance(class_idx, int):
-                        weights[idx][_slice] += cic[:, class_idx]
+                        weights[idx][slice_] += cic[:, class_idx]
                     else:
-                        _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
-                        weights[idx][_slice] += cic.gather(1, _target.view(-1, 1)).squeeze(1)
+                        target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
+                        weights[idx][slice_] += cic.gather(1, target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
         return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]
@@ -401,21 +409,21 @@ class ISCAM(ScoreCAM):
         idcs = torch.arange(b).repeat_interleave(c)
 
         for idx, scored_input in enumerate(scored_inputs):
-            _coeff = 0.0
+            coeff = 0.0
             # Process by chunk (GPU RAM limitation)
             for sidx in range(self.num_samples):
-                _coeff += (sidx + 1) / self.num_samples
+                coeff += (sidx + 1) / self.num_samples
 
                 # Process by chunk (GPU RAM limitation)
                 for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                    slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
-                    cic = self.model(_coeff * scored_input[_slice]) - logits[idcs[_slice]]
+                    cic = self.model(coeff * scored_input[slice_]) - logits[idcs[slice_]]
                     if isinstance(class_idx, int):
-                        weights[idx][_slice] += cic[:, class_idx]
+                        weights[idx][slice_] += cic[:, class_idx]
                     else:
-                        _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
-                        weights[idx][_slice] += cic.gather(1, _target.view(-1, 1)).squeeze(1)
+                        target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
+                        weights[idx][slice_] += cic.gather(1, target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
         return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]

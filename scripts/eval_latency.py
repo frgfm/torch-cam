@@ -53,9 +53,9 @@ def main(args):
             _ = cam_extractor(class_idx, scores)
             timings.append(time.perf_counter() - start_ts)
 
-    _timings = np.array(timings)
+    timings_ = np.array(timings)
     print(f"{args.method} w/ {args.arch} ({args.it} runs on ({args.size}, {args.size}) inputs)")
-    print(f"mean {1000 * _timings.mean():.2f}ms, std {1000 * _timings.std():.2f}ms")
+    print(f"mean {1000 * timings_.mean():.2f}ms, std {1000 * timings_.std():.2f}ms")
 
 
 if __name__ == "__main__":
