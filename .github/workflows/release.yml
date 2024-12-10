@@ -1,8 +1,12 @@
-name: publish
+name: release
 
 on:
   release:
     types: [published]
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.5.7"
 
 jobs:
   pypi:
@@ -12,12 +16,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade uv
-          uv pip install --system --upgrade setuptools wheel twine
+        run: uv pip install --system --upgrade setuptools wheel twine
       - name: Build and publish
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
@@ -36,11 +41,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
       - name: Install package
         run: |
-          python -m pip install --upgrade uv
           uv pip install --system torchcam
           python -c "import torchcam; print(torchcam.__version__)"
 
@@ -53,7 +60,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: 3.9
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         shell: bash -el {0}
         run: conda install -y conda-build conda-verify anaconda-client
@@ -77,7 +84,7 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: 3.9
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install package
         shell: bash -el {0}
         run: |

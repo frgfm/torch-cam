@@ -9,7 +9,7 @@ authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.8,<4"
+requires-python = ">=3.9,<4"
 license = {file = "LICENSE"}
 keywords = ["pytorch", "deep learning", "class activation map", "cnn", "gradcam"]
 classifiers = [
@@ -20,10 +20,10 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -49,8 +49,8 @@ test = [
     "pytest-pretty>=1.0.0,<2.0.0",
 ]
 quality = [
-    "ruff==0.6.1",
-    "mypy==1.10.0",
+    "ruff==0.8.2",
+    "mypy==1.13.0",
     "types-Pillow",
     "pre-commit>=3.0.0,<4.0.0",
 ]
@@ -77,8 +77,8 @@ dev = [
     "pytest-cov>=4.0.0,<5.0.0",
     "pytest-pretty>=1.0.0,<2.0.0",
     # style
-    "ruff==0.6.1",
-    "mypy==1.10.0",
+    "ruff==0.8.2",
+    "mypy==1.13.0",
     "types-Pillow",
     "pre-commit>=3.0.0,<4.0.0",
     # docs
@@ -162,8 +162,6 @@ ignore = [
     "F403",  # star imports
     "E731",  # lambda assignment
     "C416",  # list comprehension to list()
-    "ANN101",  # missing type annotations on self
-    "ANN102",  # missing type annotations on cls
     "ANN002",  # missing type annotations on *args
     "ANN003",  # missing type annotations on **kwargs
     "COM812",  # trailing comma missing

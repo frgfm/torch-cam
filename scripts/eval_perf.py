@@ -37,7 +37,7 @@ def main(args):
 
     eval_tf = []
     crop_pct = 0.875
-    scale_size = min(int(math.floor(args.size / crop_pct)), 320)
+    scale_size = min(math.floor(args.size / crop_pct), 320)
     if scale_size < 320:
         eval_tf.append(T.Resize(scale_size))
     eval_tf.extend([

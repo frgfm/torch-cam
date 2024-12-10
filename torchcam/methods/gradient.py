@@ -251,10 +251,10 @@ class SmoothGradCAMpp(_GradCAM):
         # Specific input hook updater
         self._ihook_enabled = True
 
-    def _store_input(self, _: nn.Module, _input: Tensor) -> None:
+    def _store_input(self, _: nn.Module, input_: Tensor) -> None:
         """Store model input tensor."""
         if self._ihook_enabled:
-            self._input = _input[0].data.clone()
+            self._input = input_[0].data.clone()
 
     def _get_weights(
         self,

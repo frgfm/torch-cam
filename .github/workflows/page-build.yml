@@ -2,14 +2,21 @@ name: GH-Pages Status
 on:
   page_build
 
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.5.7"
+
 jobs:
-  see-page-build-payload:
+  check-gh-pages:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
       - name: check status
         run: |
           import os

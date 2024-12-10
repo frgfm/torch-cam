@@ -1,9 +1,13 @@
-name: pr-labels
+name: pr-merged
 
 on:
   pull_request:
     branches: main
     types: closed
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.5.7"
 
 jobs:
   is-properly-labeled:
@@ -12,8 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: ${{ env.UV_VERSION }}
       - name: Install requests
-        run: pip install requests
+        run: uv pip install --system requests
       - name: Process commit and find merger responsible for labeling
         id: commit
         run: echo "::set-output name=merger::$(python .github/verify_labels.py ${{ github.event.pull_request.number }})"
