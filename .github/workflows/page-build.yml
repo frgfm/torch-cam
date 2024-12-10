@@ -10,10 +10,13 @@ jobs:
   check-gh-pages:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
       - uses: astral-sh/setup-uv@v4
         with:
           version: ${{ env.UV_VERSION }}
-          python-version: ${{ env.PYTHON_VERSION }}
       - name: check status
         run: |
           import os

@@ -20,10 +20,13 @@ jobs:
         python: [3.9, '3.10', 3.11, 3.12]
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
       - uses: astral-sh/setup-uv@v4
         with:
           version: ${{ env.UV_VERSION }}
-          python-version: ${{ matrix.python }}
       - name: Install package
         run: |
           python -m pip install --upgrade uv
@@ -35,10 +38,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
       - uses: astral-sh/setup-uv@v4
         with:
           version: ${{ env.UV_VERSION }}
-          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: uv pip install --system --upgrade setuptools wheel twine
       - run: |
@@ -69,10 +75,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
       - uses: astral-sh/setup-uv@v4
         with:
           version: ${{ env.UV_VERSION }}
-          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: uv pip install --system --upgrade -e ".[demo]"
       - name: Run demo app
@@ -84,10 +93,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
       - uses: astral-sh/setup-uv@v4
         with:
           version: ${{ env.UV_VERSION }}
-          python-version: ${{ env.PYTHON_VERSION }}
       - name: Build documentation
         run: |
           make install-docs
