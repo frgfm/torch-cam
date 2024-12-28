@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           architecture: x64
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: ${{ env.UV_VERSION }}
       - name: Install package
@@ -40,7 +40,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: ${{ env.UV_VERSION }}
       - name: Install dependencies
@@ -77,7 +77,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: ${{ env.UV_VERSION }}
       - name: Install dependencies
@@ -95,7 +95,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: ${{ env.UV_VERSION }}
       - name: Build documentation
