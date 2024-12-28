@@ -8,27 +8,11 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
-      time: "06:00"
-      timezone: "Europe/Paris"
-    groups:
-      gh-actions:
-        patterns:
-          - "*"
-    reviewers:
-      - "frgfm"
-    assignees:
-      - "frgfm"
+      interval: "weekly"
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "daily"
-      time: "06:00"
-      timezone: "Europe/Paris"
-    reviewers:
-      - "frgfm"
-    assignees:
-      - "frgfm"
     allow:
       - dependency-name: "ruff"
       - dependency-name: "mypy"
