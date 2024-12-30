@@ -1,4 +1,4 @@
-name: GH-Pages Status
+name: page-build
 on:
   page_build
 

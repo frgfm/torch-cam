@@ -3,8 +3,8 @@
 </h1>
 
 <p align="center">
-  <a href="https://github.com/frgfm/torch-cam/actions/workflows/builds.yml">
-    <img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/builds.yml?branch=main&label=CI&logo=github&style=flat-square">
+  <a href="https://github.com/frgfm/torch-cam/actions/workflows/build.yml">
+    <img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/build.yml?branch=main&label=CI&logo=github&style=flat-square">
   </a>
   <a href="https://github.com/astral-sh/ruff">
     <img src="https://img.shields.io/badge/Linter-Ruff-FCC21B?style=flat-square&logo=ruff&logoColor=white" alt="ruff">
@@ -39,7 +39,7 @@
 </p>
 <p align="center">
   <a href="https://frgfm.github.io/torch-cam">
-    <img src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/docs.yaml?branch=main&label=Documentation&logo=read-the-docs&logoColor=white&style=flat-square" alt="Documentation Status">
+    <img src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/page-build.yml?branch=main&label=Documentation&logo=read-the-docs&logoColor=white&style=flat-square" alt="Documentation Status">
   </a>
 </p>
 
@@ -125,7 +125,7 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 
 ## Setup
 
-Python 3.8 (or higher) and [pip](https://pip.pypa.io/en/stable/)/[conda](https://docs.conda.io/en/latest/miniconda.html) are required to install TorchCAM.
+Python 3.9 (or higher) and [uv](https://docs.astral.sh/uv/)/[conda](https://docs.conda.io/en/latest/miniconda.html) are required to install TorchCAM.
 
 ### Stable release
 
