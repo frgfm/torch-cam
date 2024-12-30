@@ -50,7 +50,7 @@ test = [
 ]
 quality = [
     "ruff==0.8.4",
-    "mypy==1.13.0",
+    "mypy==1.14.0",
     "types-Pillow",
     "pre-commit>=3.0.0,<5.0.0",
 ]
@@ -69,27 +69,7 @@ demo = [
     "streamlit>=0.65.0,<2.0.0",
     "torchvision>=0.15.0,<1.0.0",
 ]
-dev = [
-    # test
-    "requests>=2.20.0,<3.0.0",
-    "torchvision>=0.15.0,<1.0.0",
-    "pytest>=7.3.2",
-    "pytest-cov>=4.0.0,<5.0.0",
-    "pytest-pretty>=1.0.0,<2.0.0",
-    # style
-    "ruff==0.8.4",
-    "mypy==1.13.0",
-    "types-Pillow",
-    "pre-commit>=3.0.0,<5.0.0",
-    # docs
-    "sphinx>=3.0.0,!=3.5.0",
-    "furo>=2022.3.4",
-    "sphinxemoji>=0.1.8",
-    "sphinx-copybutton>=0.3.1",
-    "recommonmark>=0.7.1",
-    "sphinx-markdown-tables>=0.0.15",
-    "Jinja2<3.1",
-]
+
 
 [project.urls]
 documentation = "https://frgfm.github.io/torch-cam"
