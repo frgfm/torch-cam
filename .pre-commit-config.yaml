@@ -27,7 +27,7 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.8.4'
+    rev: 'v0.9.7'
     hooks:
       - id: ruff
         args:
