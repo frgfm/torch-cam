@@ -34,8 +34,7 @@ jobs:
       - name: Deploy to Github Pages
         uses: JamesIves/github-pages-deploy-action@v4.7.3
         with:
-          BRANCH: gh-pages
-          FOLDER: 'docs/build'
-          COMMIT_MESSAGE: '[skip ci] Documentation updates'
-          CLEAN: true
-          SSH: true
+          branch: gh-pages
+          folder: 'docs/build'
+          commit-message: '[skip ci] Documentation updates'
+          clean: true
