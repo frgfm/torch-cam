@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2024, François-Guillaume Fernandez.
+# Copyright (C) 2020-2025, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
