@@ -50,7 +50,7 @@ test = [
 ]
 quality = [
     "ruff==0.9.7",
-    "mypy==1.14.0",
+    "mypy==1.15.0",
     "types-Pillow",
     "pre-commit>=3.0.0,<5.0.0",
 ]
