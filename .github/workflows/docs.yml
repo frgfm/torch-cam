@@ -1,14 +1,37 @@
-name: push
+name: docs
+
 on:
   push:
+    branches: main
+  pull_request:
     branches: main
 
 env:
   PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.5.13"
+  UV_VERSION: "0.9.5"
 
 jobs:
-  docs-deploy:
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Build documentation
+        run: |
+          make install-docs
+          make full-docs
+      - name: Documentation sanity check
+        run: test -e docs/build/index.html || exit
+  
+  deploy:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

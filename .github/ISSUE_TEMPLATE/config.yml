@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Documentation
+    url: https://frgfm.github.io/torch-cam/
+    about: Please consult the documentation before creating an issue.
   - name: Usage questions
     url: https://github.com/frgfm/torch-cam/discussions
     about: Ask questions and discuss with other TorchCAM community members

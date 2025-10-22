@@ -1,0 +1,53 @@
+name: scripts
+
+on:
+  pull_request:
+    branches: main
+    paths:
+      - '.github/workflows/scripts.yml'
+      - 'torchcam/**'
+      - 'scripts/**'
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.9.5"
+
+
+jobs:
+  cam-example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Install dependencies
+        run: |
+          uv pip install --system --upgrade -e .
+          uv pip install --system -r scripts/requirements.txt
+
+      - name: Run analysis script
+        run: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock --method LayerCAM
+
+  eval-latency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Install dependencies
+        run: |
+          uv pip install --system --upgrade -e .
+          uv pip install --system -r scripts/requirements.txt
+
+      - name: Run analysis script
+        run: python scripts/eval_latency.py --arch resnet18 LayerCAM
