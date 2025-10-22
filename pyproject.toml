@@ -1,34 +1,39 @@
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
 
 [project]
 name = "torchcam"
+version = "0.5.0.dev0"
 description = "Class activation maps for your PyTorch CNN models"
 authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.9,<4"
+requires-python = ">=3.11,<4"
 license = {file = "LICENSE"}
 keywords = ["pytorch", "deep learning", "class activation map", "cnn", "gradcam"]
 classifiers = [
+    # https://pypi.org/classifiers/
     "Development Status :: 4 - Beta",
+    "Environment :: GPU :: NVIDIA CUDA",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Typing :: Typed",
 ]
-dynamic = ["version"]
 dependencies = [
     # cf. https://github.com/frgfm/torch-cam/discussions/148
     "torch>=2.0.0,<3.0.0",
@@ -44,15 +49,15 @@ dependencies = [
 test = [
     "requests>=2.20.0,<3.0.0",
     "torchvision>=0.15.0,<1.0.0",
-    "pytest>=7.3.2",
-    "pytest-cov>=3.0.0,<5.0.0",
-    "pytest-pretty>=1.0.0,<2.0.0",
+    "pytest==8.4.1",
+    "pytest-cov==6.2.1",
+    "pytest-pretty==1.3.0",
 ]
 quality = [
     "ruff==0.14.1",
-    "mypy==1.15.0",
+    "ty==0.0.1a23",
     "types-Pillow",
-    "pre-commit>=3.0.0,<5.0.0",
+    "pre-commit==4.3.0",
 ]
 docs = [
     "sphinx>=3.0.0,!=3.5.0",
@@ -77,32 +82,29 @@ repository = "https://github.com/frgfm/torch-cam"
 tracker = "https://github.com/frgfm/torch-cam/issues"
 changelog = "https://frgfm.github.io/torch-cam/latest/changelog.html"
 
-[tool.setuptools]
-zip-safe = true
+[tool.uv.build-backend]
+module-name = "torchcam"
+module-root = ""
 
-[tool.setuptools.packages.find]
-exclude = ["demo*", "docs*", "notebooks*", "scripts*", "tests*"]
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["torchcam/"]
-
-[tool.coverage.run]
-source = ["torchcam/"]
+addopts = "--cov=torchcam"
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py311"
 preview = true
 
 [tool.ruff.lint]
-select = [
-    "F",  # pyflakes
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "I",  # isort
-    "N",  # pep8-naming
-    "D101", "D103",  # pydocstyle missing docstring in public function/class
-    "D201","D202","D207","D208","D214","D215","D300","D301","D417", "D419",  # pydocstyle
+select = [  # https://docs.astral.sh/ruff/rules/
+    "ERA",  # eradicate
+    "FAST",  # FastAPI
     "YTT",  # flake8-2020
     "ANN",  # flake8-annotations
     "ASYNC",  # flake8-async
@@ -111,8 +113,9 @@ select = [
     "B",  # flake8-bugbear
     "A",  # flake8-builtins
     "COM",  # flake8-commas
-    "CPY",  # flake8-copyright
     "C4",  # flake8-comprehensions
+    "CPY",  # flake8-copyright
+    "DTZ",  # flake8-datetimez
     "T10",  # flake8-debugger
     "ISC",  # flake8-implicit-str-concat
     "ICN",  # flake8-import-conventions
@@ -121,22 +124,31 @@ select = [
     "T20",  # flake8-print
     "PYI",  # flake8-pyi
     "PT",  # flake8-pytest-style
-    "Q",    # flake8-quotes
+    "Q",  # flake8-quotes
     "RET",  # flake8-return
     "SLF",  # flake8-self
     "SIM",  # flake8-simplify
     "ARG",  # flake8-unused-arguments
     "PTH",  # flake8-use-pathlib
-    "PERF",  # perflint
+    "FLY",  # flynt
+    "I",  # isort
     "NPY",  # numpy
-    "FAST",  # fastapi
+    "N",  # pep8-naming
+    "PERF",  # perflint
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "DOC",  # pydoclint
+    "D",  # pydocstyle
+    "F",  # pyflakes
+    "PGH",  # pygrep-hooks
+    "PL",  # pylint
+    "UP",  # pyupgrade
     "FURB",  # refurb
     "RUF",  # ruff specific
-    "N",  # pep8-naming
+    "TRY",  # tryceratops
 ]
 ignore = [
     "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
     "B904",  # raise from
     "C901",  # too complex
     "F403",  # star imports
@@ -159,7 +171,7 @@ known-first-party = ["torchcam", "app"]
 known-third-party = ["torch", "torchvision"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/__init__.py" = ["I001", "F401", "CPY001"]
+"**/__init__.py" = ["I001", "F401", "CPY001", "D104"]
 "scripts/**.py" = ["D", "T201", "N812", "S101", "ANN"]
 ".github/**.py" = ["D", "T201", "S602", "S101", "ANN"]
 "docs/**.py" = ["E402", "D103", "ANN", "A001", "ARG001"]
@@ -171,23 +183,9 @@ known-third-party = ["torch", "torchvision"]
 quote-style = "double"
 indent-style = "space"
 
-[tool.mypy]
-python_version = "3.9"
-files = "torchcam/"
-show_error_codes = true
-pretty = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-warn_return_any = true
-no_implicit_optional = true
-check_untyped_defs = true
-implicit_reexport = false
-disallow_untyped_defs = true
-explicit_package_bases = true
+[tool.ty.environment]
+python-version = "3.11"
+python-platform = "linux"
 
-[[tool.mypy.overrides]]
-module = [
-    "PIL",
-    "matplotlib"
-]
-ignore_missing_imports = true
+[tool.ty.rules]
+unresolved-import = "warn"

@@ -1,63 +1,104 @@
-PYPROJECT_FILE = ./pyproject.toml
+PY_DIR = .
+PACKAGE_DIR = ${PY_DIR}/torchcam
+PYPROJECT_FILE = ${PY_DIR}/pyproject.toml
+PYTHON_REQ_FILE = /tmp/requirements.txt
 DEMO_FILE = ./demo/app.py
 TESTS_DIR = ./tests
 DOCS_DIR = ./docs
+
+
+
+.PHONY: help install install-quality lint-check lint-format precommit typing-check deps-check quality style init-gh-labels init-gh-settings install-mintlify start-mintlify
+
+help: ## Show this help message
+	@echo "Available commands:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+########################################################
+# Install & Setup
+########################################################
+
+venv:
+	uv venv --python 3.11
+
+install: ${PY_DIR} ${PYPROJECT_FILE} ## Install the core library
+	uv pip install -e ${PY_DIR}
 
 ########################################################
 # Code checks
 ########################################################
 
-install-quality: ${PYPROJECT_FILE}
-	uv pip install --system -e ".[quality]"
-	pre-commit install
+install-quality: ${PY_DIR} ${PYPROJECT_FILE} ## Install with quality dependencies
+	uv pip install -e '${PY_DIR}[quality]'
 
-lint-check: ${PYPROJECT_FILE}
+lint-check: ${PYPROJECT_FILE} ## Check code formatting and linting
 	ruff format --check . --config ${PYPROJECT_FILE}
 	ruff check . --config ${PYPROJECT_FILE}
 
-lint-format: ${PYPROJECT_FILE}
+lint-format: ${PYPROJECT_FILE} ## Format code and fix linting issues
 	ruff format . --config ${PYPROJECT_FILE}
 	ruff check --fix . --config ${PYPROJECT_FILE}
 
-precommit: ${PYTHON_CONFIG_FILE} .pre-commit-config.yaml
+precommit: ${PYPROJECT_FILE} .pre-commit-config.yaml ## Run pre-commit hooks
 	pre-commit run --all-files
 
-typing-check: ${PYPROJECT_FILE}
-	mypy --config-file ${PYPROJECT_FILE}
+typing-check: ${PYPROJECT_FILE} ## Check type annotations
+	uvx ty check .
 
-deps-check: .github/verify_deps_sync.py
-	python .github/verify_deps_sync.py
+deps-check: .github/verify_deps_sync.py ## Check dependency synchronization
+	uv run --script .github/verify_deps_sync.py
 
 # this target runs checks on all files
-quality: lint-check typing-check deps-check
+quality: lint-check typing-check deps-check ## Run all quality checks
 
-style: lint-format precommit
+style: precommit ## Format code and run pre-commit hooks
 
 ########################################################
-# Build & tests
+# Builds
 ########################################################
 
-install-test: ${PYPROJECT_FILE}
-	uv pip install --system -e ".[test]"
+set-version: ${PYPROJECT_FILE} ## Set the version in the pyproject.toml file
+	uv version --frozen --no-build ${BUILD_VERSION}
 
-# Run tests for the library
-test: ${TESTS_DIR}
-	pytest --cov=torchcam ${TESTS_DIR}
+build: ${PYPROJECT_FILE} ## Build the package
+	uv build ${PY_DIR}
+
+publish: ${PY_DIR} ## Publish the package to PyPI
+	uv publish --trusted-publishing always
+
+########################################################
+# Tests
+########################################################
+
+install-test: ${PY_DIR} ${PYPROJECT_FILE} ## Install with test dependencies
+	uv pip install -e '${PY_DIR}[test]'
+
+test: ${PYPROJECT_FILE} ## Run the tests
+	uv run pytest --cov-report xml
+
+
+########################################################
+# Docs
+########################################################
 
 install-docs: ${PYPROJECT_FILE}
-	uv pip install --system -e ".[docs]"
+	uv pip install -e ".[docs]"
 
 # Build documentation for current version
 single-docs: ${DOCS_DIR}
-	sphinx-build ${DOCS_DIR}/source ${DOCS_DIR}/_build -a
+	uv run sphinx-build ${DOCS_DIR}/source ${DOCS_DIR}/_build -a
 
 # Check that docs can build
 full-docs: ${DOCS_DIR}
 	cd ${DOCS_DIR} && bash build.sh
 
+########################################################
+# Demo
+########################################################
+
 install-demo: ${PYPROJECT_FILE}
-	uv pip install --system -e ".[demo]"
+	uv pip install -e ".[demo]"
 
 # Run the Gradio demo
 run-demo: ${DEMO_FILE}
-	streamlit run ${DEMO_FILE}
+	uv run streamlit run ${DEMO_FILE}

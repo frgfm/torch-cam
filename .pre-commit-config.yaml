@@ -2,7 +2,7 @@ default_language_version:
     python: python3.11
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
       - id: check-ast
@@ -22,7 +22,7 @@ repos:
       - id: requirements-txt-fixer
       - id: trailing-whitespace
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: 'v4.0.0'
+    rev: 'v4.2.0'
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
@@ -30,6 +30,21 @@ repos:
     rev: 'v0.14.1'
     hooks:
       - id: ruff
-        args:
-          - --fix
+        args: ["--fix", "--config", "./pyproject.toml"]
       - id: ruff-format
+        args: ["--config", "./pyproject.toml"]
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.24.1
+    hooks:
+      - id: validate-pyproject
+        args: ["./pyproject.toml"]
+  - repo: local
+    hooks:
+      - id: deps-check
+        name: check deps version sync
+        entry: make deps-check
+        language: system
+      - id: typing-check
+        name: check typing
+        entry: make typing-check
+        language: system
