@@ -91,12 +91,10 @@ def main():
         with workflow_file.open("r") as f:
             workflow = yaml.safe_load(f)
             if "env" in workflow and "UV_VERSION" in workflow["env"]:
-                deps_dict["uv"].append(
-                    {
-                        "file": str(workflow_file),
-                        "version": f"=={workflow['env']['UV_VERSION'].lstrip('v')}",
-                    }
-                )
+                deps_dict["uv"].append({
+                    "file": str(workflow_file),
+                    "version": f"=={workflow['env']['UV_VERSION'].lstrip('v')}",
+                })
 
     # Assert all deps are in sync
     troubles = []
@@ -106,12 +104,10 @@ def main():
             inv_dict = {v: set() for v in versions_}
             for version in versions:
                 inv_dict[version["version"]].add(version["file"])
-            troubles.extend(
-                [
-                    f"\033[31m{dep}\033[0m:",
-                    "\n".join(f"- '{v}': {', '.join(files)}" for v, files in inv_dict.items()),
-                ]
-            )
+            troubles.extend([
+                f"\033[31m{dep}\033[0m:",
+                "\n".join(f"- '{v}': {', '.join(files)}" for v, files in inv_dict.items()),
+            ])
 
     if len(troubles) > 0:
         raise AssertionError("Some dependencies are out of sync:\n\n" + "\n".join(troubles))

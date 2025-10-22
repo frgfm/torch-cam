@@ -29,7 +29,7 @@ jobs:
           make full-docs
       - name: Documentation sanity check
         run: test -e docs/build/index.html || exit
-  
+
   deploy:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest

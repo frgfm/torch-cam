@@ -71,7 +71,7 @@ jobs:
           make lint-check
       - name: Run ty
         run: make typing-check
-  
+
   headers:
     runs-on: ubuntu-latest
     steps:
