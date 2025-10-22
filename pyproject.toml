@@ -93,7 +93,7 @@ publish-url = "https://test.pypi.org/legacy/"
 explicit = true
 
 [tool.pytest.ini_options]
-testpaths = ["torchcam/"]
+testpaths = ["tests/"]
 addopts = "--cov=torchcam"
 
 [tool.ruff]
