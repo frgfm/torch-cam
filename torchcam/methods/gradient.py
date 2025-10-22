@@ -4,7 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 from functools import partial
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any
 
 import torch
 from torch import Tensor, nn
@@ -21,13 +21,14 @@ class _GradCAM(_CAM):
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
         input_shape: shape of the expected input tensor excluding the batch dimension
+
     """
 
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
@@ -43,7 +44,7 @@ class _GradCAM(_CAM):
         if self._hooks_enabled:
             self.hook_g[idx] = grad.data
 
-    def _hook_g(self, _: nn.Module, _input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
+    def _hook_g(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Gradient hook"""
         if self._hooks_enabled:
             self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
@@ -51,7 +52,7 @@ class _GradCAM(_CAM):
     def _backprop(
         self,
         scores: Tensor,
-        class_idx: Union[int, List[int]],
+        class_idx: int | list[int],
         retain_graph: bool = False,
     ) -> None:
         """Backpropagate the loss for a specific output class"""
@@ -94,14 +95,15 @@ class GradCAM(_GradCAM):
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
         input_shape: shape of the expected input tensor excluding the batch dimension
+
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(self, class_idx: int | list[int], scores: Tensor, **kwargs: Any) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
-        self.hook_g: List[Tensor]  # type: ignore[assignment]
+        self.hook_g: list[Tensor]  # type: ignore[assignment]
         # Global average pool the gradients over spatial dimensions
         return [grad.flatten(2).mean(-1) for grad in self.hook_g]
 
@@ -145,20 +147,21 @@ class GradCAMpp(_GradCAM):
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
         input_shape: shape of the expected input tensor excluding the batch dimension
+
     """
 
     def _get_weights(
         self,
-        class_idx: Union[int, List[int]],
+        class_idx: int | list[int],
         scores: Tensor,
         eps: float = 1e-8,
         **kwargs: Any,
-    ) -> List[Tensor]:
+    ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
-        self.hook_a: List[Tensor]  # type: ignore[assignment]
-        self.hook_g: List[Tensor]  # type: ignore[assignment]
+        self.hook_a: list[Tensor]  # type: ignore[assignment]
+        self.hook_g: list[Tensor]  # type: ignore[assignment]
         # Alpha coefficient for each pixel
         grad_2 = [grad.pow(2) for grad in self.hook_g]
         grad_3 = [g2 * grad for g2, grad in zip(grad_2, self.hook_g)]
@@ -227,15 +230,16 @@ class SmoothGradCAMpp(_GradCAM):
         num_samples: number of samples to use for smoothing
         std: standard deviation of the noise
         input_shape: shape of the expected input tensor excluding the batch dimension
+
     """
 
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         num_samples: int = 4,
         std: float = 0.3,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
@@ -258,17 +262,17 @@ class SmoothGradCAMpp(_GradCAM):
 
     def _get_weights(
         self,
-        class_idx: Union[int, List[int]],
-        _: Union[Tensor, None] = None,
+        class_idx: int | list[int],
+        _: Tensor | None = None,
         eps: float = 1e-8,
         **kwargs: Any,
-    ) -> List[Tensor]:
+    ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Disable input update
         self._ihook_enabled = False
         # Keep initial activation
-        self.hook_a: List[Tensor]  # type: ignore[assignment]
-        self.hook_g: List[Tensor]  # type: ignore[assignment]
+        self.hook_a: list[Tensor]  # type: ignore[assignment]
+        self.hook_g: list[Tensor]  # type: ignore[assignment]
         init_fmap = [act.clone() for act in self.hook_a]
         # Initialize our gradient estimates
         grad_2 = [torch.zeros_like(act) for act in self.hook_a]
@@ -339,21 +343,22 @@ class XGradCAM(_GradCAM):
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
         input_shape: shape of the expected input tensor excluding the batch dimension
+
     """
 
     def _get_weights(
         self,
-        class_idx: Union[int, List[int]],
+        class_idx: int | list[int],
         scores: Tensor,
         eps: float = 1e-8,
         **kwargs: Any,
-    ) -> List[Tensor]:
+    ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
-        self.hook_a: List[Tensor]  # type: ignore[assignment]
-        self.hook_g: List[Tensor]  # type: ignore[assignment]
+        self.hook_a: list[Tensor]  # type: ignore[assignment]
+        self.hook_g: list[Tensor]  # type: ignore[assignment]
         return [
             (grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1).add(eps)
             for act, grad in zip(self.hook_a, self.hook_g)
@@ -390,18 +395,19 @@ class LayerCAM(_GradCAM):
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
         input_shape: shape of the expected input tensor excluding the batch dimension
+
     """
 
-    def _get_weights(self, class_idx: Union[int, List[int]], scores: Tensor, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(self, class_idx: int | list[int], scores: Tensor, **kwargs: Any) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
-        self.hook_g: List[Tensor]  # type: ignore[assignment]
+        self.hook_g: list[Tensor]  # type: ignore[assignment]
         # List of (N, C, H, W)
         return [torch.relu(grad) for grad in self.hook_g]
 
     @staticmethod
-    def _scale_cams(cams: List[Tensor], gamma: float = 2.0) -> List[Tensor]:
+    def _scale_cams(cams: list[Tensor], gamma: float = 2.0) -> list[Tensor]:
         # cf. Equation 9 in the paper
         return [torch.tanh(gamma * cam) for cam in cams]

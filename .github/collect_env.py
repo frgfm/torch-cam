@@ -9,8 +9,6 @@ This script outputs relevant system environment info
 Run it with `python collect_env.py`.
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import locale
 import os
 import re
@@ -137,7 +135,7 @@ def get_cudnn_version(run_lambda):
     if len(files) == 1:
         return files[0]
     result = "\n".join(files)
-    return "Probably one of the following:\n{}".format(result)
+    return f"Probably one of the following:\n{result}"
 
 
 def get_nvidia_smi():
@@ -151,7 +149,7 @@ def get_nvidia_smi():
         smis = [new_path, legacy_path]
         for candidate_smi in smis:
             if Path(candidate_smi).exists():
-                smi = '"{}"'.format(candidate_smi)
+                smi = f'"{candidate_smi}"'
                 break
     return smi
 
@@ -194,7 +192,7 @@ def get_os(run_lambda):
         version = get_mac_version(run_lambda)
         if version is None:
             return None
-        return "Mac OSX {}".format(version)
+        return f"Mac OSX {version}"
 
     if platform == "linux":
         # Ubuntu/Debian based
@@ -271,7 +269,7 @@ def pretty_str(envinfo):
     def maybe_start_on_next_line(string):
         # If `string` is multiline, prepend a \n to it.
         if string is not None and len(string.split("\n")) > 1:
-            return "\n{}\n".format(string)
+            return f"\n{string}\n"
         return string
 
     mutable_dict = envinfo._asdict()

@@ -4,7 +4,6 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 from functools import partial
-from typing import List, Optional, Tuple
 
 import torch
 from torch import Tensor, nn
@@ -12,7 +11,7 @@ from torch import Tensor, nn
 __all__ = ["locate_candidate_layer", "locate_linear_layer"]
 
 
-def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 224, 224)) -> Optional[str]:
+def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 224, 224)) -> str | None:
     """Attempts to find a candidate layer to use for CAM extraction
 
     Args:
@@ -21,18 +20,19 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
 
     Returns:
         str: the candidate layer for CAM
+
     """
     # Set module in eval mode
     module_mode = mod.training
     mod.eval()
 
-    output_shapes: List[Tuple[Optional[str], Tuple[int, ...]]] = []
+    output_shapes: list[tuple[str | None, tuple[int, ...]]] = []
 
-    def _record_output_shape(_: nn.Module, _input: Tensor, output: Tensor, name: Optional[str] = None) -> None:
+    def _record_output_shape(_: nn.Module, _input: Tensor, output: Tensor, name: str | None = None) -> None:
         """Activation hook."""
         output_shapes.append((name, output.shape))
 
-    hook_handles: List[torch.utils.hooks.RemovableHandle] = []
+    hook_handles: list[torch.utils.hooks.RemovableHandle] = []
     # forward hook on all layers
     for n, m in mod.named_modules():
         hook_handles.append(m.register_forward_hook(partial(_record_output_shape, name=n)))
@@ -59,7 +59,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: Tuple[int, ...] = (3, 22
     return candidate_layer
 
 
-def locate_linear_layer(mod: nn.Module) -> Optional[str]:
+def locate_linear_layer(mod: nn.Module) -> str | None:
     """Attempts to find a fully connecter layer to use for CAM extraction
 
     Args:
@@ -67,6 +67,7 @@ def locate_linear_layer(mod: nn.Module) -> Optional[str]:
 
     Returns:
         str: the candidate layer
+
     """
     candidate_layer = None
     for layer_name, m in mod.named_modules():

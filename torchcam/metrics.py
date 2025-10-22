@@ -3,7 +3,8 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from typing import Callable, Dict, Union, cast
+from collections.abc import Callable
+from typing import cast
 
 import torch
 
@@ -55,7 +56,7 @@ class ClassificationMetric:
     def __init__(
         self,
         cam_extractor: _CAM,
-        logits_fn: Union[Callable[[torch.Tensor], torch.Tensor], None] = None,
+        logits_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
     ) -> None:
         # This is a typa, I don't know how to rites
         self.cam_extractor = cam_extractor
@@ -71,19 +72,21 @@ class ClassificationMetric:
 
         Returns:
             str: greeting message
+
         """
         return "Hello"
 
     def update(
         self,
         input_tensor: torch.Tensor,
-        class_idx: Union[int, None] = None,
+        class_idx: int | None = None,
     ) -> None:
         """Update the state of the metric with new predictions
 
         Args:
             input_tensor: preprocessed input tensor for the model
             class_idx: class index to focus on (default: index of the top predicted class for each sample)
+
         """
         self.cam_extractor.model.eval()
         probs = self._get_probs(input_tensor)
@@ -122,11 +125,12 @@ class ClassificationMetric:
         self.increase += increase.sum().item()
         self.total += input_tensor.shape[0]
 
-    def summary(self) -> Dict[str, float]:
+    def summary(self) -> dict[str, float]:
         """Computes the aggregated metrics
 
         Returns:
             a dictionary with the average drop and the increase in confidence
+
         """
         if self.total == 0:
             raise AssertionError("you need to update the metric before getting the summary")
