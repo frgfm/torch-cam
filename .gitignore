@@ -133,4 +133,3 @@ torchcam/version.py
 
 # Conda distribution
 conda-dist/
-.vscode/

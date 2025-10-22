@@ -1,0 +1,24 @@
+{
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit",
+      "source.unusedImports": "explicit"
+    },
+    "editor.quickSuggestions": {
+      "strings": "on"
+    },
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": "explicit",
+          "source.fixAll": "explicit"
+        },
+        "editor.inlayHints.enabled": "offUnlessPressed"
+    },
+    "ruff.configuration": "./pyproject.toml",
+    "ty.path": [
+        "."
+    ],
+    "python.languageServer": "None"
+}
