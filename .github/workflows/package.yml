@@ -42,8 +42,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
+          activate-environment: true
       - name: Install the engine
-        run: uv pip install --system --upgrade -e .
+        run: make install
       - name: Check that we can import the engine
         run: |
           python -c "import torchcam; print(torchcam.__version__)"

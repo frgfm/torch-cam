@@ -23,6 +23,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
+          activate-environment: true
       - name: Build documentation
         run: |
           make install-docs
@@ -44,6 +45,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
+          activate-environment: true
       - name: Build documentation
         run: |
           make install-docs

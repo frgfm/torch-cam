@@ -22,8 +22,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           version: ${{ env.UV_VERSION }}
+          activate-environment: true
       - name: Install dependencies
-        run: uv pip install --system --upgrade -e ".[demo]"
+        run: make install-demo
       - name: Run demo app
         run: |
           screen -dm streamlit run demo/app.py --server.port 8080
