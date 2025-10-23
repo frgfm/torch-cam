@@ -12,7 +12,7 @@ Run it with `python collect_env.py`.
 import locale
 import os
 import re
-import subprocess  # noqa S404
+import subprocess  # noqa: S404
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -118,7 +118,7 @@ def get_cudnn_version(run_lambda):
         cudnn_cmd = 'ldconfig -p | grep libcudnn | rev | cut -d" " -f1 | rev'
     rc, out, _ = run_lambda(cudnn_cmd)
     # find will return 1 if there are permission errors or if not found
-    if len(out) == 0 or rc not in (1, 0):
+    if len(out) == 0 or rc not in {1, 0}:
         lib = os.environ.get("CUDNN_LIBRARY")
         if lib is not None and Path(lib).is_file():
             return os.path.realpath(lib)
@@ -185,7 +185,7 @@ def check_release_file(run_lambda):
 def get_os(run_lambda):
     platform = get_platform()
 
-    if platform in ("win32", "cygwin"):
+    if platform in {"win32", "cygwin"}:
         return get_windows_version(run_lambda)
 
     if platform == "darwin":

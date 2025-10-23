@@ -53,6 +53,9 @@ class CAM(_CAM):
         fc_layer: either the fully connected layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
 
+    Raises:
+        ValueError: if the argument is invalid
+        TypeError: if the argument type is invalid
     """
 
     def __init__(
@@ -80,7 +83,7 @@ class CAM(_CAM):
             if isinstance(fc_name, str):
                 logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
             else:
-                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
+                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")  # noqa: TRY004
         else:
             raise TypeError("invalid argument type for `fc_layer`")
         # Softmax weight
@@ -95,7 +98,7 @@ class CAM(_CAM):
         class_idx: int | list[int],
         *_: Any,
     ) -> list[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps."""
+        """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         # Take the FC weights of the target class
         if isinstance(class_idx, int):
             return [self._fc_weights[class_idx, :].unsqueeze(0)]
@@ -139,7 +142,6 @@ class ScoreCAM(_CAM):
         target_layer: either the target layer itself or its name, or a list of those
         batch_size: batch size used to forward masked inputs
         input_shape: shape of the expected input tensor excluding the batch dimension
-
     """
 
     def __init__(
@@ -201,7 +203,7 @@ class ScoreCAM(_CAM):
         class_idx: int | list[int],
         *_: Any,
     ) -> list[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps."""
+        """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         self.hook_a: list[Tensor]  # type: ignore[assignment]
 
         # Normalize the activation
@@ -237,7 +239,7 @@ class ScoreCAM(_CAM):
 
         return weights
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs})"
 
 
@@ -283,7 +285,6 @@ class SSCAM(ScoreCAM):
         num_samples: number of noisy samples used for weight computation
         std: standard deviation of the noise added to the normalized activation
         input_shape: shape of the expected input tensor excluding the batch dimension
-
     """
 
     def __init__(
@@ -300,7 +301,7 @@ class SSCAM(ScoreCAM):
 
         self.num_samples = num_samples
         self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)
+        self._distrib = torch.distributions.normal.Normal(0, self.std)  # ty: ignore[unresolved-attribute]
 
     @torch.no_grad()
     def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
@@ -337,7 +338,7 @@ class SSCAM(ScoreCAM):
         # Reshape the weights (N, C)
         return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
 
 
@@ -381,7 +382,6 @@ class ISCAM(ScoreCAM):
         batch_size: batch size used to forward masked inputs
         num_samples: number of noisy samples used for weight computation
         input_shape: shape of the expected input tensor excluding the batch dimension
-
     """
 
     def __init__(

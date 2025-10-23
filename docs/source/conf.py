@@ -16,7 +16,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, Path().cwd().parent.parent)
@@ -26,7 +26,7 @@ import torchcam
 
 master_doc = "index"
 project = "torchcam"
-copyright = f"2020-{datetime.now().year}, François-Guillaume Fernandez"
+copyright = f"2020-{datetime.now(UTC).year}, François-Guillaume Fernandez"
 author = "François-Guillaume Fernandez"
 
 # The full version, including alpha/beta/rc tags

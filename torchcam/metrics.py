@@ -67,26 +67,16 @@ class ClassificationMetric:
         logits = self.cam_extractor.model(input_tensor)
         return cast(torch.Tensor, logits if self.logits_fn is None else self.logits_fn(logits))
 
-    def my_function(self) -> str:
-        """Returns a greeting message
-
-        Returns:
-            str: greeting message
-
-        """
-        return "Hello"
-
     def update(
         self,
         input_tensor: torch.Tensor,
         class_idx: int | None = None,
     ) -> None:
-        """Update the state of the metric with new predictions
+        """Update the state of the metric with new predictions.
 
         Args:
             input_tensor: preprocessed input tensor for the model
             class_idx: class index to focus on (default: index of the top predicted class for each sample)
-
         """
         self.cam_extractor.model.eval()
         probs = self._get_probs(input_tensor)
@@ -126,11 +116,13 @@ class ClassificationMetric:
         self.total += input_tensor.shape[0]
 
     def summary(self) -> dict[str, float]:
-        """Computes the aggregated metrics
+        """Computes the aggregated metrics.
 
         Returns:
             a dictionary with the average drop and the increase in confidence
 
+        Raises:
+            AssertionError: if the metric has not been updated
         """
         if self.total == 0:
             raise AssertionError("you need to update the metric before getting the summary")
@@ -141,6 +133,7 @@ class ClassificationMetric:
         }
 
     def reset(self) -> None:
+        """Reset the state of the metric."""
         self.drop = 0.0
         self.increase = 0.0
         self.total = 0

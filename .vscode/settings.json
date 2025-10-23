@@ -13,12 +13,12 @@
         "editor.codeActionsOnSave": {
           "source.organizeImports": "explicit",
           "source.fixAll": "explicit"
-        },
-        "editor.inlayHints.enabled": "offUnlessPressed"
+        }
     },
     "ruff.configuration": "./pyproject.toml",
+    "ty.interpreter": [".venv/bin/python"],
     "ty.path": [
-        "."
+        ".venv/bin/ty"
     ],
     "python.languageServer": "None"
 }

@@ -11,7 +11,7 @@ from PIL.Image import Image, Resampling, fromarray
 
 
 def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 0.7) -> Image:
-    """Overlay a colormapped mask on a background image
+    """Overlay a colormapped mask on a background image.
 
     >>> from PIL import Image
     >>> import matplotlib.pyplot as plt
@@ -32,7 +32,6 @@ def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 
     Raises:
         TypeError: when the arguments have invalid types
         ValueError: when the alpha argument has an incorrect value
-
     """
     if not isinstance(img, Image) or not isinstance(mask, Image):
         raise TypeError("img and mask arguments need to be PIL.Image")

@@ -46,7 +46,7 @@ def parse_dep_str(dep_str: str) -> dict[str, str]:
     }
 
 
-def main():
+def main():  # noqa: PLR0912
     # Retrieve & parse all deps files
     deps_dict = {
         "uv": [],

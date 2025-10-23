@@ -73,7 +73,7 @@ def main(args):
     ax.imshow(pil_img)
     ax.set_title("Input", size=8)
 
-    for idx, extractor in zip(range(1, len(cam_extractors) + 1), cam_extractors):
+    for idx, extractor in zip(range(1, len(cam_extractors) + 1), cam_extractors, strict=True):
         extractor.enable_hooks()
         model.zero_grad()
         scores = model(img_tensor.unsqueeze(0))

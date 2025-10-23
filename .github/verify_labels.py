@@ -12,6 +12,7 @@ Note: we ping the merger only, not the reviewers, as the reviewers can sometimes
 with no labeling responsibility, so we don't want to bother them.
 """
 
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from typing import Any
 
 import requests
@@ -70,11 +71,9 @@ def main(args):
 
 
 def parse_args():
-    import argparse
-
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description="PR label checker",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        formatter_class=ArgumentDefaultsHelpFormatter,
     )
 
     parser.add_argument("pr", type=int, help="PR number")

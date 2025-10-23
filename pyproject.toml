@@ -71,7 +71,7 @@ docs = [
     "Jinja2<3.1",
 ]
 demo = [
-    "streamlit>=0.65.0,<2.0.0",
+    "streamlit>=1.40.0,<2.0.0",
     "torchvision>=0.15.0,<1.0.0",
 ]
 
@@ -160,6 +160,18 @@ ignore = [
     "N812",  # lowercase imported as non-lowercase
     "ISC001",  # implicit string concatenation (handled by format)
     "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed
+    "D205",  # Blank line before docstring
+    "D100",  # missing doctring in public module
+    "D401",  # first docstring line should be in imperative mood
+    "D203", "D204",  # blank line required before & after docstring
+    "D413",  # blank line after last docstring section
+    "D213",  # docstring text can start on first line
+    "D107",  # no docstring for __init__
+    "TRY003",  # long messages outside exception class
+    "ERA001",  # commented-out code
+    "PLR2004",  # magic value comparison
+    "PLR0913",  # too many arguments in function definition
+    "PLR0917",  # too many positional arguments in function definition
 ]
 exclude = [".git"]
 
@@ -172,11 +184,11 @@ known-third-party = ["torch", "torchvision"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["I001", "F401", "CPY001", "D104"]
-"scripts/**.py" = ["D", "T201", "N812", "S101", "ANN"]
-".github/**.py" = ["D", "T201", "S602", "S101", "ANN"]
+"scripts/**.py" = ["D", "T201", "N812", "S101", "ANN", "PLW2901"]
+".github/**.py" = ["D", "T201", "S602", "S101", "ANN", "DOC201", "PLW2901", "PLR0911"]
 "docs/**.py" = ["E402", "D103", "ANN", "A001", "ARG001"]
-"tests/**.py" = ["D103", "CPY001", "S101", "PT011", "ANN", "SLF001"]
-"demo/**.py" = ["D103", "ANN"]
+"tests/**.py" = ["D103", "CPY001", "S101", "PT011", "ANN", "SLF001", "PLC2701"]
+"demo/**.py" = ["D103", "ANN", "PLR0914", "PLR0915", "PLC2701"]
 "setup.py" = ["T201"]
 
 [tool.ruff.format]
@@ -189,3 +201,6 @@ python-platform = "linux"
 
 [tool.ty.rules]
 unresolved-import = "warn"
+
+[tool.ty.src]
+include = ["torchcam/"]

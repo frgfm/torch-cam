@@ -12,7 +12,7 @@ __all__ = ["locate_candidate_layer", "locate_linear_layer"]
 
 
 def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 224, 224)) -> str | None:
-    """Attempts to find a candidate layer to use for CAM extraction
+    """Attempts to find a candidate layer to use for CAM extraction.
 
     Args:
         mod: the module to inspect
@@ -20,7 +20,6 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
 
     Returns:
         str: the candidate layer for CAM
-
     """
     # Set module in eval mode
     module_mode = mod.training
@@ -46,7 +45,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         handle.remove()
 
     # Put back the model in the corresponding mode
-    mod.training = module_mode
+    mod.training = module_mode  # ty: ignore[unresolved-attribute]
 
     # Check output shapes
     candidate_layer = None
@@ -60,14 +59,13 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
 
 
 def locate_linear_layer(mod: nn.Module) -> str | None:
-    """Attempts to find a fully connecter layer to use for CAM extraction
+    """Attempts to find a fully connecter layer to use for CAM extraction.
 
     Args:
         mod: the module to inspect
 
     Returns:
         str: the candidate layer
-
     """
     candidate_layer = None
     for layer_name, m in mod.named_modules():
