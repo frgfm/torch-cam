@@ -16,7 +16,7 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, Path().cwd().parent.parent)
@@ -26,7 +26,7 @@ import torchcam
 
 master_doc = "index"
 project = "torchcam"
-copyright = f"2020-{datetime.now().year}, François-Guillaume Fernandez"
+copyright = f"2020-{datetime.now(UTC).year}, François-Guillaume Fernandez"
 author = "François-Guillaume Fernandez"
 
 # The full version, including alpha/beta/rc tags
@@ -112,16 +112,16 @@ html_static_path = ["_static"]
 # ref: https://github.com/orenhecht/googleanalytics/blob/master/sphinxcontrib/googleanalytics.py
 def add_ga_javascript(app, pagename, templatename, context, doctree):
     metatags = context.get("metatags", "")
-    metatags += """
+    metatags += f"""
     <!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id={0}"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id={app.config.googleanalytics_id}"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){{dataLayer.push(arguments);}}
   gtag('js', new Date());
-  gtag('config', '{0}');
+  gtag('config', '{app.config.googleanalytics_id}');
 </script>
-    """.format(app.config.googleanalytics_id)
+    """
     context["metatags"] = metatags
 
 

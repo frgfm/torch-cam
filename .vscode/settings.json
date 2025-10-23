@@ -1,0 +1,24 @@
+{
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit",
+      "source.unusedImports": "explicit"
+    },
+    "editor.quickSuggestions": {
+      "strings": "on"
+    },
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": "explicit",
+          "source.fixAll": "explicit"
+        }
+    },
+    "ruff.configuration": "./pyproject.toml",
+    "ty.interpreter": [".venv/bin/python"],
+    "ty.path": [
+        ".venv/bin/ty"
+    ],
+    "python.languageServer": "None"
+}

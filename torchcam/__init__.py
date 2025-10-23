@@ -1,5 +1,4 @@
-from contextlib import suppress
+from importlib.metadata import version
 from torchcam import methods, metrics, utils
 
-with suppress(ImportError):
-    from .version import __version__
+__version__ = version("torchcam")

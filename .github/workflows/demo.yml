@@ -1,0 +1,33 @@
+name: demo
+
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.9.5"
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - name: Install dependencies
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: make install-demo
+      - name: Run demo app
+        run: |
+          screen -dm streamlit run demo/app.py --server.port 8080
+          sleep 10 && nc -vz localhost 8080

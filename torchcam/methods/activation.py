@@ -6,7 +6,7 @@
 import logging
 import math
 import sys
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -52,14 +52,18 @@ class CAM(_CAM):
         target_layer: either the target layer itself or its name, or a list of those
         fc_layer: either the fully connected layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
+
+    Raises:
+        ValueError: if the argument is invalid
+        TypeError: if the argument type is invalid
     """
 
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
-        fc_layer: Optional[Union[nn.Module, str]] = None,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
+        fc_layer: nn.Module | str | None = None,
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         if isinstance(target_layer, list) and len(target_layer) > 1:
@@ -79,7 +83,7 @@ class CAM(_CAM):
             if isinstance(fc_name, str):
                 logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
             else:
-                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
+                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")  # noqa: TRY004
         else:
             raise TypeError("invalid argument type for `fc_layer`")
         # Softmax weight
@@ -91,10 +95,10 @@ class CAM(_CAM):
     @torch.no_grad()
     def _get_weights(
         self,
-        class_idx: Union[int, List[int]],
+        class_idx: int | list[int],
         *_: Any,
-    ) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps."""
+    ) -> list[Tensor]:
+        """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         # Take the FC weights of the target class
         if isinstance(class_idx, int):
             return [self._fc_weights[class_idx, :].unsqueeze(0)]
@@ -143,9 +147,9 @@ class ScoreCAM(_CAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         batch_size: int = 32,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
@@ -162,7 +166,7 @@ class ScoreCAM(_CAM):
             self._input = input_[0].data.clone()
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [
@@ -196,11 +200,11 @@ class ScoreCAM(_CAM):
     @torch.no_grad()
     def _get_weights(
         self,
-        class_idx: Union[int, List[int]],
+        class_idx: int | list[int],
         *_: Any,
-    ) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps."""
-        self.hook_a: List[Tensor]  # type: ignore[assignment]
+    ) -> list[Tensor]:
+        """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
+        self.hook_a: list[Tensor]  # type: ignore[assignment]
 
         # Normalize the activation
         # (N, C, H', W')
@@ -226,16 +230,16 @@ class ScoreCAM(_CAM):
         origin_mode = self.model.training
         self.model.eval()
 
-        weights: List[Tensor] = self._get_score_weights(upsampled_a, class_idx)
+        weights: list[Tensor] = self._get_score_weights(upsampled_a, class_idx)
 
         # Reenable hook updates
         self.enable_hooks()
         # Put back the model in the correct mode
-        self.model.training = origin_mode
+        self.model.training = origin_mode  # ty: ignore[invalid-assignment]
 
         return weights
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs})"
 
 
@@ -286,21 +290,21 @@ class SSCAM(ScoreCAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         batch_size: int = 32,
         num_samples: int = 35,
         std: float = 2.0,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
         self.num_samples = num_samples
         self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)
+        self._distrib = torch.distributions.normal.Normal(0, self.std)  # ty: ignore[unresolved-attribute]
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
         b, c = activations[0].shape[:2]
 
         # Initialize weights
@@ -334,7 +338,7 @@ class SSCAM(ScoreCAM):
         # Reshape the weights (N, C)
         return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
 
 
@@ -383,10 +387,10 @@ class ISCAM(ScoreCAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         batch_size: int = 32,
         num_samples: int = 10,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
@@ -394,7 +398,7 @@ class ISCAM(ScoreCAM):
         self.num_samples = num_samples
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [

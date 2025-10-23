@@ -1,0 +1,237 @@
+name: package
+
+on:
+  push:
+    branches: main
+    paths:
+      - '.github/workflows/package.yml'
+      - 'torchcam/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'Makefile'
+  pull_request:
+    branches: main
+    paths:
+      - '.github/workflows/package.yml'
+      - 'torchcam/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'Makefile'
+  release:
+    types: [published]
+
+env:
+  UV_VERSION: "0.9.5"
+  PYTHON_VERSION: "3.11"
+
+
+jobs:
+  install:
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.11', '3.12', '3.13']
+        exclude:
+          - os: windows-latest
+            python: '3.13'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - name: Install the engine
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: make install
+      - name: Check that we can import the engine
+        run: |
+          python -c "import torchcam; print(torchcam.__version__)"
+
+  code-quality:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+      - name: Run ruff
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: |
+          make install-quality
+          ruff --version
+          make lint-check
+      - name: Run ty
+        run: make typing-check
+
+  headers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Check the headers
+        uses: frgfm/validate-python-headers@main
+        with:
+          license: 'Apache-2.0'
+          owner: 'François-Guillaume Fernandez'
+          starting-year: 2020
+          folders: 'torchcam,scripts,demo,docs,.github'
+          ignore-files: 'version.py,__init__.py'
+
+  deps-sync:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Run dependency sync checker
+        run: make deps-check
+
+  test:
+    if: github.event_name != 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}-test
+      - name: Run tests
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: |
+          make install-test
+          make test
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ./coverage.xml
+          name: coverage-reports
+
+  codecov-upload:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v5
+        with:
+          name: coverage-reports
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: unittests
+          files: ./coverage.xml
+          fail_ci_if_error: true
+
+  build:
+    if: github.event_name == 'pull_request'
+    needs: install
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Build the package
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: make build
+
+  publish:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      # For PyPI's trusted publishing.
+      id-token: write
+    outputs:
+      package_version: ${{ steps.set_version.outputs.package_version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Set package version
+        id: set_version
+        run: |
+          RELEASE_TAG=${{ github.ref_name }}
+          # Strip "v" prefix
+          BUILD_VERSION=${RELEASE_TAG#v}
+          # Replace SemVer pre-release separators with PEP440 compatible ones
+          BUILD_VERSION=${BUILD_VERSION//-alpha./a}
+          BUILD_VERSION=${BUILD_VERSION//-beta./b}
+          BUILD_VERSION=${BUILD_VERSION//-rc./rc}
+          echo "package_version=${BUILD_VERSION}" >> $GITHUB_OUTPUT
+          echo "BUILD_VERSION=${BUILD_VERSION}" >> $GITHUB_ENV
+      - name: Publish to PyPI
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: |
+          make set-version
+          make build && make publish
+
+  verify-publish:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+    needs: publish
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: Install package
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: |
+          uv pip install --system torchcam==${{ needs.publish.outputs.package_version }}
+          python -c "import torchcam; print(torchcam.__version__)"

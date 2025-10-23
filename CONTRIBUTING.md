@@ -62,7 +62,7 @@ git checkout -b a-short-description
 
 4 - You only have to set your development environment now. First uninstall any existing installation of the library with `pip uninstall torchcam`, then:
 ```shell
-pip install -e ".[dev]"
+make install-quality
 pre-commit install
 ```
 
@@ -91,7 +91,7 @@ make quality
 
 This will read `pyproject.toml` and run:
 - lint checking, formatting ([ruff](https://docs.astral.sh/ruff/))
-- type annotation checking ([mypy](https://github.com/python/mypy))
+- type annotation checking ([ty](https://docs.astral.sh/ty/))
 
 You can apply automatic fix to most of those by running:
 

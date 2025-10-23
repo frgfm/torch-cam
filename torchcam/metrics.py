@@ -3,7 +3,8 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from typing import Callable, Dict, Union, cast
+from collections.abc import Callable
+from typing import cast
 
 import torch
 
@@ -55,7 +56,7 @@ class ClassificationMetric:
     def __init__(
         self,
         cam_extractor: _CAM,
-        logits_fn: Union[Callable[[torch.Tensor], torch.Tensor], None] = None,
+        logits_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
     ) -> None:
         # This is a typa, I don't know how to rites
         self.cam_extractor = cam_extractor
@@ -66,20 +67,12 @@ class ClassificationMetric:
         logits = self.cam_extractor.model(input_tensor)
         return cast(torch.Tensor, logits if self.logits_fn is None else self.logits_fn(logits))
 
-    def my_function(self) -> str:
-        """Returns a greeting message
-
-        Returns:
-            str: greeting message
-        """
-        return "Hello"
-
     def update(
         self,
         input_tensor: torch.Tensor,
-        class_idx: Union[int, None] = None,
+        class_idx: int | None = None,
     ) -> None:
-        """Update the state of the metric with new predictions
+        """Update the state of the metric with new predictions.
 
         Args:
             input_tensor: preprocessed input tensor for the model
@@ -122,11 +115,14 @@ class ClassificationMetric:
         self.increase += increase.sum().item()
         self.total += input_tensor.shape[0]
 
-    def summary(self) -> Dict[str, float]:
-        """Computes the aggregated metrics
+    def summary(self) -> dict[str, float]:
+        """Computes the aggregated metrics.
 
         Returns:
             a dictionary with the average drop and the increase in confidence
+
+        Raises:
+            AssertionError: if the metric has not been updated
         """
         if self.total == 0:
             raise AssertionError("you need to update the metric before getting the summary")
@@ -137,6 +133,7 @@ class ClassificationMetric:
         }
 
     def reset(self) -> None:
+        """Reset the state of the metric."""
         self.drop = 0.0
         self.increase = 0.0
         self.total = 0
