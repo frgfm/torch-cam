@@ -149,7 +149,6 @@ jobs:
       - uses: actions/download-artifact@v5
         with:
           name: coverage-reports
-          path: ./coverage.xml
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
