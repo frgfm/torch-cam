@@ -21,7 +21,7 @@
   <a href="https://pypi.org/project/torchcam/">
     <img src="https://img.shields.io/pypi/v/torchcam.svg?logo=PyPI&logoColor=fff&style=flat-square&label=PyPI" alt="PyPi Version">
   </a>
-  <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/relaycli/relay?label=Release&logo=github">
+  <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/frgfm/torch-cam?label=Release&logo=github">
   <img src="https://img.shields.io/pypi/pyversions/torchcam.svg?logo=Python&label=Python&logoColor=fff&style=flat-square" alt="pyversions">
   <a href="https://github.com/frgfm/torch-cam/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/frgfm/torch-cam.svg?label=License&logoColor=fff&style=flat-square" alt="License">
