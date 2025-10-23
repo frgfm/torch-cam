@@ -233,7 +233,7 @@ class _CAM:
 
         return cams
 
-    def extra_repr(self) -> str:
+    def _extra_repr(self) -> str:
         return f"target_layer={self.target_names}"
 
     def __repr__(self) -> str:
