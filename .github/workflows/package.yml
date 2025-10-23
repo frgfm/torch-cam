@@ -44,6 +44,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
       - name: Install the engine
+        env:
+          UV_TORCH_BACKEND: cpu
         run: make install
       - name: Check that we can import the engine
         run: |
@@ -67,6 +69,8 @@ jobs:
           path: ~/.cache/uv
           key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
       - name: Run ruff
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           make install-quality
           ruff --version
@@ -122,6 +126,8 @@ jobs:
           path: ~/.cache/uv
           key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}-test
       - name: Run tests
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           make install-test
           make test
@@ -163,6 +169,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - name: Build the package
+        env:
+          UV_TORCH_BACKEND: cpu
         run: make build
 
   publish:
@@ -195,6 +203,8 @@ jobs:
           echo "package_version=${BUILD_VERSION}" >> $GITHUB_OUTPUT
           echo "BUILD_VERSION=${BUILD_VERSION}" >> $GITHUB_ENV
       - name: Publish to PyPI
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           make set-version
           make build && make publish
@@ -215,6 +225,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - name: Install package
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           uv pip install --system torchcam==${{ needs.publish.outputs.package_version }}
           python -c "import torchcam; print(torchcam.__version__)"

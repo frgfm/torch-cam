@@ -25,6 +25,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
       - name: Build documentation
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           make install-docs
           make full-docs
@@ -47,6 +49,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
       - name: Build documentation
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           make install-docs
           make full-docs

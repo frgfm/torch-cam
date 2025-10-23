@@ -5,7 +5,7 @@ function deploy_doc(){
     fi
     COMMIT=$(git rev-parse --short HEAD)
     echo "Creating doc at commit" $COMMIT "and pushing to folder $2"
-    UV_TORCH_BACKEND=cpu uv pip install --system --upgrade ..
+    uv pip install --system --upgrade ..
     if [ ! -z "$2" ]
     then
         if [ "$2" == "latest" ]; then

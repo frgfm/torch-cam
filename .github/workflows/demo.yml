@@ -24,6 +24,8 @@ jobs:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
       - name: Install dependencies
+        env:
+          UV_TORCH_BACKEND: cpu
         run: make install-demo
       - name: Run demo app
         run: |

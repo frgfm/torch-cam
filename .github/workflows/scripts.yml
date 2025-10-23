@@ -26,6 +26,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - name: Install dependencies
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           uv pip install --system --upgrade -e .
           uv pip install --system -r scripts/requirements.txt
@@ -45,6 +47,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - name: Install dependencies
+        env:
+          UV_TORCH_BACKEND: cpu
         run: |
           uv pip install --system --upgrade -e .
           uv pip install --system -r scripts/requirements.txt
