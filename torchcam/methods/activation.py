@@ -235,7 +235,7 @@ class ScoreCAM(_CAM):
         # Reenable hook updates
         self.enable_hooks()
         # Put back the model in the correct mode
-        self.model.training = origin_mode
+        self.model.training = origin_mode  # ty: ignore[invalid-assignment]
 
         return weights
 
