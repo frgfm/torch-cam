@@ -54,7 +54,7 @@ test = [
     "pytest-pretty==1.3.0",
 ]
 quality = [
-    "ruff==0.14.1",
+    "ruff==0.14.2",
     "ty==0.0.1a24",
     "types-Pillow",
     "pre-commit==4.3.0",
