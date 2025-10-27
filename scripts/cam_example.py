@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import requests
 import torch
 from PIL import Image
-from torchvision import models
-from torchvision.transforms.functional import normalize, resize, to_pil_image, to_tensor
+from torchvision.models import get_model, get_model_weights
+from torchvision.transforms.functional import to_pil_image, to_tensor
 
 from torchcam import methods
 from torchcam.utils import overlay_mask
@@ -29,7 +29,8 @@ def main(args):
     device = torch.device(args.device)
 
     # Pretrained imagenet model
-    model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    weights = get_model_weights(args.arch).DEFAULT
+    model = get_model(args.arch, weights=weights).to(device=device)
     # Freeze the model
     for p in model.parameters():
         p.requires_grad_(False)
@@ -37,13 +38,10 @@ def main(args):
     # Image
     img_path = BytesIO(requests.get(args.img, timeout=5).content) if args.img.startswith("http") else args.img
     pil_img = Image.open(img_path, mode="r").convert("RGB")
+    preprocess = weights.transforms()
 
     # Preprocess image
-    img_tensor = normalize(
-        to_tensor(resize(pil_img, (224, 224))),
-        [0.485, 0.456, 0.406],
-        [0.229, 0.224, 0.225],
-    ).to(device=device)
+    img_tensor = preprocess(to_tensor(pil_img)).to(device=device)
     img_tensor.requires_grad_(True)
 
     if isinstance(args.method, str):

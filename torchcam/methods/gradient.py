@@ -83,9 +83,9 @@ class GradCAM(_GradCAM):
     position :math:`(x, y)`,
     and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import GradCAM
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = GradCAM(model, 'layer4')
     >>> scores = model(input_tensor)
     >>> cam(class_idx=100, scores=scores)
@@ -134,9 +134,9 @@ class GradCAMpp(_GradCAM):
 
     if :math:`\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1` else :math:`0`.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import GradCAMpp
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = GradCAMpp(model, 'layer4')
     >>> scores = model(input_tensor)
     >>> cam(class_idx=100, scores=scores)
@@ -214,9 +214,9 @@ class SmoothGradCAMpp(_GradCAM):
     Please note the difference in the numerator of :math:`\alpha_k^{(c)}(i, j)`,
     which is actually :math:`\frac{1}{n} \sum\limits_{k=1}^n D^{(c, 1)}_k(i,j)` in the paper.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import SmoothGradCAMpp
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = SmoothGradCAMpp(model, 'layer4')
     >>> scores = model(input_tensor)
     >>> cam(class_idx=100)
@@ -328,9 +328,9 @@ class XGradCAM(_GradCAM):
     position :math:`(x, y)`,
     and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import XGradCAM
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = XGradCAM(model, 'layer4')
     >>> scores = model(input_tensor)
     >>> cam(class_idx=100, scores=scores)
@@ -378,9 +378,9 @@ class LayerCAM(_GradCAM):
     position :math:`(x, y)`,
     and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import LayerCAM
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> extractor = LayerCAM(model, 'layer4')
     >>> scores = model(input_tensor)
     >>> cams = extractor(class_idx=100, scores=scores)

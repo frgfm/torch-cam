@@ -48,7 +48,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "requests>=2.20.0,<3.0.0",
-    "torchvision>=0.15.0,<1.0.0",
+    "torchvision>=0.24.0,<1.0.0",
     "pytest==8.4.2",
     "pytest-cov==6.2.1",
     "pytest-pretty==1.3.0",
@@ -74,7 +74,10 @@ demo = [
     "streamlit>=1.40.0,<2.0.0",
     "torchvision>=0.15.0,<1.0.0",
 ]
-
+scripts = [
+    "requests>=2.20.0,<3.0.0",
+    "torchvision>=0.15.0,<1.0.0",
+]
 
 [project.urls]
 documentation = "https://frgfm.github.io/torch-cam"
@@ -184,7 +187,7 @@ known-third-party = ["torch", "torchvision"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["I001", "F401", "CPY001", "D104"]
-"scripts/**.py" = ["D", "T201", "N812", "S101", "ANN", "PLW2901"]
+"scripts/**.py" = ["D", "T201", "N812", "S101", "ANN", "PLW2901", "PLR0914"]
 ".github/**.py" = ["D", "T201", "S602", "S101", "ANN", "DOC201", "PLW2901", "PLR0911"]
 "docs/**.py" = ["E402", "D103", "ANN", "A001", "ARG001"]
 "tests/**.py" = ["D103", "CPY001", "S101", "PT011", "ANN", "SLF001", "PLC2701"]

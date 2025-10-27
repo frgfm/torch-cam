@@ -15,9 +15,10 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import SequentialSampler
-from torchvision import models
 from torchvision.datasets import ImageFolder
-from torchvision.transforms import transforms as T
+from torchvision.models import get_model, get_model_weights
+from torchvision.transforms import v2 as T
+from torchvision.transforms.functional import InterpolationMode
 
 from torchcam import methods
 from torchcam.metrics import ClassificationMetric
@@ -30,7 +31,8 @@ def main(args):
     device = torch.device(args.device)
 
     # Pretrained imagenet model
-    model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    weights = get_model_weights(args.arch).DEFAULT
+    model = get_model(args.arch, weights=weights).to(device=device)
     # Freeze the model
     for p in model.parameters():
         p.requires_grad_(False)
@@ -39,11 +41,11 @@ def main(args):
     crop_pct = 0.875
     scale_size = min(math.floor(args.size / crop_pct), 320)
     if scale_size < 320:
-        eval_tf.append(T.Resize(scale_size))
+        eval_tf.append(T.Resize(scale_size, interpolation=InterpolationMode.BILINEAR, antialias=True))
     eval_tf.extend([
         T.CenterCrop(args.size),
         T.PILToTensor(),
-        T.ConvertImageDtype(torch.float32),
+        T.ToDtype(torch.float32, scale=True),
         T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ])
 
@@ -61,7 +63,7 @@ def main(args):
     )
 
     # Hook the corresponding layer in the model
-    with methods.__dict__[args.method](model, args.target.split(",")) as cam_extractor:
+    with methods.__dict__[args.method](model, args.target.split(",") if args.target else None) as cam_extractor:
         metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
 
         # Evaluation runs
@@ -73,7 +75,9 @@ def main(args):
 
     print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
     metrics_dict = metric.summary()
-    print(f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}")
+    print(
+        f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}, Skipped {metric.nan_count} samples"
+    )
 
 
 if __name__ == "__main__":

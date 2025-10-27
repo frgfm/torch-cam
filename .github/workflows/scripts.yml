@@ -28,9 +28,7 @@ jobs:
       - name: Install dependencies
         env:
           UV_TORCH_BACKEND: cpu
-        run: |
-          uv pip install --system --upgrade -e .
-          uv pip install --system -r scripts/requirements.txt
+        run: uv pip install --system --upgrade -e '.[scripts]'
 
       - name: Run analysis script
         run: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock --method LayerCAM
@@ -49,9 +47,7 @@ jobs:
       - name: Install dependencies
         env:
           UV_TORCH_BACKEND: cpu
-        run: |
-          uv pip install --system --upgrade -e .
-          uv pip install --system -r scripts/requirements.txt
+        run: uv pip install --system --upgrade -e '.[scripts]'
 
       - name: Run analysis script
         run: python scripts/eval_latency.py --arch resnet18 LayerCAM

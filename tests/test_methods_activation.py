@@ -1,12 +1,12 @@
 import pytest
 import torch
-from torchvision.models import mobilenet_v2
+from torchvision.models import get_model
 
 from torchcam.methods import activation
 
 
 def test_base_cam_constructor():
-    model = mobilenet_v2(weights=None).eval()
+    model = get_model("mobilenet_v2", weights=None).eval()
     for p in model.parameters():
         p.requires_grad_(False)
     # Check that multiple target layers is disabled for base CAM
@@ -54,7 +54,7 @@ def test_img_cams(
     batch_size,
     mock_img_tensor,
 ):
-    model = mobilenet_v2(weights=None).eval()
+    model = get_model("mobilenet_v2", weights=None).eval()
     for p in model.parameters():
         p.requires_grad_(False)
     kwargs = {}
