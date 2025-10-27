@@ -15,9 +15,10 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import SequentialSampler
-from torchvision import models
 from torchvision.datasets import ImageFolder
-from torchvision.transforms import transforms as T
+from torchvision.models import get_model, get_model_weights
+from torchvision.transforms import v2 as T
+from torchvision.transforms.functional import InterpolationMode
 
 from torchcam import methods
 from torchcam.metrics import ClassificationMetric
@@ -30,7 +31,8 @@ def main(args):
     device = torch.device(args.device)
 
     # Pretrained imagenet model
-    model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    weights = get_model_weights(args.arch).DEFAULT
+    model = get_model(args.arch, weights=weights).to(device=device)
     # Freeze the model
     for p in model.parameters():
         p.requires_grad_(False)
@@ -39,12 +41,12 @@ def main(args):
     crop_pct = 0.875
     scale_size = min(math.floor(args.size / crop_pct), 320)
     if scale_size < 320:
-        eval_tf.append(T.Resize(scale_size))
+        eval_tf.append(T.Resize(scale_size, interpolation=InterpolationMode.BILINEAR, antialias=True))
     eval_tf.extend(
         [
             T.CenterCrop(args.size),
             T.PILToTensor(),
-            T.ConvertImageDtype(torch.float32),
+            T.ToDtype(torch.float32, scale=True),
             T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
         ]
     )

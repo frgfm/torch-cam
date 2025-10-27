@@ -12,7 +12,7 @@ import time
 
 import numpy as np
 import torch
-from torchvision import models
+from torchvision.models import get_model, get_model_weights
 
 from torchcam import methods
 
@@ -24,7 +24,8 @@ def main(args):
     device = torch.device(args.device)
 
     # Pretrained imagenet model
-    model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    weights = get_model_weights(args.arch).DEFAULT
+    model = get_model(args.arch, weights=weights).to(device=device)
     # Freeze the model
     for p in model.parameters():
         p.requires_grad_(False)

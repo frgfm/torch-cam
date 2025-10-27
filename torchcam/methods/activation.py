@@ -39,11 +39,11 @@ class CAM(_CAM):
     and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k` in the fully
     connected layer..
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import CAM
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = CAM(model, 'layer4', 'fc')
-    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> with torch.inference_mode(): out = model(input_tensor)
     >>> cam(class_idx=100)
 
     Args:
@@ -131,11 +131,11 @@ class ScoreCAM(_CAM):
 
     where :math:`\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import ScoreCAM
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = ScoreCAM(model, 'layer4')
-    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> with torch.inference_mode(): out = model(input_tensor)
     >>> cam(class_idx=100)
 
     Args:
@@ -272,11 +272,11 @@ class SSCAM(ScoreCAM):
     :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution
     with a standard deviation of :math:`\sigma`.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import SSCAM
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = SSCAM(model, 'layer4')
-    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> with torch.inference_mode(): out = model(input_tensor)
     >>> cam(class_idx=100)
 
     Args:
@@ -370,11 +370,11 @@ class ISCAM(ScoreCAM):
 
     where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.
 
-    >>> from torchvision.models import resnet18
+    >>> from torchvision.models import get_model, get_model_weights
     >>> from torchcam.methods import ISSCAM
-    >>> model = resnet18(pretrained=True).eval()
+    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
     >>> cam = ISCAM(model, 'layer4')
-    >>> with torch.no_grad(): out = model(input_tensor)
+    >>> with torch.inference_mode(): out = model(input_tensor)
     >>> cam(class_idx=100)
 
     Args:

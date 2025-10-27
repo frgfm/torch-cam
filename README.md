@@ -62,8 +62,8 @@ You can find the exhaustive list of supported CAM methods in the [documentation]
 
 ```python
 # Define your model
-from torchvision.models import resnet18
-model = resnet18(pretrained=True).eval()
+from torchvision.models import get_model, get_model_weights
+model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
 
 # Set your CAM extractor
 from torchcam.methods import LayerCAM
@@ -79,16 +79,18 @@ cam_extractor = LayerCAM(model)
 Once your CAM extractor is set, you only need to use your model to infer on your data as usual. If any additional information is required, the extractor will get it for you automatically.
 
 ```python
-from torchvision.io.image import read_image
+from torchvision.io import decode_image
 from torchvision.transforms.functional import normalize, resize, to_pil_image
-from torchvision.models import resnet18
+from torchvision.models import get_model, get_model_weights
 from torchcam.methods import LayerCAM
 
-model = resnet18(pretrained=True).eval()
+weights = get_model_weights("resnet18").DEFAULT
+model = get_model("resnet18", weights=weights).eval()
+preprocess = weights.transforms()
 # Get your input
-img = read_image("path/to/your/image.png")
+img = decode_image("path/to/your/image.png")
 # Preprocess it for your chosen model
-input_tensor = normalize(resize(img, (224, 224)) / 255., [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+input_tensor = preprocess(img)
 
 with LayerCAM(model) as cam_extractor:
   # Preprocess your data and feed it to the model

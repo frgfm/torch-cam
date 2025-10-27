@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "torchcam"
-version = "0.5.0.dev0"
+version = "0.4.1.dev0"
 description = "Class activation maps for your PyTorch CNN models"
 authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
@@ -48,7 +48,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "requests>=2.20.0,<3.0.0",
-    "torchvision>=0.15.0,<1.0.0",
+    "torchvision>=0.24.0,<1.0.0",
     "pytest==8.4.2",
     "pytest-cov==6.2.1",
     "pytest-pretty==1.3.0",
