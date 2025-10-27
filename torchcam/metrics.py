@@ -95,7 +95,8 @@ class ClassificationMetric:
         discard = torch.isnan(cam).reshape(input_tensor.shape[0], -1).any(dim=-1)
         cam = cam[~discard, ...]
         probs = probs[~discard]
-        preds = preds[~discard]
+        if class_idx is None:
+            preds = preds[~discard]
         input_tensor = input_tensor[~discard]
         # Resize the CAM
         cam = torch.nn.functional.interpolate(cam.unsqueeze(1), input_tensor.shape[-2:], mode="bilinear")
