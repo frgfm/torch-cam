@@ -208,18 +208,19 @@ python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 
 The purpose of CAM methods is to provide interpretability and they do so by pointing the biggest influence factors on the model outputs. Ideally the CAM should pinpoint all the visual cues that have any influence of the output classification score.
 For this, we use two metrics:
-- [Increase in Confidence](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (higher is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), by how much does the classification probability increase.
-- [Average Drop](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (lower is better): if we forward the input masked with the negative CAM (keep origin pixel values where CAM is lowest, nullify where highest), by how much does the classification probability drop.
+- [Increase in Confidence](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (higher is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), how many times in the dataset has the classification probability improve.
+- [Average Drop](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (lower is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), by how much does the classification probability drop.
 
 | CAM method | Arch | Increase in confidence (↑) | Average drop (↓) |
 | ---------- | ---- | -------------------------- | ---------------- |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.1368 | 0.4063 |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.1445 | 0.3320 |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.1478 | 0.3028 |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 0.1368 | 0.4063 |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.1712 | 0.2790 |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.1975 | 0.2303 |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.1355 | 0.4127 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.1124 | 0.6806 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.1501 | 0.3033 |
+| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 0.1355 | 0.4127 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.1712 | 0.2819 |
 
-This benchmark was performed over the [imagenette](https://github.com/fastai/imagenette) dataset, which is a subset of Imagenet, on (224, 224) inputs.
+This benchmark was performed over the validation set of [imagenette](https://github.com/fastai/imagenette), which is a subset of Imagenet, on (224, 224) inputs.
 
 You can run this performance benchmark for any CAM method on your hardware as follows:
 
