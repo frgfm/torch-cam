@@ -12,7 +12,6 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from ._utils import locate_linear_layer
 from .core import _CAM
 
 __all__ = ["CAM", "ISCAM", "SSCAM", "ScoreCAM"]
@@ -78,12 +77,14 @@ class CAM(_CAM):
             fc_name = self._resolve_layer_name(fc_layer)
         # If the layer is not specified, try automatic resolution
         elif fc_layer is None:
-            fc_name = locate_linear_layer(model)  # type: ignore[assignment]
+            lin_layers = [layer_name for layer_name, m in model.named_modules() if isinstance(m, nn.Linear)]
             # Warn the user of the choice
-            if isinstance(fc_name, str):
-                logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
-            else:
-                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")  # noqa: TRY004
+            if len(lin_layers) == 0:
+                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
+            if len(lin_layers) > 1:
+                raise ValueError("This CAM method does not support multiple fully connected layers.")
+            fc_name = lin_layers[0]
+            logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
         else:
             raise TypeError("invalid argument type for `fc_layer`")
         # Softmax weight
