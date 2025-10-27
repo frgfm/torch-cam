@@ -1,7 +1,7 @@
 import pytest
 import torch
 from torch import nn
-from torchvision.models import mobilenet_v2
+from torchvision.models import get_model
 
 from torchcam.methods import gradient
 
@@ -26,7 +26,7 @@ def _verify_cam(activation_map, output_size):
     ],
 )
 def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
-    model = mobilenet_v2(weights=None).eval()
+    model = get_model("mobilenet_v2", weights=None).eval()
     for p in model.parameters():
         p.requires_grad_(False)
 
@@ -82,7 +82,7 @@ def test_video_cams(cam_name, target_layer, output_size, mock_video_model, mock_
 
 
 def test_smoothgradcampp_repr():
-    model = mobilenet_v2(weights=None).eval()
+    model = get_model("mobilenet_v2", weights=None).eval()
 
     # Hook the corresponding layer in the model
     with gradient.SmoothGradCAMpp(model, "features.18.0") as extractor:
