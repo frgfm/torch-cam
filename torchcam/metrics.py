@@ -91,8 +91,12 @@ class ClassificationMetric:
             cam = self.cam_extractor.fuse_cams(cams)
             probs = probs.gather(1, preds.unsqueeze(1)).squeeze(1)
         self.cam_extractor.disable_hooks()
-        # Safeguard: replace NaNs
-        cam[torch.isnan(cam)] = 0
+        # Safeguard: skip NaNs
+        discard = torch.isnan(cam).reshape(input_tensor.shape[0], -1).any(dim=-1)
+        cam = cam[~discard, ...]
+        probs = probs[~discard]
+        preds = preds[~discard]
+        input_tensor = input_tensor[~discard]
         # Resize the CAM
         cam = torch.nn.functional.interpolate(cam.unsqueeze(1), input_tensor.shape[-2:], mode="bilinear")
         # Create the explanation map & get the new probs
@@ -113,7 +117,8 @@ class ClassificationMetric:
 
         self.drop += drop.sum().item()
         self.increase += increase.sum().item()
-        self.total += input_tensor.shape[0]
+        self.total += cam.shape[0]
+        self.nan_count += discard.sum().item()
 
     def summary(self) -> dict[str, float]:
         """Computes the aggregated metrics.
@@ -137,3 +142,4 @@ class ClassificationMetric:
         self.drop = 0.0
         self.increase = 0.0
         self.total = 0
+        self.nan_count = 0

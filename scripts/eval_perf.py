@@ -40,12 +40,14 @@ def main(args):
     scale_size = min(math.floor(args.size / crop_pct), 320)
     if scale_size < 320:
         eval_tf.append(T.Resize(scale_size))
-    eval_tf.extend([
-        T.CenterCrop(args.size),
-        T.PILToTensor(),
-        T.ConvertImageDtype(torch.float32),
-        T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ])
+    eval_tf.extend(
+        [
+            T.CenterCrop(args.size),
+            T.PILToTensor(),
+            T.ConvertImageDtype(torch.float32),
+            T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        ]
+    )
 
     ds = ImageFolder(
         Path(args.data_path).joinpath("val"),
@@ -61,7 +63,7 @@ def main(args):
     )
 
     # Hook the corresponding layer in the model
-    with methods.__dict__[args.method](model, args.target.split(",")) as cam_extractor:
+    with methods.__dict__[args.method](model, args.target.split(",") if args.target else None) as cam_extractor:
         metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
 
         # Evaluation runs
@@ -73,7 +75,9 @@ def main(args):
 
     print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
     metrics_dict = metric.summary()
-    print(f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}")
+    print(
+        f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}, Skipped {metrics_dict['nan_count']} samples"
+    )
 
 
 if __name__ == "__main__":
