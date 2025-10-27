@@ -204,16 +204,39 @@ python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 
 *All script arguments can be checked using `python scripts/cam_example.py --help`*
 
+### Performance benchmarks
 
+The purpose of CAM methods is to provide interpretability and they do so by pointing the biggest influence factors on the model outputs. Ideally the CAM should pinpoint all the visual cues that have any influence of the output classification score.
+For this, we use two metrics:
+- [Increase in Confidence](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (higher is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), by how much does the classification probability increase.
+- [Average Drop](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (lower is better): if we forward the input masked with the negative CAM (keep origin pixel values where CAM is lowest, nullify where highest), by how much does the classification probability drop.
+
+| CAM method | Arch | Increase in confidence (↑) | Average drop (↓) |
+| ---------- | ---- | -------------------------- | ---------------- |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.1368 | 0.4063 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.1445 | 0.3320 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.1478 | 0.3028 |
+| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 0.1368 | 0.4063 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.1712 | 0.2790 |
+
+This benchmark was performed over the [imagenette](https://github.com/fastai/imagenette) dataset, which is a subset of Imagenet, on (224, 224) inputs.
+
+You can run this performance benchmark for any CAM method on your hardware as follows:
+
+```bash
+python scripts/eval_perf.py ~/Downloads/imagenette LayerCAM --arch mobilenet_v3_large
+```
+
+*All script arguments can be checked using `python scripts/eval_perf.py --help`*
 
 ### Latency benchmark
 
 You crave for beautiful activation maps, but you don't know whether it fits your needs in terms of latency?
 
-In the table below, you will find a latency benchmark (forward pass not included) for all CAM methods:
+In the table below, you will find a latency overhead benchmark (forward pass not included) for all CAM methods:
 
-| CAM method                                                   | Arch               | GPU mean (std)     | CPU mean (std)       |
-| ------------------------------------------------------------ | ------------------ | ------------------ | -------------------- |
+| CAM method | Arch | GPU mean (std) | CPU mean (std) |
+| ---------- | ---- | -------------- | -------------- |
 | [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
 | [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
 | [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
@@ -250,8 +273,6 @@ python scripts/eval_latency.py SmoothGradCAMpp
 Looking for more illustrations of TorchCAM features?
 You might want to check the [Jupyter notebooks](notebooks) designed to give you a broader overview.
 
-
-
 ## Citation
 
 If you wish to cite this project, feel free to use this [BibTeX](http://www.bibtex.org/) reference:
@@ -267,15 +288,11 @@ If you wish to cite this project, feel free to use this [BibTeX](http://www.bibt
 }
 ```
 
-
-
 ## Contributing
 
 Feeling like extending the range of possibilities of CAM? Or perhaps submitting a paper implementation? Any sort of contribution is greatly appreciated!
 
 You can find a short guide in [`CONTRIBUTING`](CONTRIBUTING.md) to help grow this project!
-
-
 
 ## License
 
