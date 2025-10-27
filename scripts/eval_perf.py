@@ -42,14 +42,12 @@ def main(args):
     scale_size = min(math.floor(args.size / crop_pct), 320)
     if scale_size < 320:
         eval_tf.append(T.Resize(scale_size, interpolation=InterpolationMode.BILINEAR, antialias=True))
-    eval_tf.extend(
-        [
-            T.CenterCrop(args.size),
-            T.PILToTensor(),
-            T.ToDtype(torch.float32, scale=True),
-            T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-        ]
-    )
+    eval_tf.extend([
+        T.CenterCrop(args.size),
+        T.PILToTensor(),
+        T.ToDtype(torch.float32, scale=True),
+        T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    ])
 
     ds = ImageFolder(
         Path(args.data_path).joinpath("val"),
