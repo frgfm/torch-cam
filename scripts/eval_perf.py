@@ -76,7 +76,7 @@ def main(args):
     print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
     metrics_dict = metric.summary()
     print(
-        f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}, Skipped {metrics_dict['nan_count']} samples"
+        f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}, Skipped {metric.nan_count} samples"
     )
 
 
