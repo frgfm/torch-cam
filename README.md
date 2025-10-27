@@ -213,14 +213,16 @@ For this, we use two metrics:
 - [Increase in Confidence](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (higher is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), how many times in the dataset has the classification probability improve.
 - [Average Drop](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (lower is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), by how much does the classification probability drop.
 
-| CAM method | Arch | Increase in confidence (↑) | Average drop (↓) |
-| ---------- | ---- | -------------------------- | ---------------- |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.1975 | 0.2303 |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.1355 | 0.4127 |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.1124 | 0.6806 |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.1501 | 0.3033 |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 0.1355 | 0.4127 |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.1712 | 0.2819 |
+| CAM method | Arch | Average drop (↓) | Increase in confidence (↑) |
+| ---------- | ---- | ---------------- | -------------------------- |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18 | 0.2686 | 0.2250 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18 | 0.5271 | 0.1962 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18 | 0.2088 | 0.2499 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18 | 0.1712 | 0.2819 |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.2678 | 0.3483 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.3182 | 0.2535 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.2681 | 0.2678 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.2526 | 0.2882 |
 
 This benchmark was performed over the validation set of [imagenette](https://github.com/fastai/imagenette), which is a subset of Imagenet, on (224, 224) inputs.
 
@@ -245,8 +247,6 @@ In the table below, you will find a latency overhead benchmark (forward pass not
 | [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
 | [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
 | [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
-| [SSCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SSCAM) | resnet18           |                    |                      |
-| [ISCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ISCAM) | resnet18           |                    |                      |
 | [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
 | [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
 | [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | mobilenet_v3_large | N/A*               | N/A*                 |
@@ -254,8 +254,6 @@ In the table below, you will find a latency overhead benchmark (forward pass not
 | [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
 | [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
 | [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
-| [SSCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SSCAM) | mobilenet_v3_large |                    |                      |
-| [ISCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ISCAM) | mobilenet_v3_large |                    |                      |
 | [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
 | [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
 
