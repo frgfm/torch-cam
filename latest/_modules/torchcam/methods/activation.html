@@ -261,7 +261,6 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">nn</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">._utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">locate_linear_layer</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">_CAM</span>
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;CAM&quot;</span><span class="p">,</span> <span class="s2">&quot;ISCAM&quot;</span><span class="p">,</span> <span class="s2">&quot;SSCAM&quot;</span><span class="p">,</span> <span class="s2">&quot;ScoreCAM&quot;</span><span class="p">]</span>
@@ -291,11 +290,11 @@
 <span class="sd">    and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k` in the fully</span>
 <span class="sd">    connected layer..</span>
 
-<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import get_model, get_model_weights</span>
 <span class="sd">    &gt;&gt;&gt; from torchcam.methods import CAM</span>
-<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; model = get_model(&quot;resnet18&quot;, weights=get_model_weights(&quot;resnet18&quot;).DEFAULT).eval()</span>
 <span class="sd">    &gt;&gt;&gt; cam = CAM(model, &#39;layer4&#39;, &#39;fc&#39;)</span>
-<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.inference_mode(): out = model(input_tensor)</span>
 <span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
@@ -329,12 +328,14 @@
             <span class="n">fc_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_resolve_layer_name</span><span class="p">(</span><span class="n">fc_layer</span><span class="p">)</span>
         <span class="c1"># If the layer is not specified, try automatic resolution</span>
         <span class="k">elif</span> <span class="n">fc_layer</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">fc_name</span> <span class="o">=</span> <span class="n">locate_linear_layer</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>  <span class="c1"># type: ignore[assignment]</span>
+            <span class="n">lin_layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">layer_name</span> <span class="k">for</span> <span class="n">layer_name</span><span class="p">,</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">named_modules</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">)]</span>
             <span class="c1"># Warn the user of the choice</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no value was provided for `fc_layer`, thus set to &#39;</span><span class="si">{</span><span class="n">fc_name</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unable to resolve `fc_layer` automatically, please specify its value.&quot;</span><span class="p">)</span>  <span class="c1"># noqa: TRY004</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lin_layers</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;unable to resolve `fc_layer` automatically, please specify its value.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lin_layers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;This CAM method does not support multiple fully connected layers.&quot;</span><span class="p">)</span>
+            <span class="n">fc_name</span> <span class="o">=</span> <span class="n">lin_layers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;no value was provided for `fc_layer`, thus set to &#39;</span><span class="si">{</span><span class="n">fc_name</span><span class="si">}</span><span class="s2">&#39;.&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;invalid argument type for `fc_layer`&quot;</span><span class="p">)</span>
         <span class="c1"># Softmax weight</span>
@@ -384,11 +385,11 @@
 
 <span class="sd">    where :math:`\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.</span>
 
-<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import get_model, get_model_weights</span>
 <span class="sd">    &gt;&gt;&gt; from torchcam.methods import ScoreCAM</span>
-<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; model = get_model(&quot;resnet18&quot;, weights=get_model_weights(&quot;resnet18&quot;).DEFAULT).eval()</span>
 <span class="sd">    &gt;&gt;&gt; cam = ScoreCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.inference_mode(): out = model(input_tensor)</span>
 <span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
@@ -528,11 +529,11 @@
 <span class="sd">    :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution</span>
 <span class="sd">    with a standard deviation of :math:`\sigma`.</span>
 
-<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import get_model, get_model_weights</span>
 <span class="sd">    &gt;&gt;&gt; from torchcam.methods import SSCAM</span>
-<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; model = get_model(&quot;resnet18&quot;, weights=get_model_weights(&quot;resnet18&quot;).DEFAULT).eval()</span>
 <span class="sd">    &gt;&gt;&gt; cam = SSCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.inference_mode(): out = model(input_tensor)</span>
 <span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
@@ -629,11 +630,11 @@
 
 <span class="sd">    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.</span>
 
-<span class="sd">    &gt;&gt;&gt; from torchvision.models import resnet18</span>
+<span class="sd">    &gt;&gt;&gt; from torchvision.models import get_model, get_model_weights</span>
 <span class="sd">    &gt;&gt;&gt; from torchcam.methods import ISSCAM</span>
-<span class="sd">    &gt;&gt;&gt; model = resnet18(pretrained=True).eval()</span>
+<span class="sd">    &gt;&gt;&gt; model = get_model(&quot;resnet18&quot;, weights=get_model_weights(&quot;resnet18&quot;).DEFAULT).eval()</span>
 <span class="sd">    &gt;&gt;&gt; cam = ISCAM(model, &#39;layer4&#39;)</span>
-<span class="sd">    &gt;&gt;&gt; with torch.no_grad(): out = model(input_tensor)</span>
+<span class="sd">    &gt;&gt;&gt; with torch.inference_mode(): out = model(input_tensor)</span>
 <span class="sd">    &gt;&gt;&gt; cam(class_idx=100)</span>
 
 <span class="sd">    Args:</span>
