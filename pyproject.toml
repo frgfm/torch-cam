@@ -74,7 +74,10 @@ demo = [
     "streamlit>=1.40.0,<2.0.0",
     "torchvision>=0.15.0,<1.0.0",
 ]
-
+scripts = [
+    "requests>=2.20.0,<3.0.0",
+    "torchvision>=0.15.0,<1.0.0",
+]
 
 [project.urls]
 documentation = "https://frgfm.github.io/torch-cam"
