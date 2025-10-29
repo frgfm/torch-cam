@@ -60,15 +60,11 @@ quality = [
     "pre-commit==4.3.0",
 ]
 docs = [
-    "sphinx>=3.0.0,!=3.5.0",
-    "furo>=2022.3.4",
-    "sphinxemoji>=0.1.8",
-    "sphinx-copybutton>=0.3.1",
-    "recommonmark>=0.7.1",
-    "sphinx-markdown-tables>=0.0.15",
-    # Indirect deps
-    # cf. https://github.com/readthedocs/readthedocs.org/issues/9038
-    "Jinja2<3.1",
+    # cf. https://github.com/mkdocs/catalog
+    "mkdocs==1.6.1",
+    "mkdocs-material[imaging]==9.6.22",
+    "mkdocstrings[python]==0.30.1",
+    "griffe-typingdoc==0.3.0",
 ]
 demo = [
     "streamlit>=1.40.0,<2.0.0",
