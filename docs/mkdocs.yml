@@ -81,6 +81,7 @@ plugins:
         - reference/utils.md
       Notes:
         - notes/changelog.md
+  # termynal:
   mkdocstrings:
     handlers:
       python:
@@ -136,18 +137,9 @@ markdown_extensions:
   pymdownx.inlinehilite:
   pymdownx.snippets:
   pymdownx.superfences:
-  pymdownx.blocks.admonition:
-    types:
-    - note
-    - attention
-    - caution
-    - danger
-    - error
-    - tip
-    - hint
-    - warning
-    - info
-    - check
+  pymdownx.tabbed:
+    alternate_style: true
+  admonition:
   pymdownx.arithmatex:
     generic: true
 extra_javascript:

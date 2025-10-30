@@ -5,11 +5,67 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
 <p align="center">
     <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" alt="CAM visualization" width="70%">
 </p>
+<p align="center">
+    <em>Source: image from <a href="https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg">woopets</a> (activation maps created with a pretrained <a href="https://pytorch.org/vision/stable/models.html#torchvision.models.resnet18">Resnet-18</a>)</em>
+</p>
 
 This project is meant for:
 
 * ⚡ **exploration**: easily assess the influence of spatial features on your model's outputs
 * 👩‍🔬 **research**: quickly implement your own ideas for new CAM methods
+
+## Installation
+
+Create and activate a virtual environment and then install TorchCAM:
+
+```shell
+pip install torchcam
+```
+
+Check out the [installation guide](getting-started/installation.md) for more options
+
+## Quick start
+
+Get an image and a model:
+
+```python
+from torchvision.io import decode_image
+from torchvision.models import get_model, get_model_weights
+
+weights = get_model_weights("resnet18").DEFAULT
+model = get_model("resnet18", weights=weights).eval()
+preprocess = weights.transforms()
+
+img_path = "path/to/your/image.jpg"
+
+img = decode_image(img_path)
+input_tensor = preprocess(img)
+```
+
+Compute the class activation map:
+
+```python hl_lines="3 6"
+from torchcam.methods import LayerCAM
+
+with LayerCAM(model) as cam_extractor:
+  out = model(input_tensor.unsqueeze(0))
+  # Retrieve the CAM by passing the class index and the model output
+  activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
+```
+
+Display it:
+
+```python hl_lines="3 6"
+import matplotlib.pyplot as plt
+from torchvision.transforms.v2.functional import to_pil_image
+from torchcam.utils import overlay_mask
+
+# Resize the CAM and overlay it
+result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
+plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
+```
+
+![overlayed_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/overlayed_heatmap.png)
 
 ## CAM zoo
 
