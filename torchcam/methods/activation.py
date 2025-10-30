@@ -45,9 +45,9 @@ class CAM(_CAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import CAM
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = CAM(model, 'layer4', 'fc')
-        with torch.inference_mode(): out = model(input_tensor)
-        cam(class_idx=100)
+        with CAM(model, 'layer4', 'fc') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
         ```
 
     Args:
@@ -143,9 +143,9 @@ class ScoreCAM(_CAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import ScoreCAM
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = ScoreCAM(model, 'layer4')
-        with torch.inference_mode(): out = model(input_tensor)
-        cam(class_idx=100)
+        with ScoreCAM(model, 'layer4') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
         ```
 
     Args:
@@ -290,9 +290,9 @@ class SSCAM(ScoreCAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import SSCAM
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = SSCAM(model, 'layer4')
-        with torch.inference_mode(): out = model(input_tensor)
-        cam(class_idx=100)
+        with SSCAM(model, 'layer4') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
         ```
 
     Args:
@@ -394,9 +394,9 @@ class ISCAM(ScoreCAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import ISCAM
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = ISCAM(model, 'layer4')
-        with torch.inference_mode(): out = model(input_tensor)
-        cam(class_idx=100)
+        with ISCAM(model, 'layer4') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
         ```
 
     Args:

@@ -90,9 +90,9 @@ class GradCAM(_GradCAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import GradCAM
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = GradCAM(model, 'layer4')
-        scores = model(input_tensor)
-        cam(class_idx=100, scores=scores)
+        with GradCAM(model, 'layer4') as cam_extractor:
+            scores = model(input_tensor)
+            cam = cam_extractor(class_idx=100, scores=scores)
         ```
 
     Args:
@@ -147,9 +147,9 @@ class GradCAMpp(_GradCAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import GradCAMpp
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = GradCAMpp(model, 'layer4')
-        scores = model(input_tensor)
-        cam(class_idx=100, scores=scores)
+        with GradCAMpp(model, 'layer4') as cam_extractor:
+            scores = model(input_tensor)
+            cam = cam_extractor(class_idx=100, scores=scores)
         ```
 
     Args:
@@ -233,9 +233,9 @@ class SmoothGradCAMpp(_GradCAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import SmoothGradCAMpp
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = SmoothGradCAMpp(model, 'layer4')
-        scores = model(input_tensor)
-        cam(class_idx=100)
+        with SmoothGradCAMpp(model, 'layer4') as cam_extractor:
+            scores = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
         ```
 
     Args:
@@ -352,9 +352,9 @@ class XGradCAM(_GradCAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import XGradCAM
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        cam = XGradCAM(model, 'layer4')
-        scores = model(input_tensor)
-        cam(class_idx=100, scores=scores)
+        with XGradCAM(model, 'layer4') as cam_extractor:
+            scores = model(input_tensor)
+            cam = cam_extractor(class_idx=100, scores=scores)
         ```
 
     Args:
@@ -407,10 +407,10 @@ class LayerCAM(_GradCAM):
         from torchvision.models import get_model, get_model_weights
         from torchcam.methods import LayerCAM
         model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-        extractor = LayerCAM(model, 'layer4')
-        scores = model(input_tensor)
-        cams = extractor(class_idx=100, scores=scores)
-        fused_cam = extractor.fuse_cams(cams)
+        with LayerCAM(model, 'layer4') as cam_extractor:
+            scores = model(input_tensor)
+            cams = cam_extractor(class_idx=100, scores=scores)
+            fused_cam = cam_extractor.fuse_cams(cams)
         ```
 
     Args:
