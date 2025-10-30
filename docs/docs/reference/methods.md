@@ -16,23 +16,33 @@ With TorchCAM, the target layer is selected when you create your CAM extractor. 
 Methods related to activation-based class activation maps.
 
 ::: torchcam.methods.CAM
+    options:
+        heading_level: 3
 
-::: torchcam.methods.ScoreCAM
+::: torchcam.methods
+    options:
+        heading_level: 3
+        show_root_heading: false
+        show_root_toc_entry: false
+        members:
+            - CAM
+            - ScoreCAM
+            - SSCAM
+            - ISCAM
 
-::: torchcam.methods.SSCAM
-
-::: torchcam.methods.ISCAM
 
 ## Gradient-based methods
 
 Methods related to gradient-based class activation maps.
 
-::: torchcam.methods.GradCAM
-
-::: torchcam.methods.GradCAMpp
-
-::: torchcam.methods.SmoothGradCAMpp
-
-::: torchcam.methods.XGradCAM
-
-::: torchcam.methods.LayerCAM
+::: torchcam.methods
+    options:
+        heading_level: 3
+        show_root_heading: false
+        show_root_toc_entry: false
+        members:
+            - GradCAM
+            - GradCAMpp
+            - SmoothGradCAMpp
+            - XGradCAM
+            - LayerCAM

@@ -49,6 +49,7 @@ class CAM(_CAM):
         with torch.inference_mode(): out = model(input_tensor)
         cam(class_idx=100)
         ```
+
     Args:
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
