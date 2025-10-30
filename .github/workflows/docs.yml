@@ -29,9 +29,9 @@ jobs:
           UV_TORCH_BACKEND: cpu
         run: |
           make install-docs
-          make full-docs
+          make build-docs
       - name: Documentation sanity check
-        run: test -e docs/build/index.html || exit
+        run: test -e docs/site/index.html || exit
 
   deploy:
     if: github.event_name == 'push'
@@ -53,9 +53,9 @@ jobs:
           UV_TORCH_BACKEND: cpu
         run: |
           make install-docs
-          make full-docs
+          make build-docs
       - name: Documentation sanity check
-        run: test -e docs/build/index.html || exit
+        run: test -e docs/site/index.html || exit
       - name: Install SSH Client 🔑
         uses: webfactory/ssh-agent@v0.9.1
         with:
@@ -64,6 +64,6 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4.7.3
         with:
           branch: gh-pages
-          folder: 'docs/build'
+          folder: 'docs/site'
           commit-message: '[skip ci] Documentation updates'
           clean: true
