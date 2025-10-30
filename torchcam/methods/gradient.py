@@ -65,30 +65,35 @@ class _GradCAM(_CAM):
 
 
 class GradCAM(_GradCAM):
-    r"""Implements a class activation map extractor as described in `"Grad-CAM: Visual Explanations from Deep Networks
-    via Gradient-based Localization" <https://arxiv.org/pdf/1610.02391.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["Grad-CAM: Visual Explanations from Deep Networks
+    via Gradient-based Localization"](https://arxiv.org/pdf/1610.02391.pdf).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{Grad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
+    L^{(c)}_{Grad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient $w_k^{(c)}$ being defined as:
 
-    .. math::
-        w_k^{(c)} = \frac{1}{H \cdot W} \sum\limits_{i=1}^H \sum\limits_{j=1}^W
-        \frac{\partial Y^{(c)}}{\partial A_k(i, j)}
+    $$
+    w_k^{(c)} = \frac{1}{H \cdot W} \sum\limits_{i=1}^H \sum\limits_{j=1}^W
+    \frac{\partial Y^{(c)}}{\partial A_k(i, j)}
+    $$
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`,
-    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
+    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$,
+    and $Y^{(c)}$ is the model output score for class $c$ before softmax.
 
-    >>> from torchvision.models import get_model, get_model_weights
-    >>> from torchcam.methods import GradCAM
-    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-    >>> cam = GradCAM(model, 'layer4')
-    >>> scores = model(input_tensor)
-    >>> cam(class_idx=100, scores=scores)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import GradCAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        cam = GradCAM(model, 'layer4')
+        scores = model(input_tensor)
+        cam(class_idx=100, scores=scores)
+        ```
 
     Args:
         model: input model
@@ -107,39 +112,45 @@ class GradCAM(_GradCAM):
 
 
 class GradCAMpp(_GradCAM):
-    r"""Implements a class activation map extractor as described in `"Grad-CAM++: Improved Visual Explanations for
-    Deep Convolutional Networks" <https://arxiv.org/pdf/1710.11063.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["Grad-CAM++: Improved Visual Explanations for
+    Deep Convolutional Networks"](https://arxiv.org/pdf/1710.11063.pdf).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{Grad-CAM++}(x, y) = \sum\limits_k w_k^{(c)} A_k(x, y)
+    $$
+    L^{(c)}_{Grad-CAM++}(x, y) = \sum\limits_k w_k^{(c)} A_k(x, y)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient $w_k^{(c)}$ being defined as:
 
-    .. math::
-        w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot
-        ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)
+    $$
+    w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot
+    ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)
+    $$
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`,
-    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,
-    and :math:`\alpha_k^{(c)}(i, j)` being defined as:
+    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$,
+    $Y^{(c)}$ is the model output score for class $c$ before softmax,
+    and $\alpha_k^{(c)}(i, j)$ being defined as:
 
-    .. math::
-        \alpha_k^{(c)}(i, j) = \frac{1}{\sum\limits_{i, j} \frac{\partial Y^{(c)}}{\partial A_k(i, j)}}
-        = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot
-        \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot
-        \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}
+    $$
+    \alpha_k^{(c)}(i, j) = \frac{1}{\sum\limits_{i, j} \frac{\partial Y^{(c)}}{\partial A_k(i, j)}}
+    = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot
+    \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot
+    \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}
+    $$
 
-    if :math:`\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1` else :math:`0`.
+    if $\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1$ else $0$.
 
-    >>> from torchvision.models import get_model, get_model_weights
-    >>> from torchcam.methods import GradCAMpp
-    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-    >>> cam = GradCAMpp(model, 'layer4')
-    >>> scores = model(input_tensor)
-    >>> cam(class_idx=100, scores=scores)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import GradCAMpp
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        cam = GradCAMpp(model, 'layer4')
+        scores = model(input_tensor)
+        cam(class_idx=100, scores=scores)
+        ```
 
     Args:
         model: input model
@@ -178,48 +189,54 @@ class GradCAMpp(_GradCAM):
 
 
 class SmoothGradCAMpp(_GradCAM):
-    r"""Implements a class activation map extractor as described in `"Smooth Grad-CAM++: An Enhanced Inference Level
-    Visualization Technique for Deep Convolutional Neural Network Models" <https://arxiv.org/pdf/1908.01224.pdf>`_
+    r"""Implements a class activation map extractor as described in ["Smooth Grad-CAM++: An Enhanced Inference Level
+    Visualization Technique for Deep Convolutional Neural Network Models"](https://arxiv.org/pdf/1908.01224.pdf)
     with a personal correction to the paper (alpha coefficient numerator).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{Smooth Grad-CAM++}(x, y) = \sum\limits_k w_k^{(c)} A_k(x, y)
+    $$
+    L^{(c)}_{Smooth Grad-CAM++}(x, y) = \sum\limits_k w_k^{(c)} A_k(x, y)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient $w_k^{(c)}$ being defined as:
 
-    .. math::
-        w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot
-        ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)
+    $$
+    w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot
+    ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)
+    $$
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`,
-    :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax,
-    and :math:`\alpha_k^{(c)}(i, j)` being defined as:
+    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$,
+    $Y^{(c)}$ is the model output score for class $c$ before softmax,
+    and $\alpha_k^{(c)}(i, j)$ being defined as:
 
-    .. math::
-        \alpha_k^{(c)}(i, j)
-        = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot
-        \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot
-        \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}
-        = \frac{\frac{1}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j)}{
-        \frac{2}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j) + \sum\limits_{a,b} A_k (a,b) \cdot
-        \frac{1}{n} \sum\limits_{m=1}^n D^{(c, 3)}_k(i, j)}
+    $$
+    \alpha_k^{(c)}(i, j)
+    = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot
+    \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot
+    \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}
+    = \frac{\frac{1}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j)}{
+    \frac{2}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j) + \sum\limits_{a,b} A_k (a,b) \cdot
+    \frac{1}{n} \sum\limits_{m=1}^n D^{(c, 3)}_k(i, j)}
+    $$
 
-    if :math:`\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1` else :math:`0`. Here :math:`D^{(c, p)}_k(i, j)`
-    refers to the p-th partial derivative of the class score of class :math:`c` relatively to the activation in layer
-    :math:`k` at position :math:`(i, j)`, and :math:`n` is the number of samples used to get the gradient estimate.
+    if $\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1$ else $0$. Here $D^{(c, p)}_k(i, j)$
+    refers to the p-th partial derivative of the class score of class $c$ relatively to the activation in layer
+    $k$ at position $(i, j)$, and $n$ is the number of samples used to get the gradient estimate.
 
-    Please note the difference in the numerator of :math:`\alpha_k^{(c)}(i, j)`,
-    which is actually :math:`\frac{1}{n} \sum\limits_{k=1}^n D^{(c, 1)}_k(i,j)` in the paper.
+    Please note the difference in the numerator of $\alpha_k^{(c)}(i, j)$,
+    which is actually $\frac{1}{n} \sum\limits_{k=1}^n D^{(c, 1)}_k(i,j)$ in the paper.
 
-    >>> from torchvision.models import get_model, get_model_weights
-    >>> from torchcam.methods import SmoothGradCAMpp
-    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-    >>> cam = SmoothGradCAMpp(model, 'layer4')
-    >>> scores = model(input_tensor)
-    >>> cam(class_idx=100)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import SmoothGradCAMpp
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        cam = SmoothGradCAMpp(model, 'layer4')
+        scores = model(input_tensor)
+        cam(class_idx=100)
+        ```
 
     Args:
         model: input model
@@ -309,31 +326,36 @@ class SmoothGradCAMpp(_GradCAM):
 
 
 class XGradCAM(_GradCAM):
-    r"""Implements a class activation map extractor as described in `"Axiom-based Grad-CAM: Towards Accurate
-    Visualization and Explanation of CNNs" <https://arxiv.org/pdf/2008.02312.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["Axiom-based Grad-CAM: Towards Accurate
+    Visualization and Explanation of CNNs"](https://arxiv.org/pdf/2008.02312.pdf).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{XGrad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
+    L^{(c)}_{XGrad-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient $w_k^{(c)}$ being defined as:
 
-    .. math::
-        w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W
-        \Big( \frac{\partial Y^{(c)}}{\partial A_k(i, j)} \cdot
-        \frac{A_k(i, j)}{\sum\limits_{m=1}^H \sum\limits_{n=1}^W A_k(m, n)} \Big)
+    $$
+    w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W
+    \Big( \frac{\partial Y^{(c)}}{\partial A_k(i, j)} \cdot
+    \frac{A_k(i, j)}{\sum\limits_{m=1}^H \sum\limits_{n=1}^W A_k(m, n)} \Big)
+    $$
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`,
-    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
+    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$,
+    and $Y^{(c)}$ is the model output score for class $c$ before softmax.
 
-    >>> from torchvision.models import get_model, get_model_weights
-    >>> from torchcam.methods import XGradCAM
-    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-    >>> cam = XGradCAM(model, 'layer4')
-    >>> scores = model(input_tensor)
-    >>> cam(class_idx=100, scores=scores)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import XGradCAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        cam = XGradCAM(model, 'layer4')
+        scores = model(input_tensor)
+        cam(class_idx=100, scores=scores)
+        ```
 
     Args:
         model: input model
@@ -361,30 +383,35 @@ class XGradCAM(_GradCAM):
 
 
 class LayerCAM(_GradCAM):
-    r"""Implements a class activation map extractor as described in `"LayerCAM: Exploring Hierarchical Class Activation
-    Maps for Localization" <http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["LayerCAM: Exploring Hierarchical Class Activation
+    Maps for Localization"](http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{Layer-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)}(x, y) \cdot A_k(x, y)\Big)
+    $$
+    L^{(c)}_{Layer-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)}(x, y) \cdot A_k(x, y)\Big)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}(x, y)` being defined as:
+    with the coefficient $w_k^{(c)}(x, y)$ being defined as:
 
-    .. math::
-        w_k^{(c)}(x, y) = ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}(x, y)\Big)
+    $$
+    w_k^{(c)}(x, y) = ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}(x, y)\Big)
+    $$
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`,
-    and :math:`Y^{(c)}` is the model output score for class :math:`c` before softmax.
+    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$,
+    and $Y^{(c)}$ is the model output score for class $c$ before softmax.
 
-    >>> from torchvision.models import get_model, get_model_weights
-    >>> from torchcam.methods import LayerCAM
-    >>> model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-    >>> extractor = LayerCAM(model, 'layer4')
-    >>> scores = model(input_tensor)
-    >>> cams = extractor(class_idx=100, scores=scores)
-    >>> fused_cam = extractor.fuse_cams(cams)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import LayerCAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        extractor = LayerCAM(model, 'layer4')
+        scores = model(input_tensor)
+        cams = extractor(class_idx=100, scores=scores)
+        fused_cam = extractor.fuse_cams(cams)
+        ```
 
     Args:
         model: input model

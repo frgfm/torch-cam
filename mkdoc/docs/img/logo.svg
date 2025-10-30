@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <style>
-    .primary-stroke { stroke: #4a0024; }
+    .primary-stroke { stroke: #850040; }
     .light-fill { fill: rgba(199,206,214,0.5); }
-    .accent-fill { fill: #4a0024; }
+    .accent-fill { fill: #850040; }
   </style>
   <path d="M 140,340 L 140,140 L 340,140" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 684,140 L 884,140 L 884,340" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>

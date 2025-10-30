@@ -12,45 +12,49 @@ from .methods.core import _CAM
 
 
 class ClassificationMetric:
-    r"""Implements Average Drop and Increase in Confidence from `"Grad-CAM++: Improved Visual Explanations for Deep
-    Convolutional Networks." <https://arxiv.org/pdf/1710.11063.pdf>`_.
+    r"""Implements Average Drop and Increase in Confidence from ["Grad-CAM++: Improved Visual Explanations for Deep
+    Convolutional Networks."](https://arxiv.org/pdf/1710.11063.pdf).
 
     The raw aggregated metric is computed as follows:
 
-    .. math::
-        \forall N, H, W \in \mathbb{N}, \forall X \in \mathbb{R}^{N*3*H*W},
-        \forall m \in \mathcal{M}, \forall c \in \mathcal{C}, \\
-        AvgDrop_{m, c}(X) = \frac{1}{N} \sum\limits_{i=1}^N f_{m, c}(X_i) \\
-        IncrConf_{m, c}(X) = \frac{1}{N} \sum\limits_{i=1}^N g_{m, c}(X_i)
+    $$
+    \forall N, H, W \in \mathbb{N}, \forall X \in \mathbb{R}^{N \times 3 \times H \times W},
+    \forall m \in \mathcal{M}, \forall c \in \mathcal{C}, \\
+    AvgDrop_{m, c}(X) = \frac{1}{N} \sum\limits_{i=1}^N f_{m, c}(X_i) \\
+    IncrConf_{m, c}(X) = \frac{1}{N} \sum\limits_{i=1}^N g_{m, c}(X_i)
+    $$
 
-    where :math:`\mathcal{C}` is the set of class activation generators,
-    :math:`\mathcal{M}` is the set of classification models,
-    with the function :math:`f_{m, c}` defined as:
+    where $\mathcal{C}$ is the set of class activation generators,
+    $\mathcal{M}$ is the set of classification models,
+    with the function $f_{m, c}$ defined as:
 
-    .. math::
-        \forall x \in \mathbb{R}^{3*H*W},
-        f_{m, c}(x) = \frac{\max(0, m(x) - m(E_{m, c}(x) * x))}{m(x)}
+    $$
+    \forall x \in \mathbb{R}^{3 \times H \times W},
+    f_{m, c}(x) = \frac{\max(0, m(x) - m(E_{m, c}(x) * x))}{m(x)}
+    $$
 
-    where :math:`E_{m, c}(x)` is the class activation map of :math:`m` for input :math:`x` with method :math:`m`,
+    where $E_{m, c}(x)$ is the class activation map of $m$ for input $x$ with method $m$,
     resized to (H, W),
 
-    and with the function :math:`g_{m, c}` defined as:
+    and with the function $g_{m, c}$ defined as:
 
-    .. math::
-        \forall x \in \mathbb{R}^{3*H*W},
-        g_{m, c}(x) = \left\{
-            \begin{array}{ll}
-                1 & \mbox{if } m(x) < m(E_{m, c}(x) * x) \\
-                0 & \mbox{otherwise.}
-            \end{array}
-        \right.
+    $$
+    \forall x \in \mathbb{R}^{3 \times H \times W},\quad
+    g_{m, c}(x) =
+    \begin{cases}
+        1 & \text{if } m(x) < m(E_{m, c}(x) \cdot x) \\
+        0 & \text{otherwise}
+    \end{cases}
+    $$
 
-
-    >>> from functools import partial
-    >>> from torchcam.metrics import ClassificationMetric
-    >>> metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
-    >>> metric.update(input_tensor)
-    >>> metric.summary()
+    Example:
+        ```python
+        from functools import partial
+        from torchcam.metrics import ClassificationMetric
+        metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
+        metric.update(input_tensor)
+        metric.summary()
+        ```
     """
 
     def __init__(

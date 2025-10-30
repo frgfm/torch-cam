@@ -3,7 +3,7 @@
 TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs. Check out the live demo on [HuggingFace Spaces](https://huggingface.co/spaces/frgfm/torch-cam) 🤗
 
 <p align="center">
-    <img src="https://repository-images.githubusercontent.com/249513553/41c4d180-da62-11eb-9214-f253898ae016" alt="CAM visualization" width="70%">
+    <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" alt="CAM visualization" width="70%">
 </p>
 
 This project is meant for:

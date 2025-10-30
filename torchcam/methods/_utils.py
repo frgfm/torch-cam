@@ -19,7 +19,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         input_shape: the expected shape of input tensor excluding the batch dimension
 
     Returns:
-        str: the candidate layer for CAM
+        the candidate layer for CAM
     """
     # Set module in eval mode
     module_mode = mod.training

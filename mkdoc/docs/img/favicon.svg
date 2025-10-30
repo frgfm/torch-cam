@@ -3,9 +3,9 @@
     .primary-stroke { stroke: white; }
     .light-fill { fill: rgba(255,255,255,0.3); }
     .accent-fill { fill: white; }
-    .background { fill: #35001a; }
+    /* .background { fill: #35001a; } */
   </style>
-  <rect class="background" x="0" y="0" width="1024" height="1024"/>
+  <!-- <rect class="background" x="0" y="0" width="1024" height="1024"/> -->
   <path d="M 140,340 L 140,140 L 340,140" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 684,140 L 884,140 L 884,340" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M 140,684 L 140,884 L 340,884" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>

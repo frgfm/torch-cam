@@ -13,13 +13,15 @@ from PIL.Image import Image, Resampling, fromarray
 def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 0.7) -> Image:
     """Overlay a colormapped mask on a background image.
 
-    >>> from PIL import Image
-    >>> import matplotlib.pyplot as plt
-    >>> from torchcam.utils import overlay_mask
-    >>> img = ...
-    >>> cam = ...
-    >>> overlay = overlay_mask(img, cam)
-
+    Example:
+        ```python
+        from PIL import Image
+        import matplotlib.pyplot as plt
+        from torchcam.utils import overlay_mask
+        img = ...
+        cam = ...
+        overlay = overlay_mask(img, cam)
+        ```
     Args:
         img: background image
         mask: mask to be overlayed in grayscale
