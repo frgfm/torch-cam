@@ -68,6 +68,19 @@ plugins:
   social:
     cards_layout_options:
       background_color: "#3e192b"
+  llmstxt:
+    full_output: llms-full.txt
+    autoclean: true
+    sections:
+      Getting started:
+        - getting-started/installation.md
+        - getting-started/notebooks.md
+      Package Reference:
+        - reference/methods.md
+        - reference/metrics.md
+        - reference/utils.md
+      Notes:
+        - notes/changelog.md
   mkdocstrings:
     handlers:
       python:
