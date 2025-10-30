@@ -40,7 +40,7 @@ lint-format: ${PYPROJECT_FILE} ## Format code and fix linting issues
 	ruff check --fix . --config ${PYPROJECT_FILE}
 
 precommit: ${PYPROJECT_FILE} .pre-commit-config.yaml ## Run pre-commit hooks
-	pre-commit run --all-files
+	prek run --all-files
 
 typing-check: ${PYPROJECT_FILE} ## Check type annotations
 	uvx ty check .
