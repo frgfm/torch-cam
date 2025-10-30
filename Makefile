@@ -85,12 +85,16 @@ install-docs: ${PYPROJECT_FILE}
 	uv pip install -e ".[docs]"
 
 # Build documentation for current version
-single-docs: ${DOCS_DIR}
-	uv run sphinx-build ${DOCS_DIR}/source ${DOCS_DIR}/_build -a
+serve-docs: ${DOCS_DIR}
+	DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib uv run mkdocs serve -f ${DOCS_DIR}/mkdocs.yml
 
 # Check that docs can build
-full-docs: ${DOCS_DIR}
-	cd ${DOCS_DIR} && bash build.sh
+build-docs: ${DOCS_DIR}
+	DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib uv run mkdocs build -f ${DOCS_DIR}/mkdocs.yml
+
+push-docs: ${DOCS_DIR}
+	DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib uv run mkdocs gh-deploy -f ${DOCS_DIR}/mkdocs.yml --force
+
 
 ########################################################
 # Demo
@@ -102,3 +106,13 @@ install-demo: ${PYPROJECT_FILE}
 # Run the Gradio demo
 run-demo: ${DEMO_FILE}
 	uv run streamlit run ${DEMO_FILE}
+
+########################################################
+# Local setup
+########################################################
+
+# Push secrets to GH for deployment
+push-secrets: .env
+	gh secret set -f .env --app actions
+	gh secret set -f .env --app dependabot
+	gh secret set -f .env --app codespaces

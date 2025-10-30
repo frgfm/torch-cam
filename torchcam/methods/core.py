@@ -249,7 +249,7 @@ class _CAM:
                 among input maps)
 
         Returns:
-            torch.Tensor: fused class activation map
+            fused class activation map
 
         Raises:
             TypeError: if the argument type is invalid
