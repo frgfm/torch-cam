@@ -6,8 +6,8 @@
 from typing import cast
 
 import numpy as np
-from matplotlib.colormaps import get_cmap
 from matplotlib.colors import Colormap
+from matplotlib.pyplot import get_cmap
 from PIL.Image import Image, Resampling, fromarray
 
 
