@@ -17,7 +17,7 @@ updates:
       # Safe updates
       - dependency-name: "ruff"
       - dependency-name: "ty"
-      - dependency-name: "pre-commit"
+      - dependency-name: "prek"
       - dependency-name: "pytest"
       - dependency-name: "pytest-cov"
       - dependency-name: "pytest-pretty"

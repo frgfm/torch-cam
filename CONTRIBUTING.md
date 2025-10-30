@@ -63,7 +63,7 @@ git checkout -b a-short-description
 4 - You only have to set your development environment now. First uninstall any existing installation of the library with `pip uninstall torchcam`, then:
 ```shell
 make install-quality
-pre-commit install
+prek install
 ```
 
 ### Developing your feature
