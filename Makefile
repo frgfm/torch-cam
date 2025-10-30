@@ -4,7 +4,7 @@ PYPROJECT_FILE = ${PY_DIR}/pyproject.toml
 PYTHON_REQ_FILE = /tmp/requirements.txt
 DEMO_FILE = ./demo/app.py
 TESTS_DIR = ./tests
-DOCS_DIR = ./mkdoc
+DOCS_DIR = ./docs
 
 
 
