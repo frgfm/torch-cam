@@ -61,18 +61,16 @@ TorchCAM leverages [PyTorch hooking mechanisms](https://pytorch.org/tutorials/be
 You can find the exhaustive list of supported CAM methods in the [documentation](https://frgfm.github.io/torch-cam/methods.html), then use it as follows:
 
 ```python
-# Define your model
 from torchvision.models import get_model, get_model_weights
-model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
-
-# Set your CAM extractor
 from torchcam.methods import LayerCAM
+
+# Define your model
+model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+# Set your CAM extractor
 cam_extractor = LayerCAM(model)
 ```
 
 *Please note that by default, the layer at which the CAM is retrieved is set to the last non-reduced convolutional layer. If you wish to investigate a specific layer, use the `target_layer` argument in the constructor.*
-
-
 
 ### Retrieving the class activation map
 
@@ -80,20 +78,17 @@ Once your CAM extractor is set, you only need to use your model to infer on your
 
 ```python
 from torchvision.io import decode_image
-from torchvision.transforms.functional import normalize, resize, to_pil_image
 from torchvision.models import get_model, get_model_weights
 from torchcam.methods import LayerCAM
 
-weights = get_model_weights("resnet18").DEFAULT
-model = get_model("resnet18", weights=weights).eval()
+# Get a model and an image
+model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
 preprocess = weights.transforms()
-# Get your input
-img = decode_image("path/to/your/image.png")
-# Preprocess it for your chosen model
+img = decode_image("path/to/your/image.jpg")
+
 input_tensor = preprocess(img)
 
 with LayerCAM(model) as cam_extractor:
-  # Preprocess your data and feed it to the model
   out = model(input_tensor.unsqueeze(0))
   # Retrieve the CAM by passing the class index and the model output
   activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
@@ -113,11 +108,11 @@ Or if you wish to overlay it on your input image:
 
 ```python
 import matplotlib.pyplot as plt
+from torchvision.transforms.v2.functional import to_pil_image
 from torchcam.utils import overlay_mask
 
 # Resize the CAM and overlay it
 result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
-# Display it
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
 
@@ -135,15 +130,13 @@ You can install the last stable release of the package using [pypi](https://pypi
 pip install torchcam
 ```
 
-### Developer installation
+### Latest version
 
 Alternatively, if you wish to use the latest features of the project that haven't made their way to a release yet, you can install the package from source:
 
 ```shell
-git clone https://github.com/frgfm/torch-cam.git
-pip install -e torch-cam/.
+pip install torch-cam @ git+https://github.com/frgfm/torch-cam.git
 ```
-
 
 
 ## CAM Zoo
@@ -176,7 +169,7 @@ This project is developed and maintained by the repo owner, but the implementati
 
 The full package documentation is available [here](https://frgfm.github.io/torch-cam/) for detailed specifications.
 
-### Demo app
+### Playground app
 
 A minimal demo app is provided for you to play with the supported CAM methods! Feel free to check out the live demo on [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam)
 
@@ -194,7 +187,7 @@ streamlit run demo/app.py
 
 ![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/torchcam_demo.png)
 
-### Example script
+### Visualization script
 
 An example script is provided for you to benchmark the heatmaps produced by multiple CAM approaches on the same image:
 
