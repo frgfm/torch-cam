@@ -32,7 +32,8 @@ Get an image and a model:
 from torchvision.io import decode_image
 from torchvision.models import get_model, get_model_weights
 
-weights = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+weights = get_model_weights("resnet18").DEFAULT
+model = get_model("resnet18", weights=weights).eval()
 preprocess = weights.transforms()
 
 img_path = "path/to/your/image.jpg"
