@@ -17,7 +17,7 @@ $ uv pip install torchcam
 ```
 
 ```bash
-$ uv pip install torch-cam @ git+https://github.com/frgfm/torch-cam.git
+$ uv pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
 ```
 
 ## System installation
@@ -29,7 +29,7 @@ $ uv pip install --system torchcam
 ```
 
 ```bash
-$ uv pip install --system torch-cam @ git+https://github.com/frgfm/torch-cam.git
+$ uv pip install --system torchcam @ git+https://github.com/frgfm/torch-cam.git
 ```
 
 ```bash
@@ -37,7 +37,7 @@ $ pip install torchcam
 ```
 
 ```bash
-$ pip install torch-cam @ git+https://github.com/frgfm/torch-cam.git
+$ pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
 ```
 
 Info
