@@ -1,57 +1,72 @@
-# Copyright (C) 2020-2024, François-Guillaume Fernandez.
+# Copyright (C) 2020-2025, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
 import math
-from typing import Any, List, Optional, Tuple, Union
+import sys
+from typing import Any
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from ._utils import locate_linear_layer
 from .core import _CAM
 
 __all__ = ["CAM", "ISCAM", "SSCAM", "ScoreCAM"]
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler(sys.stdout)
+log_formatter = logging.Formatter("%(levelname)s:     %(message)s")
+stream_handler.setFormatter(log_formatter)
+logger.addHandler(stream_handler)
+
 
 class CAM(_CAM):
-    r"""Implements a class activation map extractor as described in `"Learning Deep Features for Discriminative
-    Localization" <https://arxiv.org/pdf/1512.04150.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["Learning Deep Features for Discriminative
+    Localization"](https://arxiv.org/pdf/1512.04150.pdf).
 
     The Class Activation Map (CAM) is defined for image classification models that have global pooling at the end
     of the visual feature extraction block. The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
+    L^{(c)}_{CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`,
-    and :math:`w_k^{(c)}` is the weight corresponding to class :math:`c` for unit :math:`k` in the fully
-    connected layer..
+    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$,
+    and $w_k^{(c)}$ is the weight corresponding to class $c$ for unit $k$ in the fully
+    connected layer.
 
-    >>> from torchvision.models import resnet18
-    >>> from torchcam.methods import CAM
-    >>> model = resnet18(pretrained=True).eval()
-    >>> cam = CAM(model, 'layer4', 'fc')
-    >>> with torch.no_grad(): out = model(input_tensor)
-    >>> cam(class_idx=100)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import CAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        with CAM(model, 'layer4', 'fc') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
+        ```
 
     Args:
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
         fc_layer: either the fully connected layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
+
+    Raises:
+        ValueError: if the argument is invalid
+        TypeError: if the argument type is invalid
     """
 
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
-        fc_layer: Optional[Union[nn.Module, str]] = None,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
+        fc_layer: nn.Module | str | None = None,
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         if isinstance(target_layer, list) and len(target_layer) > 1:
@@ -66,12 +81,14 @@ class CAM(_CAM):
             fc_name = self._resolve_layer_name(fc_layer)
         # If the layer is not specified, try automatic resolution
         elif fc_layer is None:
-            fc_name = locate_linear_layer(model)  # type: ignore[assignment]
+            lin_layers = [layer_name for layer_name, m in model.named_modules() if isinstance(m, nn.Linear)]
             # Warn the user of the choice
-            if isinstance(fc_name, str):
-                logging.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
-            else:
+            if len(lin_layers) == 0:
                 raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
+            if len(lin_layers) > 1:
+                raise ValueError("This CAM method does not support multiple fully connected layers.")
+            fc_name = lin_layers[0]
+            logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
         else:
             raise TypeError("invalid argument type for `fc_layer`")
         # Softmax weight
@@ -83,10 +100,10 @@ class CAM(_CAM):
     @torch.no_grad()
     def _get_weights(
         self,
-        class_idx: Union[int, List[int]],
+        class_idx: int | list[int],
         *_: Any,
-    ) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps."""
+    ) -> list[Tensor]:
+        """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         # Take the FC weights of the target class
         if isinstance(class_idx, int):
             return [self._fc_weights[class_idx, :].unsqueeze(0)]
@@ -94,36 +111,42 @@ class CAM(_CAM):
 
 
 class ScoreCAM(_CAM):
-    r"""Implements a class activation map extractor as described in `"Score-CAM:
-    Score-Weighted Visual Explanations for Convolutional Neural Networks" <https://arxiv.org/pdf/1910.01279.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["Score-CAM:
+    Score-Weighted Visual Explanations for Convolutional Neural Networks"](https://arxiv.org/pdf/1910.01279.pdf).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{Score-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
+    L^{(c)}_{Score-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient $w_k^{(c)}$ being defined as:
 
-    .. math::
-        w_k^{(c)} = softmax\Big(Y^{(c)}(M_k) - Y^{(c)}(X_b)\Big)_k
+    $$
+    w_k^{(c)} = softmax\Big(Y^{(c)}(M_k) - Y^{(c)}(X_b)\Big)_k
+    $$
 
-    where :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
-    for input :math:`X`, :math:`X_b` is a baseline image,
-    and :math:`M_k` is defined as follows:
+    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$, $Y^{(c)}(X)$ is the model output score for class $c$ before softmax
+    for input $X$, $X_b$ is a baseline image,
+    and $M_k$ is defined as follows:
 
-    .. math::
-        M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)})
-        \odot X_b
+    $$
+    M_k = \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)})
+    \odot X_b
+    $$
 
-    where :math:`\odot` refers to the element-wise multiplication and :math:`U` is the upsampling operation.
+    where $\odot$ refers to the element-wise multiplication and $U$ is the upsampling operation.
 
-    >>> from torchvision.models import resnet18
-    >>> from torchcam.methods import ScoreCAM
-    >>> model = resnet18(pretrained=True).eval()
-    >>> cam = ScoreCAM(model, 'layer4')
-    >>> with torch.no_grad(): out = model(input_tensor)
-    >>> cam(class_idx=100)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import ScoreCAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        with ScoreCAM(model, 'layer4') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
+        ```
 
     Args:
         model: input model
@@ -135,9 +158,9 @@ class ScoreCAM(_CAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         batch_size: int = 32,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
@@ -148,13 +171,13 @@ class ScoreCAM(_CAM):
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
-    def _store_input(self, _: nn.Module, _input: Tensor) -> None:
+    def _store_input(self, _: nn.Module, input_: Tensor) -> None:
         """Store model input tensor."""
         if self._hooks_enabled:
-            self._input = _input[0].data.clone()
+            self._input = input_[0].data.clone()
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [
@@ -172,15 +195,15 @@ class ScoreCAM(_CAM):
         for idx, scored_input in enumerate(scored_inputs):
             # Process by chunk (GPU RAM limitation)
             for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                 # Get the softmax probabilities of the target class
                 # (*, M)
-                cic = self.model(scored_input[_slice]) - logits[idcs[_slice]]
+                cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
                 if isinstance(class_idx, int):
-                    weights[idx][_slice] = cic[:, class_idx]
+                    weights[idx][slice_] = cic[:, class_idx]
                 else:
-                    _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
-                    weights[idx][_slice] = cic.gather(1, _target.view(-1, 1)).squeeze(1)
+                    target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
+                    weights[idx][slice_] = cic.gather(1, target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
         return [torch.softmax(w.view(b, c), -1) for w in weights]
@@ -188,11 +211,11 @@ class ScoreCAM(_CAM):
     @torch.no_grad()
     def _get_weights(
         self,
-        class_idx: Union[int, List[int]],
+        class_idx: int | list[int],
         *_: Any,
-    ) -> List[Tensor]:
-        """Computes the weight coefficients of the hooked activation maps."""
-        self.hook_a: List[Tensor]  # type: ignore[assignment]
+    ) -> list[Tensor]:
+        """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
+        self.hook_a: list[Tensor]  # type: ignore[assignment]
 
         # Normalize the activation
         # (N, C, H', W')
@@ -218,53 +241,59 @@ class ScoreCAM(_CAM):
         origin_mode = self.model.training
         self.model.eval()
 
-        weights: List[Tensor] = self._get_score_weights(upsampled_a, class_idx)
+        weights: list[Tensor] = self._get_score_weights(upsampled_a, class_idx)
 
         # Reenable hook updates
         self.enable_hooks()
         # Put back the model in the correct mode
-        self.model.training = origin_mode
+        self.model.training = origin_mode  # ty: ignore[invalid-assignment]
 
         return weights
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs})"
 
 
 class SSCAM(ScoreCAM):
-    r"""Implements a class activation map extractor as described in `"SS-CAM: Smoothed Score-CAM for
-    Sharper Visual Feature Localization" <https://arxiv.org/pdf/2006.14255.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["SS-CAM: Smoothed Score-CAM for
+    Sharper Visual Feature Localization"](https://arxiv.org/pdf/2006.14255.pdf).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{SS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
+    L^{(c)}_{SS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient $w_k^{(c)}$ being defined as:
 
-    .. math::
-        w_k^{(c)} = softmax\Big(\frac{1}{N} \sum\limits_{i=1}^N (Y^{(c)}(\hat{M_k}) - Y^{(c)}(X_b))\Big)_k
+    $$
+    w_k^{(c)} = softmax\Big(\frac{1}{N} \sum\limits_{i=1}^N (Y^{(c)}(\hat{M_k}) - Y^{(c)}(X_b))\Big)_k
+    $$
 
-    where :math:`N` is the number of samples used to smooth the weights,
-    :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
-    for input :math:`X`, :math:`X_b` is a baseline image,
-    and :math:`M_k` is defined as follows:
+    where $N$ is the number of samples used to smooth the weights,
+    $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$, $Y^{(c)}(X)$ is the model output score for class $c$ before softmax
+    for input $X$, $X_b$ is a baseline image,
+    and $M_k$ is defined as follows:
 
-    .. math::
-        \hat{M_k} = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
-        \delta\Bigg) \odot X_b
+    $$
+    \hat{M_k} = \Bigg(\frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} +
+    \delta\Bigg) \odot X_b
+    $$
 
-    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation,
-    :math:`\delta \sim \mathcal{N}(0, \sigma^2)` is the random noise that follows a 0-mean gaussian distribution
-    with a standard deviation of :math:`\sigma`.
+    where $\odot$ refers to the element-wise multiplication, $U$ is the upsampling operation,
+    $\delta \sim \mathcal{N}(0, \sigma^2)$ is the random noise that follows a 0-mean gaussian distribution
+    with a standard deviation of $\sigma$.
 
-    >>> from torchvision.models import resnet18
-    >>> from torchcam.methods import SSCAM
-    >>> model = resnet18(pretrained=True).eval()
-    >>> cam = SSCAM(model, 'layer4')
-    >>> with torch.no_grad(): out = model(input_tensor)
-    >>> cam(class_idx=100)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import SSCAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        with SSCAM(model, 'layer4') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
+        ```
 
     Args:
         model: input model
@@ -278,21 +307,21 @@ class SSCAM(ScoreCAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         batch_size: int = 32,
         num_samples: int = 35,
         std: float = 2.0,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
         self.num_samples = num_samples
         self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)
+        self._distrib = torch.distributions.normal.Normal(0, self.std)  # ty: ignore[unresolved-attribute]
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
         b, c = activations[0].shape[:2]
 
         # Initialize weights
@@ -314,55 +343,61 @@ class SSCAM(ScoreCAM):
 
                 # Process by chunk (GPU RAM limitation)
                 for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                    slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
-                    cic = self.model(scored_input[_slice]) - logits[idcs[_slice]]
+                    cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
                     if isinstance(class_idx, int):
-                        weights[idx][_slice] += cic[:, class_idx]
+                        weights[idx][slice_] += cic[:, class_idx]
                     else:
-                        _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
-                        weights[idx][_slice] += cic.gather(1, _target.view(-1, 1)).squeeze(1)
+                        target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
+                        weights[idx][slice_] += cic.gather(1, target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
         return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
 
 
 class ISCAM(ScoreCAM):
-    r"""Implements a class activation map extractor as described in `"IS-CAM: Integrated Score-CAM for axiomatic-based
-    explanations" <https://arxiv.org/pdf/2010.03023.pdf>`_.
+    r"""Implements a class activation map extractor as described in ["IS-CAM: Integrated Score-CAM for axiomatic-based
+    explanations"](https://arxiv.org/pdf/2010.03023.pdf).
 
     The localization map is computed as follows:
 
-    .. math::
-        L^{(c)}_{ISS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
+    L^{(c)}_{ISS-CAM}(x, y) = ReLU\Big(\sum\limits_k w_k^{(c)} A_k(x, y)\Big)
+    $$
 
-    with the coefficient :math:`w_k^{(c)}` being defined as:
+    with the coefficient $w_k^{(c)}$ being defined as:
 
-    .. math::
-        w_k^{(c)} = softmax\Bigg(\frac{1}{N} \sum\limits_{i=1}^N
-        \Big(Y^{(c)}(M_i) - Y^{(c)}(X_b)\Big)\Bigg)_k
+    $$
+    w_k^{(c)} = softmax\Bigg(\frac{1}{N} \sum\limits_{i=1}^N
+    \Big(Y^{(c)}(M_i) - Y^{(c)}(X_b)\Big)\Bigg)_k
+    $$
 
-    where :math:`N` is the number of samples used to smooth the weights,
-    :math:`A_k(x, y)` is the activation of node :math:`k` in the target layer of the model at
-    position :math:`(x, y)`, :math:`Y^{(c)}(X)` is the model output score for class :math:`c` before softmax
-    for input :math:`X`, :math:`X_b` is a baseline image,
-    and :math:`M_i` is defined as follows:
+    where $N$ is the number of samples used to smooth the weights,
+    $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
+    position $(x, y)$, $Y^{(c)}(X)$ is the model output score for class $c$ before softmax
+    for input $X$, $X_b$ is a baseline image,
+    and $M_i$ is defined as follows:
 
-    .. math::
-        M_i = \sum\limits_{j=0}^{i-1} \frac{j}{N}
-        \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b
+    $$
+    M_i = \sum\limits_{j=0}^{i-1} \frac{j}{N}
+    \frac{U(A_k) - \min\limits_m U(A_m)}{\max\limits_m  U(A_m) - \min\limits_m  U(A_m)} \odot X_b
+    $$
 
-    where :math:`\odot` refers to the element-wise multiplication, :math:`U` is the upsampling operation.
+    where $\odot$ refers to the element-wise multiplication, $U$ is the upsampling operation.
 
-    >>> from torchvision.models import resnet18
-    >>> from torchcam.methods import ISSCAM
-    >>> model = resnet18(pretrained=True).eval()
-    >>> cam = ISCAM(model, 'layer4')
-    >>> with torch.no_grad(): out = model(input_tensor)
-    >>> cam(class_idx=100)
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import ISCAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        with ISCAM(model, 'layer4') as cam_extractor:
+            with torch.inference_mode(): out = model(input_tensor)
+            cam = cam_extractor(class_idx=100)
+        ```
 
     Args:
         model: input model
@@ -375,10 +410,10 @@ class ISCAM(ScoreCAM):
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         batch_size: int = 32,
         num_samples: int = 10,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        input_shape: tuple[int, ...] = (3, 224, 224),
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
@@ -386,7 +421,7 @@ class ISCAM(ScoreCAM):
         self.num_samples = num_samples
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: List[Tensor], class_idx: Union[int, List[int]]) -> List[Tensor]:
+    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
         b, c = activations[0].shape[:2]
         # (N * C, I, H, W)
         scored_inputs = [
@@ -401,21 +436,21 @@ class ISCAM(ScoreCAM):
         idcs = torch.arange(b).repeat_interleave(c)
 
         for idx, scored_input in enumerate(scored_inputs):
-            _coeff = 0.0
+            coeff = 0.0
             # Process by chunk (GPU RAM limitation)
             for sidx in range(self.num_samples):
-                _coeff += (sidx + 1) / self.num_samples
+                coeff += (sidx + 1) / self.num_samples
 
                 # Process by chunk (GPU RAM limitation)
                 for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                    _slice = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                    slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
-                    cic = self.model(_coeff * scored_input[_slice]) - logits[idcs[_slice]]
+                    cic = self.model(coeff * scored_input[slice_]) - logits[idcs[slice_]]
                     if isinstance(class_idx, int):
-                        weights[idx][_slice] += cic[:, class_idx]
+                        weights[idx][slice_] += cic[:, class_idx]
                     else:
-                        _target = torch.tensor(class_idx, device=cic.device)[idcs[_slice]]
-                        weights[idx][_slice] += cic.gather(1, _target.view(-1, 1)).squeeze(1)
+                        target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
+                        weights[idx][slice_] += cic.gather(1, target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
         return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]

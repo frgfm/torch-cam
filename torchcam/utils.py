@@ -1,24 +1,26 @@
-# Copyright (C) 2020-2024, François-Guillaume Fernandez.
+# Copyright (C) 2020-2025, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from typing import cast
-
 import numpy as np
-from matplotlib import colormaps as cm
+from matplotlib.colors import Colormap
+from matplotlib.pyplot import get_cmap
 from PIL.Image import Image, Resampling, fromarray
 
 
-def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 0.7) -> Image:
-    """Overlay a colormapped mask on a background image
+def overlay_mask(img: Image, mask: Image, colormap: Colormap | str = "jet", alpha: float = 0.7) -> Image:
+    """Overlay a colormapped mask on a background image.
 
-    >>> from PIL import Image
-    >>> import matplotlib.pyplot as plt
-    >>> from torchcam.utils import overlay_mask
-    >>> img = ...
-    >>> cam = ...
-    >>> overlay = overlay_mask(img, cam)
+    Example:
+        ```python
+        from PIL import Image
+        import matplotlib.pyplot as plt
+        from torchcam.utils import overlay_mask
+        img = ...
+        cam = ...
+        overlay = overlay_mask(img, cam)
+        ```
 
     Args:
         img: background image
@@ -42,13 +44,10 @@ def overlay_mask(img: Image, mask: Image, colormap: str = "jet", alpha: float = 
     if len(img.getbands()) not in {1, 3}:
         raise ValueError("img argument needs to be a grayscale or RGB image")
 
-    cmap = cm.get_cmap(colormap)
+    cmap = get_cmap(colormap)
     # Resize mask and apply colormap
     overlay = mask.resize(img.size, resample=Resampling.BICUBIC)
-
-    overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, 2 if len(img.getbands()) == 1 else slice(0, 3)]).astype(
-        np.uint8
-    )
-
+    overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, :3]).astype(np.uint8)
     # Overlay the image with the mask
-    return fromarray((alpha * np.asarray(img) + (1 - alpha) * cast(np.ndarray, overlay)).astype(np.uint8))
+    bg_img = np.asarray(img) if len(img.getbands()) == 3 else np.asarray(img)[..., np.newaxis].repeat(3, axis=-1)
+    return fromarray((alpha * bg_img + (1 - alpha) * overlay).astype(np.uint8))

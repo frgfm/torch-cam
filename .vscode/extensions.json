@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+      "charliermarsh.ruff",
+      "astral-sh.ty",
+      "ms-python.python",
+      "ms-vscode.makefile-tools",
+      "github.vscode-github-actions"
+    ]
+  }

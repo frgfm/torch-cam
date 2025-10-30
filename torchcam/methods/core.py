@@ -1,13 +1,14 @@
-# Copyright (C) 2020-2024, François-Guillaume Fernandez.
+# Copyright (C) 2020-2025, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
+import sys
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -17,22 +18,33 @@ from ._utils import locate_candidate_layer
 
 __all__ = ["_CAM"]
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler(sys.stdout)
+log_formatter = logging.Formatter("%(levelname)s:     %(message)s")
+stream_handler.setFormatter(log_formatter)
+logger.addHandler(stream_handler)
+
 
 class _CAM:
-    """Implements a class activation map extractor
+    """Implements a class activation map extractor.
 
     Args:
         model: input model
         target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
         enable_hooks: should hooks be enabled by default
+
+    Raises:
+        ValueError: if the argument is invalid
+        TypeError: if the argument type is invalid
     """
 
     def __init__(
         self,
         model: nn.Module,
-        target_layer: Optional[Union[Union[nn.Module, str], List[Union[nn.Module, str]]]] = None,
-        input_shape: Tuple[int, ...] = (3, 224, 224),
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
+        input_shape: tuple[int, ...] = (3, 224, 224),
         enable_hooks: bool = True,
     ) -> None:
         # Obtain a mapping from module name to module instance for each layer in the model
@@ -54,10 +66,10 @@ class _CAM:
             target_name = locate_candidate_layer(model, input_shape)
             # Warn the user of the choice
             if isinstance(target_name, str):
-                logging.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
+                logger.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
                 target_names = [target_name]
             else:
-                raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")
+                raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")  # noqa: TRY004
         else:
             raise TypeError("invalid argument type for `target_layer`")
 
@@ -67,7 +79,7 @@ class _CAM:
         self.model = model
         # Init hooks
         self.reset_hooks()
-        self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
+        self.hook_handles: list[torch.utils.hooks.RemovableHandle] = []
         # Forward hook
         for idx, name in enumerate(self.target_names):
             self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_a, idx=idx)))
@@ -91,36 +103,36 @@ class _CAM:
 
     def __exit__(
         self,
-        exct_type: Union[Type[BaseException], None],
-        exce_value: Union[BaseException, None],
-        traceback: Union[TracebackType, None],
+        exct_type: type[BaseException] | None,
+        exce_value: BaseException | None,
+        traceback: TracebackType | None,
     ) -> None:
         self.remove_hooks()
         self.reset_hooks()
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
-        """Resolves the name of a given layer inside the hooked model."""
-        _found = False
+        """Resolves the name of a given layer inside the hooked model."""  # noqa: DOC201, DOC501
+        found = False
         target_name: str
         for k, v in self.submodule_dict.items():
             if id(v) == id(target_layer):
                 target_name = k
-                _found = True
+                found = True
                 break
-        if not _found:
+        if not found:
             raise ValueError("unable to locate module inside the specified model.")
 
         return target_name
 
-    def _hook_a(self, _: nn.Module, _input: Tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
+    def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""
         if self._hooks_enabled:
             self.hook_a[idx] = output.data
 
     def reset_hooks(self) -> None:
         """Clear stored activation and gradients."""
-        self.hook_a: List[Optional[Tensor]] = [None] * len(self.target_names)
-        self.hook_g: List[Optional[Tensor]] = [None] * len(self.target_names)
+        self.hook_a: list[Tensor | None] = [None] * len(self.target_names)
+        self.hook_g: list[Tensor | None] = [None] * len(self.target_names)
 
     def remove_hooks(self) -> None:
         """Clear model hooks."""
@@ -130,8 +142,8 @@ class _CAM:
 
     @staticmethod
     @torch.no_grad()
-    def _normalize(cams: Tensor, spatial_dims: Optional[int] = None, eps: float = 1e-8) -> Tensor:
-        """CAM normalization."""
+    def _normalize(cams: Tensor, spatial_dims: int | None = None, eps: float = 1e-8) -> Tensor:
+        """CAM normalization."""  # noqa: DOC201
         spatial_dims = cams.ndim - 1 if spatial_dims is None else spatial_dims
         cams.sub_(cams.flatten(start_dim=-spatial_dims).min(-1).values[(...,) + (None,) * spatial_dims])
         # Avoid division by zero
@@ -140,15 +152,15 @@ class _CAM:
         return cams
 
     @abstractmethod
-    def _get_weights(self, class_idx: Union[int, List[int]], *args: Any, **kwargs: Any) -> List[Tensor]:
+    def _get_weights(self, class_idx: int | list[int], *args: Any, **kwargs: Any) -> list[Tensor]:
         raise NotImplementedError
 
-    def _precheck(self, class_idx: Union[int, List[int]], scores: Optional[Tensor] = None) -> None:
-        """Check for invalid computation cases."""
+    def _precheck(self, class_idx: int | list[int], scores: Tensor | None = None) -> None:
+        """Check for invalid computation cases."""  # noqa: DOC501
         for fmap in self.hook_a:
             # Check that forward has already occurred
             if not isinstance(fmap, Tensor):
-                raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")
+                raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")  # noqa: TRY004
             # Check batch size
             if not isinstance(class_idx, int) and fmap.shape[0] != len(class_idx):
                 raise ValueError("expected batch size and length of `class_idx` to be the same.")
@@ -165,11 +177,11 @@ class _CAM:
 
     def __call__(
         self,
-        class_idx: Union[int, List[int]],
-        scores: Optional[Tensor] = None,
+        class_idx: int | list[int],
+        scores: Tensor | None = None,
         normalized: bool = True,
         **kwargs: Any,
-    ) -> List[Tensor]:
+    ) -> list[Tensor]:
         # Integrity check
         self._precheck(class_idx, scores)
 
@@ -178,11 +190,11 @@ class _CAM:
 
     def compute_cams(
         self,
-        class_idx: Union[int, List[int]],
-        scores: Optional[Tensor] = None,
+        class_idx: int | list[int],
+        scores: Tensor | None = None,
         normalized: bool = True,
         **kwargs: Any,
-    ) -> List[Tensor]:
+    ) -> list[Tensor]:
         """Compute the CAM for a specific output class.
 
         Args:
@@ -200,12 +212,12 @@ class _CAM:
         # Get map weight & unsqueeze it
         weights = self._get_weights(class_idx, scores, **kwargs)
 
-        cams: List[Tensor] = []
+        cams: list[Tensor] = []
 
         with torch.no_grad():
-            for weight, activation in zip(weights, self.hook_a):
+            for weight, activation in zip(weights, self.hook_a, strict=True):
                 missing_dims = activation.ndim - weight.ndim  # type: ignore[union-attr]
-                weight = weight[(...,) + (None,) * missing_dims]
+                weight = weight[(...,) + (None,) * missing_dims]  # noqa: PLW2901
 
                 # Perform the weighted combination to get the CAM
                 cam = torch.nansum(weight * activation, dim=1)
@@ -221,14 +233,14 @@ class _CAM:
 
         return cams
 
-    def extra_repr(self) -> str:
+    def _extra_repr(self) -> str:
         return f"target_layer={self.target_names}"
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.extra_repr()})"
+        return f"{self.__class__.__name__}({self._extra_repr()})"
 
     @classmethod
-    def fuse_cams(cls, cams: List[Tensor], target_shape: Optional[Tuple[int, int]] = None) -> Tensor:
+    def fuse_cams(cls, cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor:
         """Fuse class activation maps from different layers.
 
         Args:
@@ -237,7 +249,11 @@ class _CAM:
                 among input maps)
 
         Returns:
-            torch.Tensor: fused class activation map
+            fused class activation map
+
+        Raises:
+            TypeError: if the argument type is invalid
+            ValueError: if the argument is an empty list
         """
         if not isinstance(cams, list) or any(not isinstance(elt, Tensor) for elt in cams):
             raise TypeError("invalid argument type for `cams`")
@@ -248,19 +264,19 @@ class _CAM:
             return cams[0]
         # Resize to the biggest CAM if no value was provided for `target_shape`
         if isinstance(target_shape, tuple):
-            _shape = target_shape
+            shape = target_shape
         else:
-            _shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams])))
+            shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams], strict=True)))
         # Scale cams
         scaled_cams = cls._scale_cams(cams)
-        return cls._fuse_cams(scaled_cams, _shape)
+        return cls._fuse_cams(scaled_cams, shape)
 
     @staticmethod
-    def _scale_cams(cams: List[Tensor]) -> List[Tensor]:
+    def _scale_cams(cams: list[Tensor]) -> list[Tensor]:
         return cams
 
     @staticmethod
-    def _fuse_cams(cams: List[Tensor], target_shape: Tuple[int, int]) -> Tensor:
+    def _fuse_cams(cams: list[Tensor], target_shape: tuple[int, int]) -> Tensor:
         # Interpolate all CAMs
         interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
         scaled_cams = [

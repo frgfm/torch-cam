@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2024, François-Guillaume Fernandez.
+# Copyright (C) 2021-2025, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
@@ -60,14 +60,12 @@ def main():
     # Sidebar
     # File selection
     st.sidebar.title("Input selection")
-    # Disabling warning
-    st.set_option("deprecation.showfileUploaderEncoding", False)
     # Choose your own image
     uploaded_file = st.sidebar.file_uploader("Upload files", type=["png", "jpeg", "jpg"])
     if uploaded_file is not None:
         img = Image.open(BytesIO(uploaded_file.read()), mode="r").convert("RGB")
 
-        cols[0].image(img, use_column_width=True)
+        cols[0].image(img, use_container_width=True)
 
     # Model selection
     st.sidebar.title("Setup")

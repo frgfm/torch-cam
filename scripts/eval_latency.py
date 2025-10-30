@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2024, François-Guillaume Fernandez.
+# Copyright (C) 2021-2025, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
@@ -12,7 +12,7 @@ import time
 
 import numpy as np
 import torch
-from torchvision import models
+from torchvision.models import get_model, get_model_weights
 
 from torchcam import methods
 
@@ -24,7 +24,8 @@ def main(args):
     device = torch.device(args.device)
 
     # Pretrained imagenet model
-    model = models.__dict__[args.arch](pretrained=True).to(device=device)
+    weights = get_model_weights(args.arch).DEFAULT
+    model = get_model(args.arch, weights=weights).to(device=device)
     # Freeze the model
     for p in model.parameters():
         p.requires_grad_(False)
@@ -53,9 +54,9 @@ def main(args):
             _ = cam_extractor(class_idx, scores)
             timings.append(time.perf_counter() - start_ts)
 
-    _timings = np.array(timings)
+    timings_ = np.array(timings)
     print(f"{args.method} w/ {args.arch} ({args.it} runs on ({args.size}, {args.size}) inputs)")
-    print(f"mean {1000 * _timings.mean():.2f}ms, std {1000 * _timings.std():.2f}ms")
+    print(f"mean {1000 * timings_.mean():.2f}ms, std {1000 * timings_.std():.2f}ms")
 
 
 if __name__ == "__main__":

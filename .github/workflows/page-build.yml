@@ -1,14 +1,18 @@
-name: GH-Pages Status
+name: page-build
 on:
   page_build
 
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.9.5"
+
 jobs:
-  see-page-build-payload:
+  check-gh-pages:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
-          python-version: 3.9
+          python-version: ${{ env.PYTHON_VERSION }}
           architecture: x64
       - name: check status
         run: |

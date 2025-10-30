@@ -1,0 +1,69 @@
+name: docs
+
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.9.5"
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - name: Build documentation
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: |
+          make install-docs
+          make build-docs
+      - name: Documentation sanity check
+        run: test -e docs/site/index.html || exit
+
+  deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - name: Build documentation
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: |
+          make install-docs
+          make build-docs
+      - name: Documentation sanity check
+        run: test -e docs/site/index.html || exit
+      - name: Install SSH Client 🔑
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.SSH_DEPLOY_KEY }}
+      - name: Deploy to Github Pages
+        uses: JamesIves/github-pages-deploy-action@v4.7.3
+        with:
+          branch: gh-pages
+          folder: 'docs/site'
+          commit-message: '[skip ci] Documentation updates'
+          clean: true

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <style>
+    .primary-stroke { stroke: #EE4C2C; }
+    .light-fill { fill: #C7CED6; }
+    .accent-fill { fill: #EE4C2C; }
+  </style>
+  <path d="M 140,340 L 140,140 L 340,140" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 684,140 L 884,140 L 884,340" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 140,684 L 140,884 L 340,884" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 684,884 L 884,884 L 884,684" class="primary-stroke" stroke-width="64" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="192" y="192" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="359" y="192" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="526" y="192" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="693" y="192" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="192" y="359" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="359" y="359" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="526" y="359" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="693" y="359" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="192" y="526" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="359" y="526" width="139" height="139" rx="25" ry="25" class="accent-fill"/>
+  <rect x="526" y="526" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="693" y="526" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="192" y="693" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="359" y="693" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="526" y="693" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+  <rect x="693" y="693" width="139" height="139" rx="25" ry="25" class="light-fill"/>
+</svg>

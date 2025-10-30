@@ -1,14 +1,14 @@
 from functools import partial
 
 import torch
-from torchvision.models import mobilenet_v3_small
+from torchvision.models import get_model
 
 from torchcam import metrics
 from torchcam.methods import LayerCAM
 
 
 def test_classification_metric():
-    model = mobilenet_v3_small(weights=None)
+    model = get_model("mobilenet_v3_small", weights=None)
     with LayerCAM(model, "features.12") as extractor:
         metric = metrics.ClassificationMetric(extractor, partial(torch.softmax, dim=-1))
 

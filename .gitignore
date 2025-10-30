@@ -133,4 +133,6 @@ torchcam/version.py
 
 # Conda distribution
 conda-dist/
-.vscode/
+uv.lock
+docs/site
+mkdoc/site

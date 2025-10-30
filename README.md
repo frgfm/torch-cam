@@ -3,14 +3,14 @@
 </h1>
 
 <p align="center">
-  <a href="https://github.com/frgfm/torch-cam/actions/workflows/builds.yml">
-    <img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/builds.yml?branch=main&label=CI&logo=github&style=flat-square">
+  <a href="https://github.com/frgfm/torch-cam/actions/workflows/package.yml">
+    <img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/package.yml?branch=main&label=CI&logo=github&style=flat-square">
   </a>
   <a href="https://github.com/astral-sh/ruff">
     <img src="https://img.shields.io/badge/Linter-Ruff-FCC21B?style=flat-square&logo=ruff&logoColor=white" alt="ruff">
   </a>
-  <a href="https://github.com/astral-sh/ruff">
-    <img src="https://img.shields.io/badge/Formatter-Ruff-FCC21B?style=flat-square&logo=Python&logoColor=white" alt="ruff">
+  <a href="https://github.com/astral-sh/ty">
+    <img src="https://img.shields.io/badge/Typecheck-Ty-261230?style=flat-square&logo=astral&logoColor=white" alt="ty">
   </a>
   <a href="https://www.codacy.com/gh/frgfm/torch-cam/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=frgfm/torch-cam&amp;utm_campaign=Badge_Grade"><img src="https://app.codacy.com/project/badge/Grade/87eaeec3e15442188f96c36bace5faf4"/></a>
   <a href="https://codecov.io/gh/frgfm/torch-cam">
@@ -21,9 +21,7 @@
   <a href="https://pypi.org/project/torchcam/">
     <img src="https://img.shields.io/pypi/v/torchcam.svg?logo=PyPI&logoColor=fff&style=flat-square&label=PyPI" alt="PyPi Version">
   </a>
-  <a href="https://anaconda.org/frgfm/torchcam">
-    <img src="https://img.shields.io/conda/v/frgfm/torchcam.svg?logo=anaconda&label=Conda&logoColor=fff&style=flat-square" alt="Conda Version">
-  </a>
+  <img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/frgfm/torch-cam?label=Release&logo=github">
   <img src="https://img.shields.io/pypi/pyversions/torchcam.svg?logo=Python&label=Python&logoColor=fff&style=flat-square" alt="pyversions">
   <a href="https://github.com/frgfm/torch-cam/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/frgfm/torch-cam.svg?label=License&logoColor=fff&style=flat-square" alt="License">
@@ -39,7 +37,7 @@
 </p>
 <p align="center">
   <a href="https://frgfm.github.io/torch-cam">
-    <img src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/docs.yaml?branch=main&label=Documentation&logo=read-the-docs&logoColor=white&style=flat-square" alt="Documentation Status">
+    <img src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/page-build.yml?branch=main&label=Documentation&logo=read-the-docs&logoColor=white&style=flat-square" alt="Documentation Status">
   </a>
 </p>
 
@@ -63,37 +61,35 @@ TorchCAM leverages [PyTorch hooking mechanisms](https://pytorch.org/tutorials/be
 You can find the exhaustive list of supported CAM methods in the [documentation](https://frgfm.github.io/torch-cam/methods.html), then use it as follows:
 
 ```python
-# Define your model
-from torchvision.models import resnet18
-model = resnet18(pretrained=True).eval()
+from torchvision.models import get_model, get_model_weights
+from torchcam.methods import LayerCAM
 
+# Define your model
+model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
 # Set your CAM extractor
-from torchcam.methods import SmoothGradCAMpp
-cam_extractor = SmoothGradCAMpp(model)
+cam_extractor = LayerCAM(model)
 ```
 
 *Please note that by default, the layer at which the CAM is retrieved is set to the last non-reduced convolutional layer. If you wish to investigate a specific layer, use the `target_layer` argument in the constructor.*
-
-
 
 ### Retrieving the class activation map
 
 Once your CAM extractor is set, you only need to use your model to infer on your data as usual. If any additional information is required, the extractor will get it for you automatically.
 
 ```python
-from torchvision.io.image import read_image
-from torchvision.transforms.functional import normalize, resize, to_pil_image
-from torchvision.models import resnet18
-from torchcam.methods import SmoothGradCAMpp
+from torchvision.io import decode_image
+from torchvision.models import get_model, get_model_weights
+from torchcam.methods import LayerCAM
 
-model = resnet18(pretrained=True).eval()
-# Get your input
-img = read_image("path/to/your/image.png")
-# Preprocess it for your chosen model
-input_tensor = normalize(resize(img, (224, 224)) / 255., [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+# Get a model and an image
+weights = get_model_weights("resnet18").DEFAULT
+model = get_model("resnet18", weights=weights).eval()
+preprocess = weights.transforms()
+img = decode_image("path/to/your/image.jpg")
 
-with SmoothGradCAMpp(model) as cam_extractor:
-  # Preprocess your data and feed it to the model
+input_tensor = preprocess(img)
+
+with LayerCAM(model) as cam_extractor:
   out = model(input_tensor.unsqueeze(0))
   # Retrieve the CAM by passing the class index and the model output
   activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
@@ -113,11 +109,11 @@ Or if you wish to overlay it on your input image:
 
 ```python
 import matplotlib.pyplot as plt
+from torchvision.transforms.v2.functional import to_pil_image
 from torchcam.utils import overlay_mask
 
 # Resize the CAM and overlay it
 result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
-# Display it
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
 
@@ -125,7 +121,7 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 
 ## Setup
 
-Python 3.8 (or higher) and [pip](https://pip.pypa.io/en/stable/)/[conda](https://docs.conda.io/en/latest/miniconda.html) are required to install TorchCAM.
+Python 3.11 (or higher) and [uv](https://docs.astral.sh/uv/)/[pip](https://pip.pypa.io/en/stable/installation/) are required to install TorchCAM.
 
 ### Stable release
 
@@ -135,21 +131,13 @@ You can install the last stable release of the package using [pypi](https://pypi
 pip install torchcam
 ```
 
-or using [conda](https://anaconda.org/frgfm/torchcam):
-
-```shell
-conda install -c frgfm torchcam
-```
-
-### Developer installation
+### Latest version
 
 Alternatively, if you wish to use the latest features of the project that haven't made their way to a release yet, you can install the package from source:
 
 ```shell
-git clone https://github.com/frgfm/torch-cam.git
-pip install -e torch-cam/.
+pip install torch-cam @ git+https://github.com/frgfm/torch-cam.git
 ```
-
 
 
 ## CAM Zoo
@@ -182,7 +170,7 @@ This project is developed and maintained by the repo owner, but the implementati
 
 The full package documentation is available [here](https://frgfm.github.io/torch-cam/) for detailed specifications.
 
-### Demo app
+### Playground app
 
 A minimal demo app is provided for you to play with the supported CAM methods! Feel free to check out the live demo on [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam)
 
@@ -200,7 +188,7 @@ streamlit run demo/app.py
 
 ![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/torchcam_demo.png)
 
-### Example script
+### Visualization script
 
 An example script is provided for you to benchmark the heatmaps produced by multiple CAM approaches on the same image:
 
@@ -212,23 +200,47 @@ python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 
 *All script arguments can be checked using `python scripts/cam_example.py --help`*
 
+### Performance benchmarks
 
+The purpose of CAM methods is to provide interpretability and they do so by pointing the biggest influence factors on the model outputs. Ideally the CAM should pinpoint all the visual cues that have any influence of the output classification score.
+For this, we use two metrics:
+- [Increase in Confidence](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (higher is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), how many times in the dataset has the classification probability improve.
+- [Average Drop](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (lower is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), by how much does the classification probability drop.
+
+| CAM method | Arch | Average drop (↓) | Increase in confidence (↑) |
+| ---------- | ---- | ---------------- | -------------------------- |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18 | 0.2686 | 0.2250 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18 | 0.5271 | 0.1962 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18 | 0.2088 | 0.2499 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18 | 0.1712 | 0.2819 |
+| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.2678 | 0.3483 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.3182 | 0.2535 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.2681 | 0.2678 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.2526 | 0.2882 |
+
+This benchmark was performed over the validation set of [imagenette](https://github.com/fastai/imagenette), which is a subset of Imagenet, on (224, 224) inputs.
+
+You can run this performance benchmark for any CAM method on your hardware as follows:
+
+```bash
+python scripts/eval_perf.py ~/Downloads/imagenette LayerCAM --arch mobilenet_v3_large
+```
+
+*All script arguments can be checked using `python scripts/eval_perf.py --help`*
 
 ### Latency benchmark
 
 You crave for beautiful activation maps, but you don't know whether it fits your needs in terms of latency?
 
-In the table below, you will find a latency benchmark (forward pass not included) for all CAM methods:
+In the table below, you will find a latency overhead benchmark (forward pass not included) for all CAM methods:
 
-| CAM method                                                   | Arch               | GPU mean (std)     | CPU mean (std)       |
-| ------------------------------------------------------------ | ------------------ | ------------------ | -------------------- |
+| CAM method | Arch | GPU mean (std) | CPU mean (std) |
+| ---------- | ---- | -------------- | -------------- |
 | [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
 | [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
 | [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
 | [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
 | [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
-| [SSCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SSCAM) | resnet18           |                    |                      |
-| [ISCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ISCAM) | resnet18           |                    |                      |
 | [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
 | [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
 | [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | mobilenet_v3_large | N/A*               | N/A*                 |
@@ -236,8 +248,6 @@ In the table below, you will find a latency benchmark (forward pass not included
 | [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
 | [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
 | [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
-| [SSCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SSCAM) | mobilenet_v3_large |                    |                      |
-| [ISCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ISCAM) | mobilenet_v3_large |                    |                      |
 | [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
 | [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
 
@@ -258,8 +268,6 @@ python scripts/eval_latency.py SmoothGradCAMpp
 Looking for more illustrations of TorchCAM features?
 You might want to check the [Jupyter notebooks](notebooks) designed to give you a broader overview.
 
-
-
 ## Citation
 
 If you wish to cite this project, feel free to use this [BibTeX](http://www.bibtex.org/) reference:
@@ -275,15 +283,11 @@ If you wish to cite this project, feel free to use this [BibTeX](http://www.bibt
 }
 ```
 
-
-
 ## Contributing
 
 Feeling like extending the range of possibilities of CAM? Or perhaps submitting a paper implementation? Any sort of contribution is greatly appreciated!
 
 You can find a short guide in [`CONTRIBUTING`](CONTRIBUTING.md) to help grow this project!
-
-
 
 ## License
 

@@ -1,0 +1,16 @@
+name: triage
+
+on:
+  pull_request:
+    branches: main
+
+jobs:
+  autolabel:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/labeler@v6
+      with:
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
