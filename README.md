@@ -136,7 +136,7 @@ pip install torchcam
 Alternatively, if you wish to use the latest features of the project that haven't made their way to a release yet, you can install the package from source:
 
 ```shell
-pip install torch-cam @ git+https://github.com/frgfm/torch-cam.git
+pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
 ```
 
 
