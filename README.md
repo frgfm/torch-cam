@@ -82,7 +82,8 @@ from torchvision.models import get_model, get_model_weights
 from torchcam.methods import LayerCAM
 
 # Get a model and an image
-model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+weights = get_model_weights("resnet18").DEFAULT
+model = get_model("resnet18", weights=weights).eval()
 preprocess = weights.transforms()
 img = decode_image("path/to/your/image.jpg")
 
