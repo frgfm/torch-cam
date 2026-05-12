@@ -7,17 +7,46 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    labels:
+      - "dependencies"
+      - "type: misc"
+    commit-message:
+      prefix: "ci(github)"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    groups:
+      actions:
+        patterns:
+          - "*"
   - package-ecosystem: "pip"
     directory: "/"
+    labels:
+      - "dependencies"
+      - "type: misc"
+    commit-message:
+      prefix: "build(deps-dev)"
     schedule:
       interval: "daily"
+      time: "08:00"
     allow:
       # Safe updates
       - dependency-name: "ruff"
       - dependency-name: "ty"
       - dependency-name: "prek"
+  - package-ecosystem: "pip"
+    directory: "/"
+    labels:
+      - "dependencies"
+      - "type: misc"
+    commit-message:
+      prefix: "build(deps-test)"
+    schedule:
+      interval: "daily"
+      time: "08:00"
+    allow:
+      # Safe updates
       - dependency-name: "pytest"
       - dependency-name: "pytest-cov"
       - dependency-name: "pytest-pretty"
