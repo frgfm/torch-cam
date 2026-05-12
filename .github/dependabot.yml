@@ -35,6 +35,12 @@ updates:
       - dependency-name: "ruff"
       - dependency-name: "ty"
       - dependency-name: "prek"
+    groups:
+      quality:
+        patterns:
+          - "ruff"
+          - "ty"
+          - "prek"
   - package-ecosystem: "pip"
     directory: "/"
     labels:
@@ -50,3 +56,9 @@ updates:
       - dependency-name: "pytest"
       - dependency-name: "pytest-cov"
       - dependency-name: "pytest-pretty"
+    groups:
+      quality:
+        patterns:
+          - "pytest"
+          - "pytest-cov"
+          - "pytest-pretty"
