@@ -18,7 +18,10 @@ def test_locate_candidate_layer(mock_img_model):
 
     # Custom model
     mod = mock_img_model.train()
+    mod[0][1].eval()
 
     assert _utils.locate_candidate_layer(mod) == "0.3"
     # Check that the model is switched back to its origin mode afterwards
     assert mod.training
+    assert mod[0][0].training
+    assert not mod[0][1].training

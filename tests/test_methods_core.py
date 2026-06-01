@@ -30,6 +30,47 @@ def test_cam_context_manager(mock_img_model):
     assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
 
 
+def test_cam_context_manager_cleans_up_on_exception(mock_img_model):
+    model = mock_img_model.eval()
+    with pytest.raises(RuntimeError), core._CAM(model, "0.3") as extractor:
+        raise RuntimeError("boom")
+    assert len(extractor.hook_handles) == 0
+    assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
+
+
+def test_cam_hooks_off_restores_state(mock_img_model):
+    model = mock_img_model.eval()
+    with core._CAM(model, "0.3", enable_hooks=False) as extractor:
+        assert not extractor._hooks_enabled
+        with extractor._hooks_off():
+            assert not extractor._hooks_enabled
+        assert not extractor._hooks_enabled
+
+        extractor.enable_hooks()
+        with extractor._hooks_off():
+            assert not extractor._hooks_enabled
+        assert extractor._hooks_enabled
+
+
+def test_cam_eval_mode_restores_state(mock_img_model):
+    model = mock_img_model.train()
+    model[0][1].eval()
+    with core._CAM(model, "0.3") as extractor:
+        with extractor._eval_mode():
+            assert all(not module.training for module in extractor.model.modules())
+        assert extractor.model.training
+        assert model[0][0].training
+        assert not model[0][1].training
+
+
+def test_cam_remove_hooks_idempotent(mock_img_model):
+    model = mock_img_model.eval()
+    with core._CAM(model, "0.3") as extractor:
+        extractor.remove_hooks()
+        extractor.remove_hooks()
+        assert len(extractor.hook_handles) == 0
+
+
 def test_cam_precheck(mock_img_model, mock_img_tensor):
     model = mock_img_model.eval()
     with core._CAM(model, "0.3") as extractor, torch.no_grad():
