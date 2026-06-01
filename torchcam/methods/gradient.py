@@ -38,15 +38,25 @@ class _GradCAM(_CAM):
         for idx, name in enumerate(self.target_names):
             # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
             self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
+        self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 
     def _store_grad(self, grad: Tensor, idx: int = 0) -> None:
         if self._hooks_enabled:
-            self.hook_g[idx] = grad.data
+            self.hook_g[idx] = grad.detach()
 
     def _hook_g(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Gradient hook."""
         if self._hooks_enabled:
-            self.hook_handles.append(output.register_hook(partial(self._store_grad, idx=idx)))
+            if self._grad_hook_handles[idx] is not None:
+                self._grad_hook_handles[idx].remove()
+            self._grad_hook_handles[idx] = output.register_hook(partial(self._store_grad, idx=idx))
+
+    def remove_hooks(self) -> None:
+        for handle in self._grad_hook_handles:
+            if handle is not None:
+                handle.remove()
+        self._grad_hook_handles = [None] * len(self.target_names)
+        super().remove_hooks()
 
     def _backprop(
         self,
@@ -271,7 +281,7 @@ class SmoothGradCAMpp(_GradCAM):
     def _store_input(self, _: nn.Module, input_: Tensor) -> None:
         """Store model input tensor."""
         if self._ihook_enabled:
-            self._input = input_[0].data.clone()
+            self._input = input_[0].detach().clone()
 
     def _get_weights(
         self,
@@ -281,8 +291,19 @@ class SmoothGradCAMpp(_GradCAM):
         **kwargs: Any,
     ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
-        # Disable input update
+        previous_ihook_enabled = self._ihook_enabled
         self._ihook_enabled = False
+        try:
+            return self._compute_smoothgrad_weights(class_idx, eps, **kwargs)
+        finally:
+            self._ihook_enabled = previous_ihook_enabled
+
+    def _compute_smoothgrad_weights(
+        self,
+        class_idx: int | list[int],
+        eps: float,
+        **kwargs: Any,
+    ) -> list[Tensor]:
         # Keep initial activation
         self.hook_a: list[Tensor]  # type: ignore[assignment]
         self.hook_g: list[Tensor]  # type: ignore[assignment]
@@ -303,9 +324,6 @@ class SmoothGradCAMpp(_GradCAM):
             # Sum partial derivatives
             grad_2 = [g2.add_(grad.pow(2)) for g2, grad in zip(grad_2, self.hook_g, strict=True)]
             grad_3 = [g3.add_(grad.pow(3)) for g3, grad in zip(grad_3, self.hook_g, strict=True)]
-
-        # Reenable input update
-        self._ihook_enabled = True
 
         # Average the gradient estimates
         grad_2 = [g2.div_(self.num_samples) for g2 in grad_2]

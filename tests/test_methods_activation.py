@@ -82,6 +82,27 @@ def test_cam_conv1x1(mock_fullyconv_model):
         _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 32, 32))
 
 
+def test_scorecam_restores_state_on_error(mock_img_tensor, monkeypatch):
+    model = get_model("mobilenet_v2", weights=None).train()
+    for p in model.parameters():
+        p.requires_grad_(False)
+
+    with activation.ScoreCAM(model, "features.16.conv.3", batch_size=8) as extractor:
+        extractor.enable_hooks()
+        scores = model(mock_img_tensor)
+        monkeypatch.setattr(
+            extractor,
+            "_get_score_weights",
+            lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+        )
+
+        with pytest.raises(RuntimeError):
+            extractor(scores[0].argmax().item(), scores)
+
+        assert extractor._hooks_enabled
+        assert model.training
+
+
 @pytest.mark.parametrize(
     ("cam_name", "target_layer", "num_samples", "output_size"),
     [

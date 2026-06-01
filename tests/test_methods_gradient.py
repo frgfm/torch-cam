@@ -112,3 +112,32 @@ def test_layercam_fuse_cams():
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (1, 16, 16)
+
+
+def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):
+    model = get_model("mobilenet_v2", weights=None).eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
+
+    with gradient.GradCAM(model, "features.18.0") as extractor:
+        initial_handles = len(extractor.hook_handles)
+        for _ in range(3):
+            scores = model(mock_img_tensor)
+            extractor(scores[0].argmax().item(), scores, retain_graph=True)
+        assert len(extractor.hook_handles) == initial_handles
+
+
+def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypatch):
+    model = get_model("mobilenet_v2", weights=None).eval()
+    for p in model.parameters():
+        p.requires_grad_(False)
+
+    with gradient.SmoothGradCAMpp(model, "features.18.0", num_samples=1) as extractor:
+        scores = model(mock_img_tensor)
+        extractor._ihook_enabled = False
+        monkeypatch.setattr(extractor, "_backprop", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+
+        with pytest.raises(RuntimeError):
+            extractor(scores[0].argmax().item(), scores)
+
+        assert not extractor._ihook_enabled

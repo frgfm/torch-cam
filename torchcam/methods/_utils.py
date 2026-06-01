@@ -32,20 +32,18 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         output_shapes.append((name, output.shape))
 
     hook_handles: list[torch.utils.hooks.RemovableHandle] = []
-    # forward hook on all layers
-    for n, m in mod.named_modules():
-        hook_handles.append(m.register_forward_hook(partial(_record_output_shape, name=n)))
+    try:
+        # forward hook on all layers
+        for n, m in mod.named_modules():
+            hook_handles.append(m.register_forward_hook(partial(_record_output_shape, name=n)))
 
-    # forward empty
-    with torch.no_grad():
-        _ = mod(torch.zeros((1, *input_shape), device=next(mod.parameters()).data.device))
-
-    # Remove all temporary hooks
-    for handle in hook_handles:
-        handle.remove()
-
-    # Put back the model in the corresponding mode
-    mod.training = module_mode  # ty: ignore[unresolved-attribute]
+        # forward empty
+        with torch.no_grad():
+            _ = mod(torch.zeros((1, *input_shape), device=next(mod.parameters()).device))
+    finally:
+        for handle in hook_handles:
+            handle.remove()
+        mod.train(module_mode)
 
     # Check output shapes
     candidate_layer = None

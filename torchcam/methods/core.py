@@ -6,6 +6,8 @@
 import logging
 import sys
 from abc import abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import partial
 from types import TracebackType
 from typing import Any
@@ -98,6 +100,24 @@ class _CAM:
         """Disable hooks."""
         self._hooks_enabled = False
 
+    @contextmanager
+    def _hooks_off(self) -> Iterator[None]:
+        previous = self._hooks_enabled
+        self._hooks_enabled = False
+        try:
+            yield
+        finally:
+            self._hooks_enabled = previous
+
+    @contextmanager
+    def _eval_mode(self) -> Iterator[None]:
+        training = self.model.training
+        self.model.eval()
+        try:
+            yield
+        finally:
+            self.model.train(training)
+
     def __enter__(self) -> "_CAM":
         return self
 
@@ -107,8 +127,10 @@ class _CAM:
         exce_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.remove_hooks()
-        self.reset_hooks()
+        try:
+            self.remove_hooks()
+        finally:
+            self.reset_hooks()
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
         """Resolves the name of a given layer inside the hooked model."""  # noqa: DOC201, DOC501
@@ -127,7 +149,7 @@ class _CAM:
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""
         if self._hooks_enabled:
-            self.hook_a[idx] = output.data
+            self.hook_a[idx] = output.detach()
 
     def reset_hooks(self) -> None:
         """Clear stored activation and gradients."""
