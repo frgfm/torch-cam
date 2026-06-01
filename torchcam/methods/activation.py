@@ -174,7 +174,7 @@ class ScoreCAM(_CAM):
     def _store_input(self, _: nn.Module, input_: Tensor) -> None:
         """Store model input tensor."""
         if self._hooks_enabled:
-            self._input = input_[0].data.clone()
+            self._input = input_[0].detach().clone()
 
     @torch.no_grad()
     def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
@@ -235,20 +235,8 @@ class ScoreCAM(_CAM):
             for up_a in upsampled_a
         ]
 
-        # Disable hook updates
-        self.disable_hooks()
-        # Switch to eval
-        origin_mode = self.model.training
-        self.model.eval()
-
-        weights: list[Tensor] = self._get_score_weights(upsampled_a, class_idx)
-
-        # Reenable hook updates
-        self.enable_hooks()
-        # Put back the model in the correct mode
-        self.model.training = origin_mode  # ty: ignore[invalid-assignment]
-
-        return weights
+        with self._hooks_off(), self._eval_mode():
+            return self._get_score_weights(upsampled_a, class_idx)
 
     def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs})"
