@@ -80,6 +80,7 @@ plugins:
         - reference/metrics.md
         - reference/utils.md
       Notes:
+        - notes/troubleshooting.md
         - notes/changelog.md
   # termynal:
   mkdocstrings:
@@ -175,4 +176,5 @@ nav:
     - Evaluation metrics: reference/metrics.md
     - Utilities: reference/utils.md
   - Notes:
+    - notes/troubleshooting.md
     - notes/changelog.md

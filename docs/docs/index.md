@@ -22,7 +22,9 @@ Create and activate a virtual environment and then install TorchCAM:
 pip install torchcam
 ```
 
-Check out the [installation guide](getting-started/installation.md) for more options
+Check out the [installation guide](getting-started/installation.md) for more options.
+
+Having issues with gradients, hooks, or layer selection? See the [troubleshooting guide](notes/troubleshooting.md).
 
 ## Quick start
 
