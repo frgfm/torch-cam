@@ -122,9 +122,9 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ![overlayed_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/overlayed_heatmap.png)
 
 > [!TIP]
-> Using your own (non-torchvision) model, a Vision Transformer, 3D/video data, or batched inputs? Read the [**Advanced usage guide**](docs/docs/getting-started/advanced-usage.md) — it also covers how to choose the right `target_layer` and CAM method.
+> Using your own (non-torchvision) model, a Vision Transformer, 3D/video data, or batched inputs? Read the [**Advanced usage guide**](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/) — it also covers how to choose the right `target_layer` and CAM method.
 >
-> Hitting a `cannot register a hook ...` / `requires grad` error, a `NaN`, or a blank heatmap? See [**Troubleshooting**](docs/docs/getting-started/troubleshooting.md).
+> Hitting a `cannot register a hook ...` / `requires grad` error, a `NaN`, or a blank heatmap? See [**Troubleshooting**](https://frgfm.github.io/torch-cam/getting-started/troubleshooting/).
 
 ## Setup
 
@@ -161,7 +161,7 @@ This project is developed and maintained by the repo owner, but the implementati
 - [XGrad-CAM](https://arxiv.org/abs/2008.02312): improved version of Grad-CAM in terms of sensitivity and conservation.
 - [Layer-CAM](http://mftp.mmcheng.net/Papers/21TIP_LayerCAM.pdf): Grad-CAM alternative leveraging pixel-wise contribution of the gradient to the activation.
 
-*Not sure which one to use? See [Choosing a CAM method](docs/docs/getting-started/advanced-usage.md#choosing-a-cam-method).*
+*Not sure which one to use? See [Choosing a CAM method](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#choosing-a-cam-method).*
 
 <p align="center">
     <a alt="wallaby_video_cam">

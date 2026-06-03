@@ -32,6 +32,15 @@ disabled during the forward — almost always because it ran inside `torch.no_gr
         cams = cam_extractor(out.squeeze(0).argmax().item(), out)
     ```
 
+If your inference pipeline wraps everything in `torch.no_grad()` / `torch.inference_mode()` for speed, move just
+the CAM extraction (the hooked forward + the extractor call) outside that context — the rest of your pipeline can
+stay under `no_grad` if you like.
+
+!!! note "`model.eval()` and `torch.no_grad()` are orthogonal"
+    `eval()` only switches dropout/batch-norm to inference behavior; it does **not** disable autograd, so it is
+    safe — and recommended — for every method. The thing to avoid for gradient-based methods is
+    `no_grad()`/`inference_mode()`, *not* `eval()`. You generally want `model.eval()` **and** autograd enabled.
+
 !!! tip "Activation-based methods don't need gradients"
     `CAM`, `ScoreCAM`, `SSCAM` and `ISCAM` do not backpropagate, so you *can* keep their forward pass inside
     `torch.inference_mode()`. Only the gradient-based methods require autograd.
@@ -64,8 +73,12 @@ Gradient methods apply a `ReLU` before normalization, so a layer with no positiv
 class produces an empty map. Common causes:
 
 - `class_idx` is not the class the layer responds to — pass the prediction: `out.squeeze(0).argmax().item()`.
-- The target layer is too shallow/deep — try `LayerCAM` (keeps pixel-wise positive contributions) or another layer.
+- The target layer is too shallow/deep — try `LayerCAM` (keeps pixel-wise positive contributions) or
+  [another layer](advanced-usage.md#choosing-the-target-layer).
 - The model is untrained or the input is out of distribution.
+- With the activation-based `CAM`, a `fc_layer` that doesn't match the chosen `target_layer` (its channel count
+  or the head it feeds) yields a meaningless or empty map — let `CAM` resolve `fc_layer` automatically, or pass a
+  compatible one (see [Choosing the target layer](advanced-usage.md#choosing-the-target-layer)).
 
 ## The CAM changes on every run
 

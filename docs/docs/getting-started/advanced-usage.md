@@ -1,7 +1,8 @@
 # Advanced usage
 
 The [quick start](../index.md) uses a torchvision classifier, but TorchCAM works with any PyTorch model. This
-guide covers the questions that come up most often once you move past the basic example.
+guide covers the questions that come up most often once you move past the basic example. Hitting an error rather
+than a usage question? Jump to [Troubleshooting](troubleshooting.md).
 
 ## Use your own model
 
@@ -41,24 +42,33 @@ A CAM is computed on the activation map of a **convolutional (spatial)** layer. 
 convolutional layer before global pooling — is the most class-discriminative but also the coarsest. Earlier
 layers give finer, less semantic maps. Rules of thumb for common torchvision backbones:
 
-| Architecture        | Typical `target_layer`   | `fc_layer` (only for `CAM`)        |
-| ------------------- | ------------------------ | ---------------------------------- |
-| ResNet / ResNeXt    | `"layer4"`               | `"fc"`                             |
-| DenseNet            | `"features"`             | `"classifier"`                     |
-| MobileNet v2 / v3   | `"features"`             | *multiple FC — `CAM` unsupported*  |
-| EfficientNet        | `"features"`             | *multiple FC — `CAM` unsupported*  |
-| SqueezeNet          | `"features"`             | *no FC — `CAM` unsupported*        |
-| VGG                 | `"features"`             | *multiple FC — `CAM` unsupported*  |
+| Architecture          | Typical `target_layer`   | `fc_layer` for `CAM`                 |
+| --------------------- | ------------------------ | ------------------------------------ |
+| ResNet / ResNeXt      | `"layer4"`               | `"fc"`                               |
+| DenseNet              | `"features"`             | `"classifier"`                       |
+| MobileNet v2          | `"features"`             | `"classifier.1"`                     |
+| EfficientNet          | `"features"`             | `"classifier.1"`                     |
+| MobileNet v3          | `"features"`             | *two `Linear` layers — `CAM` n/a*    |
+| VGG                   | `"features"`             | *three `Linear` layers — `CAM` n/a*  |
+| SqueezeNet            | `"features"`             | *no `Linear` head — `CAM` n/a*       |
+
+!!! note "When does the base `CAM` work?"
+    `CAM` needs **exactly one** `nn.Linear` classification head fed by global pooling, and resolves it
+    automatically. It therefore works for ResNet, DenseNet, MobileNet v2, EfficientNet, etc., but **not** for
+    models with several linear layers (VGG, MobileNet v3) or none (SqueezeNet) — there, use a gradient- or
+    score-based method, or pass a compatible `fc_layer` explicitly. All the other methods have no such
+    requirement.
 
 You can also pass a **list** of layers and fuse them — `LayerCAM` benefits a lot from this:
 
 ```python
 from torchcam.methods import LayerCAM
 
-cam_extractor = LayerCAM(model, ["layer2", "layer3", "layer4"])
-out = model(input_tensor)
-cams = cam_extractor(class_idx, out)        # one map per layer
-fused = cam_extractor.fuse_cams(cams)       # single fused map
+with LayerCAM(model, ["layer2", "layer3", "layer4"]) as cam_extractor:
+    out = model(input_tensor)
+    class_idx = out.squeeze(0).argmax().item()
+    cams = cam_extractor(class_idx, out)        # one map per layer
+    fused = cam_extractor.fuse_cams(cams)       # single fused map
 ```
 
 ## Understanding `class_idx` and the call signature
@@ -72,8 +82,15 @@ cam_extractor(class_idx, scores=None, normalized=True)
   index to see where the model looks for that class. For a batch, pass one index per sample (see below).
 - **`scores`** — the raw model output of shape `(N, num_classes)`. Required by the gradient-based methods (used
   for backprop) and by the Score-CAM family; ignored by `SmoothGradCAMpp` and `CAM`.
+- **`normalized`** — when `True` (default) each map is min-max normalized to `[0, 1]`, which is what you want for
+  visualization/overlay. Pass `normalized=False` to get the raw weighted maps, e.g. when comparing magnitudes
+  across layers before fusing them yourself.
 - **Returns** a `list` of activation maps, **one tensor per hooked layer**, each of shape `(N, H, W)`. With a
   single layer and a single image, the map you want is `cams[0].squeeze(0)`.
+
+Gradient-based extractors also accept `retain_graph=True` (forwarded to `loss.backward`), needed when you call
+the extractor several times after a single forward — see
+[Troubleshooting](troubleshooting.md#runtimeerror-trying-to-backward-through-the-graph-a-second-time).
 
 ## Batched inputs
 
@@ -109,8 +126,16 @@ class LogitsOnly(nn.Module):
         return self.model(x)[0]          # keep the logits, drop the rest
 
 wrapped = LogitsOnly(model)
-# target_layer names are now prefixed by "model."
-cam_extractor = GradCAM(wrapped, target_layer="model.backbone.layer4")
+cam_extractor = GradCAM(wrapped, target_layer=wrapped.model.backbone.layer4)  # pass the module directly
+```
+
+Passing the **module object** (rather than its name) sidesteps the naming gotcha: wrapping shifts every layer
+name under a `"model."` prefix, so a hard-coded string like `"backbone.layer4"` would raise a `ValueError`. If
+you prefer names, discover the correct one *after* wrapping:
+
+```python
+print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
+# -> ['model.backbone.layer4']
 ```
 
 ## Vision Transformers and other non-CNN models
@@ -119,15 +144,37 @@ TorchCAM's methods operate on **convolutional feature maps** of shape `(N, C, H,
 3D). Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so the
 CAM methods do not apply directly and automatic `target_layer` resolution will not find a suitable layer.
 
-To use a ViT you have to reshape a block's token output back to a spatial grid (dropping the class token) before
-TorchCAM reads it — e.g. with a small wrapper module that reshapes `(N, num_tokens, dim)` to `(N, dim, H, W)` and
-expose *that* as the `target_layer`. There is no built-in helper for this yet; if you need it, please chime in on
-the [discussions](https://github.com/frgfm/torch-cam/discussions).
+To use a ViT you have to reshape a block's token output back to a spatial grid (dropping the class token) and
+expose *that* as the `target_layer`. There is no built-in helper yet, but the wrapper below is a starting point —
+it turns a block's `(N, num_tokens, dim)` output into an `(N, dim, H, W)` map:
+
+```python
+import torch.nn as nn
+
+class ViTToGrid(nn.Module):
+    """Experimental: reshape a ViT block's token output to a spatial grid for CAM."""
+    def __init__(self, vit_block, h, w):   # h, w = patch grid, e.g. 14x14 for 224px / patch 16
+        super().__init__()
+        self.block = vit_block
+        self.h, self.w = h, w
+
+    def forward(self, x):
+        out = self.block(x)                                  # (N, num_tokens, dim)
+        return out[:, 1:].transpose(1, 2).reshape(x.size(0), -1, self.h, self.w)  # (N, dim, h, w)
+```
+
+Insert it into the model in place of the block you want to read, then point the extractor at it.
+
+!!! warning "Experimental"
+    This is a sketch, not a drop-in. The exact reshape is architecture-specific (patch grid size, and whether
+    there is a class and/or distillation token to drop), and for gradient-based methods you must read a block
+    whose tokens the class score actually depends on. If you get this working for a model, please share it in the
+    [discussions](https://github.com/frgfm/torch-cam/discussions).
 
 ## 3D and video models
 
-Volumetric inputs work out of the box: set `input_shape` to your 3D shape (excluding the batch dimension) and the
-resulting map has shape `(N, D, H, W)`. Visualize it slice by slice:
+Volumetric inputs work out of the box: set `input_shape` to your 3D input shape as `(C, D, H, W)` (i.e. excluding
+the batch dimension) and the resulting map has shape `(N, D, H, W)`. Visualize it slice by slice:
 
 ```python
 import matplotlib.pyplot as plt
