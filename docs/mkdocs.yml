@@ -75,6 +75,8 @@ plugins:
       Getting started:
         - getting-started/installation.md
         - getting-started/notebooks.md
+        - getting-started/advanced-usage.md
+        - getting-started/troubleshooting.md
       Package Reference:
         - reference/methods.md
         - reference/metrics.md
@@ -170,6 +172,8 @@ nav:
   - Getting started:
     - getting-started/installation.md
     - getting-started/notebooks.md
+    - getting-started/advanced-usage.md
+    - getting-started/troubleshooting.md
   - Package Reference:
     - Interpretability methods: reference/methods.md
     - Evaluation metrics: reference/metrics.md
