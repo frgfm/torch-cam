@@ -4,7 +4,6 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
-import sys
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
@@ -19,11 +18,6 @@ from ._utils import locate_candidate_layer
 __all__ = ["_CAM"]
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-stream_handler = logging.StreamHandler(sys.stdout)
-log_formatter = logging.Formatter("%(levelname)s:     %(message)s")
-stream_handler.setFormatter(log_formatter)
-logger.addHandler(stream_handler)
 
 
 class _CAM:
@@ -112,16 +106,9 @@ class _CAM:
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
         """Resolves the name of a given layer inside the hooked model."""  # noqa: DOC201, DOC501
-        found = False
-        target_name: str
-        for k, v in self.submodule_dict.items():
-            if id(v) == id(target_layer):
-                target_name = k
-                found = True
-                break
-        if not found:
+        target_name = next((k for k, v in self.submodule_dict.items() if v is target_layer), None)
+        if target_name is None:
             raise ValueError("unable to locate module inside the specified model.")
-
         return target_name
 
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
