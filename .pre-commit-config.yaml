@@ -27,7 +27,7 @@ repos:
       - id: conventional-pre-commit
         stages: [commit-msg]
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.14.2'
+    rev: 'v0.15.19'
     hooks:
       - id: ruff
         args: ["--fix", "--config", "./pyproject.toml"]
