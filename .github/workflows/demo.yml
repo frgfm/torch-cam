@@ -3,15 +3,24 @@ name: demo
 on:
   push:
     branches: main
+    paths:
+      - '.github/workflows/demo.yml'
+      - 'demo/**'
+      - 'pyproject.toml'
   pull_request:
     branches: main
+    paths:
+      - '.github/workflows/demo.yml'
+      - 'demo/**'
+      - 'pyproject.toml'
+  workflow_dispatch:  # Allow manual trigger from Actions tab
 
 env:
   PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.9.5"
+  UV_VERSION: "0.11.24"  # pinned for reproducible installs across all jobs
 
 jobs:
-  demo:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -31,3 +40,17 @@ jobs:
         run: |
           screen -dm streamlit run demo/app.py --server.port 8080
           sleep 10 && nc -vz localhost 8080
+
+  sync-to-hub:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          lfs: true
+      - name: Push to hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: git push https://frgfm:$HF_TOKEN@huggingface.co/spaces/frgfm/torch-cam main
