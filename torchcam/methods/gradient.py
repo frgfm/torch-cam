@@ -264,7 +264,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Noise distribution
         self.num_samples = num_samples
         self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)  # ty: ignore[unresolved-attribute]
+        self._distrib = torch.distributions.normal.Normal(0, self.std)
         # Specific input hook updater
         self._ihook_enabled = True
 

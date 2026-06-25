@@ -45,7 +45,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         handle.remove()
 
     # Put back the model in the corresponding mode
-    mod.training = module_mode  # ty: ignore[unresolved-attribute]
+    mod.training = module_mode
 
     # Check output shapes
     candidate_layer = None

@@ -8,7 +8,7 @@ import sys
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 
 import torch
 import torch.nn.functional as F
@@ -98,7 +98,7 @@ class _CAM:
         """Disable hooks."""
         self._hooks_enabled = False
 
-    def __enter__(self) -> "_CAM":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
@@ -167,7 +167,7 @@ class _CAM:
 
         # Check class_idx value
         if (not isinstance(class_idx, int) or class_idx < 0) and (
-            not isinstance(class_idx, list) or any(_idx < 0 for _idx in class_idx)
+            not isinstance(class_idx, list) or any(idx < 0 for idx in class_idx)
         ):
             raise ValueError("Incorrect `class_idx` argument value")
 
