@@ -19,4 +19,4 @@ def test_classification_metric():
     out = metric.summary()
 
     assert len(out) == 2
-    assert all(0 <= v <= 1 for k, v in out.items())
+    assert all(0 <= v <= 1 for v in out.values())

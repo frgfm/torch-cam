@@ -98,12 +98,12 @@ def main(args):
 
     # Clear axes
     if num_cols > 1:
-        for _axes in axes:
+        for axes_ in axes:
             if args.rows > 1:
-                for ax in _axes:
+                for ax in axes_:
                     ax.axis("off")
             else:
-                _axes.axis("off")
+                axes_.axis("off")
 
     else:
         axes.axis("off")

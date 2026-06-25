@@ -194,8 +194,8 @@ class ScoreCAM(_CAM):
 
         for idx, scored_input in enumerate(scored_inputs):
             # Process by chunk (GPU RAM limitation)
-            for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+            for idx_ in range(math.ceil(weights[idx].numel() / self.bs)):
+                slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weights[idx].numel()))
                 # Get the softmax probabilities of the target class
                 # (*, M)
                 cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
@@ -246,7 +246,7 @@ class ScoreCAM(_CAM):
         # Reenable hook updates
         self.enable_hooks()
         # Put back the model in the correct mode
-        self.model.training = origin_mode  # ty: ignore[invalid-assignment]
+        self.model.training = origin_mode
 
         return weights
 
@@ -318,7 +318,7 @@ class SSCAM(ScoreCAM):
 
         self.num_samples = num_samples
         self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)  # ty: ignore[unresolved-attribute]
+        self._distrib = torch.distributions.normal.Normal(0, self.std)
 
     @torch.no_grad()
     def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
@@ -342,8 +342,8 @@ class SSCAM(ScoreCAM):
                 scored_input = scored_input.view(b * c, *scored_input.shape[2:])
 
                 # Process by chunk (GPU RAM limitation)
-                for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                    slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                for idx_ in range(math.ceil(weights[idx].numel() / self.bs)):
+                    slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
                     cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
                     if isinstance(class_idx, int):
@@ -442,8 +442,8 @@ class ISCAM(ScoreCAM):
                 coeff += (sidx + 1) / self.num_samples
 
                 # Process by chunk (GPU RAM limitation)
-                for _idx in range(math.ceil(weights[idx].numel() / self.bs)):
-                    slice_ = slice(_idx * self.bs, min((_idx + 1) * self.bs, weights[idx].numel()))
+                for idx_ in range(math.ceil(weights[idx].numel() / self.bs)):
+                    slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weights[idx].numel()))
                     # Get the softmax probabilities of the target class
                     cic = self.model(coeff * scored_input[slice_]) - logits[idcs[slice_]]
                     if isinstance(class_idx, int):
