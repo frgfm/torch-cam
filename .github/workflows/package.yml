@@ -134,7 +134,7 @@ jobs:
         run: |
           make install-test
           make test
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           path: ./coverage.xml
           name: coverage-reports
