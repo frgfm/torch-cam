@@ -6,6 +6,8 @@
 
 - [Installation](https://frgfm.github.io/torch-cam/getting-started/installation/index.md)
 - [TorchCAM Notebooks](https://frgfm.github.io/torch-cam/getting-started/notebooks/index.md)
+- [Advanced usage](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/index.md)
+- [Troubleshooting](https://frgfm.github.io/torch-cam/getting-started/troubleshooting/index.md)
 
 ## Package Reference
 

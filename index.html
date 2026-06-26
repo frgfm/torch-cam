@@ -511,6 +511,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -527,6 +536,10 @@
   
     
     
+      
+        
+      
+        
       
         
       
@@ -602,6 +615,52 @@
   
   <span class="md-ellipsis">
     TorchCAM Notebooks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started/advanced-usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Advanced usage
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="getting-started/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
     
   </span>
   
@@ -896,6 +955,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next steps
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -956,6 +1024,7 @@
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  <span class="c1"># Retrieve the CAM by passing the class index and the model output</span>
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="hll">  <span class="n">activation_map</span> <span class="o">=</span> <span class="n">cam_extractor</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">out</span><span class="p">)</span>
 </span></span></code></pre></div>
+<p><code>class_idx</code> (the first argument) is the index in the model's output logits of the class to explain; <code>argmax</code> picks the top prediction, but any class index works. The call returns one activation map per target layer. See <a href="getting-started/advanced-usage/">Advanced usage</a> for batches, custom models and method selection.</p>
 <p>Display it:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchvision.transforms.v2.functional</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_pil_image</span>
@@ -981,6 +1050,11 @@
 <li>Smooth Grad-CAM++ from <a href="https://arxiv.org/pdf/1908.01224.pdf">"Smooth Grad-CAM++: An Enhanced Inference Level Visualization Technique for Deep Convolutional Neural Network Models"</a></li>
 <li>X-Grad-CAM from <a href="https://arxiv.org/pdf/2008.02312.pdf">"Axiom-based Grad-CAM: Towards Accurate Visualization and Explanation of CNNs"</a></li>
 <li>Layer-CAM from <a href="http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf">"LayerCAM: Exploring Hierarchical Class Activation Maps for Localization"</a></li>
+</ul>
+<h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="getting-started/advanced-usage/">Advanced usage</a> — your own/non-torchvision models, choosing the target layer, batched inputs, ViT/3D, and picking a method.</li>
+<li><a href="getting-started/troubleshooting/">Troubleshooting</a> — fixes for the <code>requires grad</code> error, <code>NaN</code>/blank maps, and hook issues.</li>
 </ul>
 
 
