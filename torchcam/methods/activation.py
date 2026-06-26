@@ -5,7 +5,6 @@
 
 import logging
 import math
-import sys
 from typing import Any
 
 import torch
@@ -17,11 +16,6 @@ from .core import _CAM
 __all__ = ["CAM", "ISCAM", "SSCAM", "ScoreCAM"]
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-stream_handler = logging.StreamHandler(sys.stdout)
-log_formatter = logging.Formatter("%(levelname)s:     %(message)s")
-stream_handler.setFormatter(log_formatter)
-logger.addHandler(stream_handler)
 
 
 class CAM(_CAM):
