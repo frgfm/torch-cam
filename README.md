@@ -95,6 +95,8 @@ with LayerCAM(model) as cam_extractor:
   activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
 ```
 
+Here `class_idx` (the first argument) is the index in the model's output logits of the class you want to explain — `out.squeeze(0).argmax().item()` picks the top prediction, but you can pass any class index. The extractor returns one activation map per target layer.
+
 If you want to visualize your heatmap, you only need to cast the CAM to a numpy ndarray:
 
 ```python
@@ -119,9 +121,14 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 
 ![overlayed_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/overlayed_heatmap.png)
 
+> [!TIP]
+> Using your own (non-torchvision) model, a Vision Transformer, 3D/video data, or batched inputs? Read the [**Advanced usage guide**](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/) — it also covers how to choose the right `target_layer` and CAM method.
+>
+> Hitting a `cannot register a hook ...` / `requires grad` error, a `NaN`, or a blank heatmap? See [**Troubleshooting**](https://frgfm.github.io/torch-cam/getting-started/troubleshooting/).
+
 ## Setup
 
-Python 3.11 (or higher) and [uv](https://docs.astral.sh/uv/)/[pip](https://pip.pypa.io/en/stable/installation/) are required to install TorchCAM.
+Python 3.11 (or higher) and [uv](https://docs.astral.sh/uv/)/[pip](https://pip.pypa.io/en/stable/installation/) are required to install TorchCAM. It supports PyTorch 2.x (`torch>=2.0`) and the matching torchvision release.
 
 ### Stable release
 
@@ -153,6 +160,8 @@ This project is developed and maintained by the repo owner, but the implementati
 - [IS-CAM](https://arxiv.org/abs/2010.03023): integration-based variant of Score-CAM.
 - [XGrad-CAM](https://arxiv.org/abs/2008.02312): improved version of Grad-CAM in terms of sensitivity and conservation.
 - [Layer-CAM](http://mftp.mmcheng.net/Papers/21TIP_LayerCAM.pdf): Grad-CAM alternative leveraging pixel-wise contribution of the gradient to the activation.
+
+*Not sure which one to use? See [Choosing a CAM method](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#choosing-a-cam-method).*
 
 <p align="center">
     <a alt="wallaby_video_cam">

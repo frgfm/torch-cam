@@ -53,6 +53,8 @@ with LayerCAM(model) as cam_extractor:
   activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
 ```
 
+`class_idx` (the first argument) is the index in the model's output logits of the class to explain; `argmax` picks the top prediction, but any class index works. The call returns one activation map per target layer. See [Advanced usage](getting-started/advanced-usage.md) for batches, custom models and method selection.
+
 Display it:
 
 ```python hl_lines="3 6"
@@ -81,3 +83,8 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
    * Smooth Grad-CAM++ from ["Smooth Grad-CAM++: An Enhanced Inference Level Visualization Technique for Deep Convolutional Neural Network Models"](https://arxiv.org/pdf/1908.01224.pdf)
    * X-Grad-CAM from ["Axiom-based Grad-CAM: Towards Accurate Visualization and Explanation of CNNs"](https://arxiv.org/pdf/2008.02312.pdf)
    * Layer-CAM from ["LayerCAM: Exploring Hierarchical Class Activation Maps for Localization"](http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf)
+
+## Next steps
+
+* [Advanced usage](getting-started/advanced-usage.md) — your own/non-torchvision models, choosing the target layer, batched inputs, ViT/3D, and picking a method.
+* [Troubleshooting](getting-started/troubleshooting.md) — fixes for the `requires grad` error, `NaN`/blank maps, and hook issues.
