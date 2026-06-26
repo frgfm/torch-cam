@@ -149,7 +149,7 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: coverage-reports
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
