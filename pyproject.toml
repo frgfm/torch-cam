@@ -49,7 +49,7 @@ dependencies = [
 test = [
     "requests>=2.20.0,<3.0.0",
     "torchvision>=0.24.0,<1.0.0",
-    "pytest==8.4.2",
+    "pytest==9.0.0",
     "pytest-cov==6.2.1",
     "pytest-pretty==1.3.0",
 ]
