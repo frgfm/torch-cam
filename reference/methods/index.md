@@ -405,6 +405,7 @@ def __init__(
     for idx, name in enumerate(self.target_names):
         # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
         self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
+    self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 ```
 
 ### torchcam.methods.GradCAMpp
@@ -464,6 +465,7 @@ def __init__(
     for idx, name in enumerate(self.target_names):
         # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
         self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
+    self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 ```
 
 ### torchcam.methods.SmoothGradCAMpp
@@ -588,6 +590,7 @@ def __init__(
     for idx, name in enumerate(self.target_names):
         # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
         self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
+    self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 ```
 
 ### torchcam.methods.LayerCAM
@@ -644,4 +647,5 @@ def __init__(
     for idx, name in enumerate(self.target_names):
         # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
         self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
+    self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 ```
