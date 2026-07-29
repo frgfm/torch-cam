@@ -17,5 +17,6 @@
 
 ## Notes
 
+- [Troubleshooting](https://frgfm.github.io/torch-cam/notes/troubleshooting/index.md)
 - [Changelog](https://frgfm.github.io/torch-cam/notes/changelog/index.md)
 

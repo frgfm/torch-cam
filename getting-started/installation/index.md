@@ -43,3 +43,5 @@ $ pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
 Info
 
 TorchCAM is built on top of [PyTorch](https://github.com/pytorch/pytorch) which is a complex dependency. Proper installation depends on your system and available hardware. You can refer to [installation guide of uv](https://docs.astral.sh/uv/guides/integration/pytorch) which is quite detailed.
+
+For common pitfalls (e.g. `no_grad` with Grad-CAM, hook cleanup, picking `target_layer`), see [Troubleshooting](../../notes/troubleshooting/).
