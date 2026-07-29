@@ -1,10 +1,12 @@
-# Copyright (C) 2020-2025, François-Guillaume Fernandez.
+# Copyright (C) 2020-2026, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
 from abc import abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import partial
 from types import TracebackType
 from typing import Any, Self, cast
@@ -92,6 +94,25 @@ class _CAM:
         """Disable hooks."""
         self._hooks_enabled = False
 
+    @contextmanager
+    def _hooks_off(self) -> Iterator[None]:
+        previous = self._hooks_enabled
+        self._hooks_enabled = False
+        try:
+            yield
+        finally:
+            self._hooks_enabled = previous
+
+    @contextmanager
+    def _eval_mode(self) -> Iterator[None]:
+        modes = [(module, module.training) for module in self.model.modules()]
+        try:
+            self.model.eval()
+            yield
+        finally:
+            for module, training in modes:
+                module.training = training
+
     def __enter__(self) -> Self:
         return self
 
@@ -101,8 +122,10 @@ class _CAM:
         exce_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        self.remove_hooks()
-        self.reset_hooks()
+        try:
+            self.remove_hooks()
+        finally:
+            self.reset_hooks()
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
         """Resolves the name of a given layer inside the hooked model."""  # noqa: DOC201, DOC501
@@ -114,7 +137,7 @@ class _CAM:
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""
         if self._hooks_enabled:
-            self.hook_a[idx] = output.data
+            self.hook_a[idx] = output.detach()
 
     def reset_hooks(self) -> None:
         """Clear stored activation and gradients."""

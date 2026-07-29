@@ -26,7 +26,7 @@ updates:
       - "dependencies"
       - "type: misc"
     commit-message:
-      prefix: "build(deps-dev)"
+      prefix: "build(deps)"
     schedule:
       interval: "daily"
       time: "08:00"
@@ -35,29 +35,16 @@ updates:
       - dependency-name: "ruff"
       - dependency-name: "ty"
       - dependency-name: "prek"
+      - dependency-name: "pytest"
+      - dependency-name: "pytest-cov"
+      - dependency-name: "pytest-pretty"
     groups:
       quality:
         patterns:
           - "ruff"
           - "ty"
           - "prek"
-  - package-ecosystem: "pip"
-    directory: "/"
-    labels:
-      - "dependencies"
-      - "type: misc"
-    commit-message:
-      prefix: "build(deps-test)"
-    schedule:
-      interval: "daily"
-      time: "08:00"
-    allow:
-      # Safe updates
-      - dependency-name: "pytest"
-      - dependency-name: "pytest-cov"
-      - dependency-name: "pytest-pretty"
-    groups:
-      quality:
+      tests:
         patterns:
           - "pytest"
           - "pytest-cov"

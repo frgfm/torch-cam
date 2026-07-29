@@ -1,4 +1,4 @@
-# Copyright (C) 2020-2025, François-Guillaume Fernandez.
+# Copyright (C) 2020-2026, François-Guillaume Fernandez.
 
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
@@ -22,8 +22,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         the candidate layer for CAM
     """
     # Set module in eval mode
-    module_mode = mod.training
-    mod.eval()
+    module_modes = [(module, module.training) for module in mod.modules()]
 
     output_shapes: list[tuple[str | None, tuple[int, ...]]] = []
 
@@ -32,20 +31,20 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         output_shapes.append((name, output.shape))
 
     hook_handles: list[torch.utils.hooks.RemovableHandle] = []
-    # forward hook on all layers
-    for n, m in mod.named_modules():
-        hook_handles.append(m.register_forward_hook(partial(_record_output_shape, name=n)))
+    try:
+        mod.eval()
+        # forward hook on all layers
+        for n, m in mod.named_modules():
+            hook_handles.append(m.register_forward_hook(partial(_record_output_shape, name=n)))
 
-    # forward empty
-    with torch.no_grad():
-        _ = mod(torch.zeros((1, *input_shape), device=next(mod.parameters()).data.device))
-
-    # Remove all temporary hooks
-    for handle in hook_handles:
-        handle.remove()
-
-    # Put back the model in the corresponding mode
-    mod.training = module_mode
+        # forward empty
+        with torch.no_grad():
+            _ = mod(torch.zeros((1, *input_shape), device=next(mod.parameters()).device))
+    finally:
+        for handle in hook_handles:
+            handle.remove()
+        for module, training in module_modes:
+            module.training = training
 
     # Check output shapes
     candidate_layer = None
