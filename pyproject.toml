@@ -57,7 +57,7 @@ quality = [
     "ruff==0.15.19",
     "ty==0.0.53",
     "types-Pillow",
-    "prek==0.4.5",
+    "prek==0.4.11",
 ]
 docs = [
     # cf. https://github.com/mkdocs/catalog
