@@ -260,7 +260,7 @@ class SmoothGradCAMpp(_GradCAM):
         self._score_used = False
 
         # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))  # type: ignore[arg-type]
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
         # Noise distribution
         self.num_samples = num_samples
         self.std = std
@@ -268,7 +268,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Specific input hook updater
         self._ihook_enabled = True
 
-    def _store_input(self, _: nn.Module, input_: Tensor) -> None:
+    def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
         if self._ihook_enabled:
             self._input = input_[0].data.clone()
