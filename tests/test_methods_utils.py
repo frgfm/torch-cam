@@ -1,9 +1,10 @@
+import pytest
 from torchvision.models import get_model
 
 from torchcam.methods import _utils
 
 
-def test_locate_candidate_layer(mock_img_model):
+def test_locate_candidate_layer(mock_img_model, monkeypatch):
     # ResNet-18
     mod = get_model("resnet18", weights=None).eval()
     for p in mod.parameters():
@@ -25,3 +26,15 @@ def test_locate_candidate_layer(mock_img_model):
     assert mod.training
     assert mod[0][0].training
     assert not mod[0][1].training
+
+    modes = [module.training for module in mod.modules()]
+
+    def failing_eval():
+        for module in mod.modules():
+            module.training = False
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(mod, "eval", failing_eval)
+    with pytest.raises(RuntimeError):
+        _utils.locate_candidate_layer(mod)
+    assert [module.training for module in mod.modules()] == modes

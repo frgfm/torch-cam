@@ -23,7 +23,6 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
     """
     # Set module in eval mode
     module_modes = [(module, module.training) for module in mod.modules()]
-    mod.eval()
 
     output_shapes: list[tuple[str | None, tuple[int, ...]]] = []
 
@@ -33,6 +32,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
 
     hook_handles: list[torch.utils.hooks.RemovableHandle] = []
     try:
+        mod.eval()
         # forward hook on all layers
         for n, m in mod.named_modules():
             hook_handles.append(m.register_forward_hook(partial(_record_output_shape, name=n)))

@@ -106,8 +106,8 @@ class _CAM:
     @contextmanager
     def _eval_mode(self) -> Iterator[None]:
         modes = [(module, module.training) for module in self.model.modules()]
-        self.model.eval()
         try:
+            self.model.eval()
             yield
         finally:
             for module, training in modes:

@@ -125,6 +125,7 @@ def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):
             scores = model(mock_img_tensor)
             extractor(scores[0].argmax().item(), scores, retain_graph=True)
         assert len(extractor.hook_handles) == initial_handles
+        assert len(extractor._grad_hook_handles) == len(extractor.target_names)
 
 
 def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypatch):
@@ -134,7 +135,6 @@ def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypat
 
     with gradient.SmoothGradCAMpp(model, "features.18.0", num_samples=1) as extractor:
         scores = model(mock_img_tensor)
-        extractor._ihook_enabled = False
         monkeypatch.setattr(
             extractor,
             "_backprop",
@@ -144,4 +144,4 @@ def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypat
         with pytest.raises(RuntimeError):
             extractor(scores[0].argmax().item(), scores)
 
-        assert not extractor._ihook_enabled
+        assert extractor._ihook_enabled

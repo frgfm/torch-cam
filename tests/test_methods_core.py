@@ -52,7 +52,7 @@ def test_cam_hooks_off_restores_state(mock_img_model):
         assert extractor._hooks_enabled
 
 
-def test_cam_eval_mode_restores_state(mock_img_model):
+def test_cam_eval_mode_restores_state(mock_img_model, monkeypatch):
     model = mock_img_model.train()
     model[0][1].eval()
     with core._CAM(model, "0.3") as extractor:
@@ -61,6 +61,18 @@ def test_cam_eval_mode_restores_state(mock_img_model):
         assert extractor.model.training
         assert model[0][0].training
         assert not model[0][1].training
+
+        modes = [module.training for module in model.modules()]
+
+        def failing_eval():
+            for module in model.modules():
+                module.training = False
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(model, "eval", failing_eval)
+        with pytest.raises(RuntimeError), extractor._eval_mode():
+            pass
+        assert [module.training for module in model.modules()] == modes
 
 
 def test_cam_remove_hooks_idempotent(mock_img_model):
