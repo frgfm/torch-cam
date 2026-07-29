@@ -7,7 +7,7 @@ import logging
 from abc import abstractmethod
 from functools import partial
 from types import TracebackType
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import torch
 import torch.nn.functional as F
@@ -200,10 +200,11 @@ class _CAM:
         weights = self._get_weights(class_idx, scores, **kwargs)
 
         cams: list[Tensor] = []
+        activations = cast(list[Tensor], self.hook_a)
 
         with torch.no_grad():
-            for weight, activation in zip(weights, self.hook_a, strict=True):
-                missing_dims = activation.ndim - weight.ndim  # type: ignore[union-attr]
+            for weight, activation in zip(weights, activations, strict=True):
+                missing_dims = activation.ndim - weight.ndim
                 weight = weight[(...,) + (None,) * missing_dims]  # noqa: PLW2901
 
                 # Perform the weighted combination to get the CAM

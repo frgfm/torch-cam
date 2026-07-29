@@ -160,12 +160,12 @@ class ScoreCAM(_CAM):
         super().__init__(model, target_layer, input_shape, **kwargs)
 
         # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))  # type: ignore[arg-type]
+        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
         self.bs = batch_size
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
 
-    def _store_input(self, _: nn.Module, input_: Tensor) -> None:
+    def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
         if self._hooks_enabled:
             self._input = input_[0].data.clone()

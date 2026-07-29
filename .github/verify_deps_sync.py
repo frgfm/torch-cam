@@ -48,7 +48,6 @@ def main():  # noqa: PLR0912
     # Retrieve & parse all deps files
     deps_dict = {
         "uv": [],
-        "ruff": [],
         "ty": [],
         "pre-commit": [],
     }
@@ -58,8 +57,6 @@ def main():  # noqa: PLR0912
     for repo in precommit["repos"]:
         if repo["repo"] == "https://github.com/astral-sh/uv-pre-commit":
             deps_dict["uv"].append({"file": PRECOMMIT_CONFIG, "version": f"=={repo['rev'].lstrip('v')}"})
-        elif repo["repo"] == "https://github.com/charliermarsh/ruff-pre-commit":
-            deps_dict["ruff"].append({"file": PRECOMMIT_CONFIG, "version": f"=={repo['rev'].lstrip('v')}"})
     # Parse pyproject.toml
     for pyproject_path in PYPROJECTS:
         with Path(pyproject_path).open("rb") as f:
