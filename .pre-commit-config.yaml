@@ -26,13 +26,6 @@ repos:
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.16.0'
-    hooks:
-      - id: ruff
-        args: ["--fix", "--config", "./pyproject.toml"]
-      - id: ruff-format
-        args: ["--config", "./pyproject.toml"]
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: v0.24.1
     hooks:
@@ -40,6 +33,18 @@ repos:
         args: ["./pyproject.toml"]
   - repo: local
     hooks:
+      - id: ruff-lint
+        name: ruff-lint
+        entry: make ruff-lint-fix
+        pass_filenames: false
+        require_serial: true
+        language: system
+      - id: ruff-format
+        name: ruff-format
+        entry: make ruff-format-fix
+        pass_filenames: false
+        require_serial: true
+        language: system
       - id: deps-check
         name: check deps version sync
         entry: make deps-check

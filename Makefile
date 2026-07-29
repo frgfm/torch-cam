@@ -8,7 +8,7 @@ DOCS_DIR = ./docs
 
 
 
-.PHONY: help install install-quality lint-check lint-format precommit typing-check deps-check quality style init-gh-labels init-gh-settings install-mintlify start-mintlify
+.PHONY: help install install-quality ruff-lint ruff-lint-fix ruff-format ruff-format-fix lint-check lint-format precommit typing-check deps-check quality style init-gh-labels init-gh-settings install-mintlify start-mintlify
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -31,19 +31,27 @@ install: ${PY_DIR} ${PYPROJECT_FILE} ## Install the core library
 install-quality: ${PY_DIR} ${PYPROJECT_FILE} ## Install with quality dependencies
 	uv pip install -e '${PY_DIR}[quality]'
 
-lint-check: ${PYPROJECT_FILE} ## Check code formatting and linting
-	ruff format --check . --config ${PYPROJECT_FILE}
-	ruff check . --config ${PYPROJECT_FILE}
+ruff-lint: ${PYPROJECT_FILE} ## Check code linting
+	uv run --extra quality ruff check . --config ${PYPROJECT_FILE}
 
-lint-format: ${PYPROJECT_FILE} ## Format code and fix linting issues
-	ruff format . --config ${PYPROJECT_FILE}
-	ruff check --fix . --config ${PYPROJECT_FILE}
+ruff-lint-fix: ${PYPROJECT_FILE} ## Fix code linting
+	uv run --extra quality ruff check --fix . --config ${PYPROJECT_FILE}
+
+ruff-format: ${PYPROJECT_FILE} ## Check code formatting
+	uv run --extra quality ruff format --check . --config ${PYPROJECT_FILE}
+
+ruff-format-fix: ${PYPROJECT_FILE} ## Fix code formatting
+	uv run --extra quality ruff format . --config ${PYPROJECT_FILE}
+
+lint-check: ruff-lint ruff-format ## Check code formatting and linting
+
+lint-format: ruff-lint-fix ruff-format-fix ## Format code and fix linting issues
 
 precommit: ${PYPROJECT_FILE} .pre-commit-config.yaml ## Run pre-commit hooks
-	prek run --all-files
+	uv run --extra quality prek run --all-files
 
 typing-check: ${PYPROJECT_FILE} ## Check type annotations
-	uvx ty check .
+	uv run --extra quality ty check .
 
 deps-check: .github/verify_deps_sync.py ## Check dependency synchronization
 	uv run --script .github/verify_deps_sync.py
