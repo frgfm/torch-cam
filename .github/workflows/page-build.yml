@@ -4,7 +4,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.11.24"
+  UV_VERSION: "0.12.0"
 
 jobs:
   check-gh-pages:
