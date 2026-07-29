@@ -3,6 +3,10 @@
 </h1>
 
 <p align="center">
+  <strong>English</strong> | <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/frgfm/torch-cam/actions/workflows/package.yml">
     <img alt="CI Status" src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/package.yml?branch=main&label=CI&logo=github&style=flat-square">
   </a>
@@ -143,7 +147,7 @@ pip install torchcam
 Alternatively, if you wish to use the latest features of the project that haven't made their way to a release yet, you can install the package from source:
 
 ```shell
-pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
+pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 ```
 
 
