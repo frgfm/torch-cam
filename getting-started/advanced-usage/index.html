@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).">
+        <meta name="description" content="Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).">
       
       
         <meta name="author" content="François-Guillaume Fernandez">
@@ -77,7 +77,7 @@
       
         <meta  property="og:title"  content="Advanced usage - TorchCAM" >
       
-        <meta  property="og:description"  content="Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
+        <meta  property="og:description"  content="Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
       
         <meta  property="og:image"  content="https://frgfm.github.io/torch-cam/assets/images/social/getting-started/advanced-usage.png" >
       
@@ -93,7 +93,7 @@
       
         <meta  name="twitter:title"  content="Advanced usage - TorchCAM" >
       
-        <meta  name="twitter:description"  content="Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
+        <meta  name="twitter:description"  content="Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
       
         <meta  name="twitter:image"  content="https://frgfm.github.io/torch-cam/assets/images/social/getting-started/advanced-usage.png" >
       
@@ -124,6 +124,19 @@
       
     </div>
     <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+            
+  <strong>Development documentation.</strong>
+  This site follows <code>main</code> and may include APIs absent from the latest PyPI release.
+  <a href="../installation/">Choose an installation</a>
+  or <a href="https://github.com/frgfm/torch-cam/releases/latest">view the latest release</a>.
+
+          </div>
+          
+        </aside>
       
     </div>
     
@@ -342,7 +355,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../notes/troubleshooting/" class="md-tabs__link">
+        <a href="../../notes/changelog/" class="md-tabs__link">
           
   
   
@@ -585,6 +598,15 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#model-and-task-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model and task compatibility
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#use-your-own-model" class="md-nav__link">
@@ -842,8 +864,6 @@
       
         
       
-        
-      
     
     
     
@@ -877,29 +897,6 @@
             Notes
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../notes/troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Troubleshooting
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -956,6 +953,15 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#model-and-task-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model and task compatibility
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#use-your-own-model" class="md-nav__link">
@@ -1058,11 +1064,50 @@
 
 
 <h1 id="advanced-usage">Advanced usage<a class="headerlink" href="#advanced-usage" title="Permanent link">&para;</a></h1>
-<p>The <a href="../../">quick start</a> uses a torchvision classifier, but TorchCAM works with any PyTorch model. This
+<p>The <a href="../../">quick start</a> uses a torchvision classifier, but TorchCAM works with many PyTorch classifiers. This
 guide covers the questions that come up most often once you move past the basic example. Hitting an error rather
 than a usage question? Jump to <a href="../troubleshooting/">Troubleshooting</a>.</p>
+<h2 id="model-and-task-compatibility">Model and task compatibility<a class="headerlink" href="#model-and-task-compatibility" title="Permanent link">&para;</a></h2>
+<p>TorchCAM needs a spatial feature tensor and a scalar class target to explain. The integration path depends on
+what your model accepts and returns:</p>
+<table>
+<thead>
+<tr>
+<th>Model or task</th>
+<th>Support</th>
+<th>What TorchCAM needs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CNN classifier</td>
+<td>Native</td>
+<td>Class logits shaped <code>(N, num_classes)</code> and a spatial target layer.</td>
+</tr>
+<tr>
+<td>Batched, 3D, or video classifier</td>
+<td>Native</td>
+<td>One class index per sample and the correct <code>input_shape</code>.</td>
+</tr>
+<tr>
+<td>Multi-input model or tuple/dict output</td>
+<td>Adapter required</td>
+<td>Wrap the model so the hooked path returns one logits tensor.</td>
+</tr>
+<tr>
+<td>ViT or Swin classifier</td>
+<td>Adapter required</td>
+<td>Set <code>target_layer</code> and reshape tokens with <code>reshape_transform</code>.</td>
+</tr>
+<tr>
+<td>Detection, segmentation, generative, or non-scalar output</td>
+<td>Not supported out of the box</td>
+<td>Adapt the model and define the scalar class target to explain.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="use-your-own-model">Use your own model<a class="headerlink" href="#use-your-own-model" title="Permanent link">&para;</a></h2>
-<p>TorchCAM works with <strong>any</strong> <code>nn.Module</code> whose forward returns class scores (logits) of shape
+<p>TorchCAM works with an <code>nn.Module</code> whose forward returns class scores (logits) of shape
 <code>(N, num_classes)</code> — it is not limited to torchvision. You only need to tell the extractor which layer to read
 the activations from.</p>
 <p>List the candidate layers by name:</p>
@@ -1086,6 +1131,7 @@ the wrong layer:</p>
 <p>A CAM is computed on the activation map of a <strong>convolutional (spatial)</strong> layer. The default — the last
 convolutional layer before global pooling — is the most class-discriminative but also the coarsest. Earlier
 layers give finer, less semantic maps. Rules of thumb for common torchvision backbones:</p>
+<p><img alt="The target-layer trade-off between spatial detail and class specificity across a convolutional network." src="../../img/target-layer-tradeoff.svg" /></p>
 <table>
 <thead>
 <tr>
@@ -1203,12 +1249,18 @@ you prefer names, discover the correct one <em>after</em> wrapping:</p>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># -&gt; [&#39;model.backbone.layer4&#39;]</span>
 </span></code></pre></div>
 <h2 id="vision-transformers-and-other-non-cnn-models">Vision Transformers and other non-CNN models<a class="headerlink" href="#vision-transformers-and-other-non-cnn-models" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Development API</p>
+<p><code>reshape_transform</code> is available on <code>main</code> and will ship in TorchCAM 0.4.2. Until then, use the
+<a href="../installation/">Git installation</a> rather than the latest PyPI release.</p>
+</div>
 <p>TorchCAM's methods operate on <strong>spatial feature maps</strong> of shape <code>(N, C, H, W)</code> (or <code>(N, C, D, H, W)</code> in 3D).
 Transformer blocks emit token sequences of shape <code>(N, num_tokens, dim)</code>, which have no spatial grid, so CAM methods
 do not apply directly and automatic <code>target_layer</code> resolution cannot infer the token layout.</p>
 <p>Use <code>reshape_transform</code> to convert the hooked tokens and their gradients back to a spatial grid. For a torchvision
 ViT, drop the class token, reshape the remaining patch tokens, and move the embedding dimension before the spatial
 dimensions:</p>
+<p><img alt="A Vision Transformer hook and reshape transform converting patch tokens into a spatial feature tensor." src="../../img/vit-reshape-transform.svg" /></p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchvision.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ViT_B_16_Weights</span><span class="p">,</span> <span class="n">vit_b_16</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchcam.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">GradCAM</span>

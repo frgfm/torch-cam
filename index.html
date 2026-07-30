@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).">
+        <meta name="description" content="Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).">
       
       
         <meta name="author" content="François-Guillaume Fernandez">
@@ -75,7 +75,7 @@
       
         <meta  property="og:title"  content="TorchCAM" >
       
-        <meta  property="og:description"  content="Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
+        <meta  property="og:description"  content="Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
       
         <meta  property="og:image"  content="https://frgfm.github.io/torch-cam/assets/images/social/index.png" >
       
@@ -91,7 +91,7 @@
       
         <meta  name="twitter:title"  content="TorchCAM" >
       
-        <meta  name="twitter:description"  content="Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
+        <meta  name="twitter:description"  content="Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM)." >
       
         <meta  name="twitter:image"  content="https://frgfm.github.io/torch-cam/assets/images/social/index.png" >
       
@@ -122,6 +122,19 @@
       
     </div>
     <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+            
+  <strong>Development documentation.</strong>
+  This site follows <code>main</code> and may include APIs absent from the latest PyPI release.
+  <a href="getting-started/installation/">Choose an installation</a>
+  or <a href="https://github.com/frgfm/torch-cam/releases/latest">view the latest release</a>.
+
+          </div>
+          
+        </aside>
       
     </div>
     
@@ -340,7 +353,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="notes/troubleshooting/" class="md-tabs__link">
+        <a href="notes/changelog/" class="md-tabs__link">
           
   
   
@@ -814,8 +827,6 @@
       
         
       
-        
-      
     
     
     
@@ -849,29 +860,6 @@
             Notes
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="notes/troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    Troubleshooting
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -1009,7 +997,7 @@
 
 
 <h1 id="torchcam-class-activation-explorer">TorchCAM: class activation explorer<a class="headerlink" href="#torchcam-class-activation-explorer" title="Permanent link">&para;</a></h1>
-<p>TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs. Check out the live demo on <a href="https://huggingface.co/spaces/frgfm/torch-cam">HuggingFace Spaces</a> 🤗</p>
+<p>TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your model's classification outputs. Check out the live demo on <a href="https://huggingface.co/spaces/frgfm/torch-cam">HuggingFace Spaces</a> 🤗</p>
 <p align="center">
     <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" alt="CAM visualization" width="70%">
 </p>
@@ -1019,7 +1007,7 @@
 
 <p>This project is meant for:</p>
 <ul>
-<li>⚡ <strong>exploration</strong>: easily assess the influence of spatial features on your model's outputs</li>
+<li>⚡ <strong>exploration</strong>: easily assess the influence of spatial features on classification outputs</li>
 <li>👩‍🔬 <strong>research</strong>: quickly implement your own ideas for new CAM methods</li>
 </ul>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
@@ -1027,7 +1015,7 @@
 <div class="language-shell highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>torchcam
 </span></code></pre></div>
 <p>Check out the <a href="getting-started/installation/">installation guide</a> for more options.</p>
-<p>Having issues with gradients, hooks, or layer selection? See the <a href="notes/troubleshooting/">troubleshooting guide</a>.</p>
+<p>Having issues with gradients, hooks, or layer selection? See the <a href="getting-started/troubleshooting/">troubleshooting guide</a>.</p>
 <h2 id="quick-start">Quick start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <p>Get an image and a model:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchvision.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">decode_image</span>
@@ -1051,6 +1039,7 @@
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="hll">  <span class="n">activation_map</span> <span class="o">=</span> <span class="n">cam_extractor</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">out</span><span class="p">)</span>
 </span></span></code></pre></div>
 <p><code>class_idx</code> (the first argument) is the index in the model's output logits of the class to explain; <code>argmax</code> picks the top prediction, but any class index works. The call returns one activation map per target layer. See <a href="getting-started/advanced-usage/">Advanced usage</a> for batches, custom models and method selection.</p>
+<p><img alt="TorchCAM extraction flow from model input and target-layer hooks to a class activation map." src="img/cam-extraction-flow.svg" /></p>
 <p>Display it:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchvision.transforms.v2.functional</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_pil_image</span>
@@ -1079,7 +1068,7 @@
 </ul>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="getting-started/advanced-usage/">Advanced usage</a> — your own/non-torchvision models, choosing the target layer, batched inputs, ViT/3D, and picking a method.</li>
+<li><a href="getting-started/advanced-usage/">Advanced usage</a> — supported model and task boundaries, choosing the target layer, batched inputs, ViT/3D, and picking a method.</li>
 <li><a href="getting-started/troubleshooting/">Troubleshooting</a> — fixes for the <code>requires grad</code> error, <code>NaN</code>/blank maps, and hook issues.</li>
 </ul>
 

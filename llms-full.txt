@@ -1,10 +1,25 @@
 # TorchCAM
 
-> Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).
+> Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).
 
 # Getting started
 
 # Installation
+
+The online documentation follows the repository's `main` branch. Choose the install that matches the API you want to use:
+
+| Source            | Install                                                               | What you get                                                                 |
+| ----------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **PyPI (stable)** | `pip install torchcam`                                                | Latest tagged [release](https://github.com/frgfm/torch-cam/releases/latest). |
+| **Git (`main`)**  | `pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"` | Unreleased changes matching this site.                                       |
+
+Check the installed version when an example and your environment behave differently:
+
+```python
+import importlib.metadata
+
+print(importlib.metadata.version("torchcam"))
+```
 
 ## Virtual environment
 
@@ -12,7 +27,7 @@ Tip
 
 You will need an environment manager, and I cannot recommend enough [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-Create a virtual environment with your prefered Python version (3.11 or higher is required to use TorchCAM):
+Create a virtual environment with your preferred Python version (3.11 or higher is required to use TorchCAM):
 
 ```bash
 $ uv venv --python 3.11
@@ -23,7 +38,7 @@ $ uv pip install torchcam
 ```
 
 ```bash
-$ uv pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
+$ uv pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 ```
 
 ## System installation
@@ -35,7 +50,7 @@ $ uv pip install --system torchcam
 ```
 
 ```bash
-$ uv pip install --system torchcam @ git+https://github.com/frgfm/torch-cam.git
+$ uv pip install --system "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 ```
 
 ```bash
@@ -43,32 +58,44 @@ $ pip install torchcam
 ```
 
 ```bash
-$ pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
+$ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 ```
 
 Info
 
 TorchCAM is built on top of [PyTorch](https://github.com/pytorch/pytorch) which is a complex dependency. Proper installation depends on your system and available hardware. You can refer to [installation guide of uv](https://docs.astral.sh/uv/guides/integration/pytorch) which is quite detailed.
 
-For common pitfalls (e.g. `no_grad` with Grad-CAM, hook cleanup, picking `target_layer`), see [Troubleshooting](../../notes/troubleshooting/).
+For common pitfalls (e.g. `no_grad` with Grad-CAM, hook cleanup, picking `target_layer`), see [Troubleshooting](../troubleshooting/).
 
 # TorchCAM Notebooks
 
 Here are some notebooks compiled for users to better leverage the library capabilities:
 
-| Notebook                                                                                             | Description                                           |     |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --- |
-| [Quicktour](https://github.com/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb)                  | A presentation of the main features of TorchCAM       |     |
-| [Latency benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb)  | How to benchmark the latency of a CAM method          |     |
-| [Performance benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/perf_benchmark.ipynb) | How to benchmark the interpretability of a CAM method |     |
+| Notebook                                                                                                    | Description                                           |     |
+| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --- |
+| [Quicktour](https://github.com/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb)                         | A presentation of the main features of TorchCAM       |     |
+| [Latency benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb)         | How to benchmark the latency of a CAM method          |     |
+| [Performance benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) | How to benchmark the interpretability of a CAM method |     |
 
 # Advanced usage
 
-The [quick start](../../) uses a torchvision classifier, but TorchCAM works with any PyTorch model. This guide covers the questions that come up most often once you move past the basic example. Hitting an error rather than a usage question? Jump to [Troubleshooting](../troubleshooting/).
+The [quick start](../../) uses a torchvision classifier, but TorchCAM works with many PyTorch classifiers. This guide covers the questions that come up most often once you move past the basic example. Hitting an error rather than a usage question? Jump to [Troubleshooting](../troubleshooting/).
+
+## Model and task compatibility
+
+TorchCAM needs a spatial feature tensor and a scalar class target to explain. The integration path depends on what your model accepts and returns:
+
+| Model or task                                             | Support                      | What TorchCAM needs                                                |
+| --------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------ |
+| CNN classifier                                            | Native                       | Class logits shaped `(N, num_classes)` and a spatial target layer. |
+| Batched, 3D, or video classifier                          | Native                       | One class index per sample and the correct `input_shape`.          |
+| Multi-input model or tuple/dict output                    | Adapter required             | Wrap the model so the hooked path returns one logits tensor.       |
+| ViT or Swin classifier                                    | Adapter required             | Set `target_layer` and reshape tokens with `reshape_transform`.    |
+| Detection, segmentation, generative, or non-scalar output | Not supported out of the box | Adapt the model and define the scalar class target to explain.     |
 
 ## Use your own model
 
-TorchCAM works with **any** `nn.Module` whose forward returns class scores (logits) of shape `(N, num_classes)` — it is not limited to torchvision. You only need to tell the extractor which layer to read the activations from.
+TorchCAM works with an `nn.Module` whose forward returns class scores (logits) of shape `(N, num_classes)` — it is not limited to torchvision. You only need to tell the extractor which layer to read the activations from.
 
 List the candidate layers by name:
 
@@ -180,6 +207,10 @@ print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
 
 ## Vision Transformers and other non-CNN models
 
+Development API
+
+`reshape_transform` is available on `main` and will ship in TorchCAM 0.4.2. Until then, use the [Git installation](../installation/) rather than the latest PyPI release.
+
 TorchCAM's methods operate on **spatial feature maps** of shape `(N, C, H, W)` (or `(N, C, D, H, W)` in 3D). Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so CAM methods do not apply directly and automatic `target_layer` resolution cannot infer the token layout.
 
 Use `reshape_transform` to convert the hooked tokens and their gradients back to a spatial grid. For a torchvision ViT, drop the class token, reshape the remaining patch tokens, and move the embedding dimension before the spatial dimensions:
@@ -259,11 +290,15 @@ CAM methods are **post-hoc**: run them on a trained model in `eval()` mode to in
 
 The errors below are the ones most frequently reported on the [issue tracker](https://github.com/frgfm/torch-cam/issues) and in [discussions](https://github.com/frgfm/torch-cam/discussions). Each entry explains the cause and the fix.
 
+For model compatibility, target-layer selection, or 3D/video inputs, see [Advanced usage](../advanced-usage/#model-and-task-compatibility).
+
 ## `RuntimeError: cannot register a hook on a tensor that doesn't require gradient`
 
 *Also reported as `element 0 of tensors does not require grad and does not have a grad_fn`.*
 
 Gradient-based methods (`GradCAM`, `GradCAMpp`, `SmoothGradCAMpp`, `XGradCAM`, `LayerCAM`) backpropagate through the model, so the forward pass **must build an autograd graph**. The error is raised when autograd is disabled during the forward — almost always because it ran inside `torch.no_grad()` or `torch.inference_mode()` (or because *every* model parameter has `requires_grad=False`).
+
+The [quick-start extraction diagram](../../#quick-start) shows this as the dotted backward path: `no_grad()` prevents that path from reaching the target layer.
 
 Disables autograd — the gradient hook cannot attach
 
@@ -295,6 +330,11 @@ If your inference pipeline wraps everything in `torch.no_grad()` / `torch.infere
 Activation-based methods don't need gradients
 
 `CAM`, `ScoreCAM`, `SSCAM` and `ISCAM` do not backpropagate, so you *can* keep their forward pass inside `torch.inference_mode()`. Only the gradient-based methods require autograd.
+
+| Method family                             | Model forward                                          | Extractor call                      |
+| ----------------------------------------- | ------------------------------------------------------ | ----------------------------------- |
+| Activation-based (`CAM`, `ScoreCAM`, …)   | `torch.no_grad()` or `torch.inference_mode()` is fine. | No backward pass.                   |
+| Gradient-based (`GradCAM`, `LayerCAM`, …) | Keep autograd enabled.                                 | Backward runs inside the extractor. |
 
 ## `AssertionError: Inputs need to be forwarded in the model ...`
 
@@ -341,6 +381,18 @@ with GradCAM(model) as cam_extractor:
     cam_a = cam_extractor(class_a, out, retain_graph=True)
     cam_b = cam_extractor(class_b, out)
 ```
+
+## Hook lifecycle
+
+Extractors register hooks on `target_layer`. Prefer a context manager so hooks are removed automatically:
+
+```python
+with LayerCAM(model) as cam_extractor:
+    out = model(input_tensor)
+    cams = cam_extractor(class_idx, out)
+```
+
+For a long-lived extractor, call `disable_hooks()` during unrelated forward passes and `enable_hooks()` before the CAM forward. Use `reset_hooks()` to clear cached activations while keeping hooks registered; use `remove_hooks()` when the extractor is finished.
 
 ## `AttributeError: '...' object has no attribute 'enable_hooks'` / errors when clearing hooks
 
@@ -1275,145 +1327,6 @@ def overlay_mask(img: Image, mask: Image, colormap: Colormap | str = "jet", alph
     return fromarray((alpha * bg_img + (1 - alpha) * overlay).astype(np.uint8))
 ````
 # Notes
-
-# Troubleshooting
-
-Answers to recurring support questions. For API details, see the [package reference](../../reference/methods/).
-
-## Stable release vs. `main`
-
-| Source            | Install                                                               | What you get                                                                                                  |
-| ----------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **PyPI (stable)** | `pip install torchcam`                                                | Latest tagged release (see [changelog](../changelog/)).                                                       |
-| **Git (`main`)**  | `pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"` | Unreleased changes; may differ from the [online docs](https://frgfm.github.io/torch-cam), which track `main`. |
-
-Check your installed version:
-
-```python
-import importlib.metadata
-print(importlib.metadata.version("torchcam"))
-```
-
-**Examples in this site** use current APIs (`get_model` / `get_model_weights`, context managers, `enable_hooks`). Older snippets you may find online often use `pretrained=True` or private `_hooks_enabled` — those apply to releases before [v0.4.1](https://github.com/frgfm/torch-cam/releases/tag/v0.4.1).
-
-TorchCAM **0.4.x** requires **PyTorch ≥ 2.0**. See the [installation guide](../../getting-started/installation/) for environment setup.
-
-## `torch.no_grad()` and gradient-based CAMs
-
-CAM **computation** always runs under `torch.no_grad()` internally. That is separate from whether the **model forward** and **backward** need autograd.
-
-| Method family                           | Forward                                                          | Before `cam_extractor(...)`                                 |
-| --------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------- |
-| Activation-based (CAM, Score-CAM, …)    | `torch.inference_mode()` or `no_grad()` is fine                  | No backward required                                        |
-| Gradient-based (Grad-CAM, Layer-CAM, …) | Do **not** wrap forward in `no_grad()` if gradients are required | Model must retain graph; backward runs inside the extractor |
-
-Recommended pattern for gradient methods:
-
-```python
-from torchcam.methods import LayerCAM
-
-model.eval()
-with LayerCAM(model) as cam_extractor:
-    out = model(input_tensor)  # autograd enabled
-    cams = cam_extractor(out.squeeze(0).argmax().item(), out)
-```
-
-If you only need inference until CAM time, disable hook recording during bulk forward passes (see [Hook lifecycle](#hook-lifecycle)), then run a single forward with hooks enabled before calling the extractor.
-
-Empty or flat gradients
-
-Wrapping `model(input_tensor)` in `torch.no_grad()` or `torch.inference_mode()` prevents gradient-based methods from backpropagating. You will get incorrect or zero maps.
-
-## Hook lifecycle
-
-Extractors register forward hooks on `target_layer` (and backward hooks for gradient methods). Manage them explicitly or with a context manager.
-
-### Context manager (recommended)
-
-```python
-with LayerCAM(model) as cam_extractor:
-    out = model(input_tensor)
-    cams = cam_extractor(class_idx, out)
-# Hooks removed; internal state reset
-```
-
-Leaving hooks attached after use can interfere with training, tracing, or a second CAM extractor on the same model.
-
-### Enable / disable without removing hooks
-
-Since v0.4.1, use the public API instead of `_hooks_enabled`:
-
-```python
-cam_extractor = LayerCAM(model, enable_hooks=False)
-with torch.inference_mode():
-    out = model(input_tensor)  # hooks inactive: less RAM / latency
-
-cam_extractor.enable_hooks()
-out = model(input_tensor)
-cams = cam_extractor(class_idx, out)
-cam_extractor.disable_hooks()
-```
-
-### Reset state between samples
-
-- `reset_hooks()` — clears cached activations and gradients (hooks stay registered).
-- `remove_hooks()` — detaches all handles; call `enable_hooks()` only affects recording, not registration.
-
-### Common error: forward before CAM
-
-```text
-AssertionError: Inputs need to be forwarded in the model for the conv features to be hooked
-```
-
-Run at least one forward through the hooked model **after** creating the extractor and **before** `cam_extractor(class_idx, ...)`. The forward must hit the `target_layer` (same path as your CAM use case).
-
-## Choosing `target_layer`
-
-If `target_layer` is omitted, TorchCAM picks the last convolutional layer whose output still has spatial extent, using a dummy forward with `input_shape`:
-
-```python
-LayerCAM(model, input_shape=(3, 224, 224))  # default for ImageNet-style 2D
-```
-
-Override when auto-selection is wrong (multi-branch nets, custom heads, video/volume models):
-
-```python
-# By submodule name (from model.named_modules())
-LayerCAM(model, target_layer="layer4")
-
-# By module reference
-LayerCAM(model, target_layer=model.layer4)
-
-# Multiple layers (where the method supports it)
-LayerCAM(model, target_layer=["layer3", "layer4"])
-```
-
-Tips:
-
-- Pick a **conv** (or equivalent) layer **before** global pooling / flattening.
-- Pass the correct `input_shape` (channels + spatial dims, no batch) so auto-resolution matches your tensor layout.
-- **CAM** (activation-only) needs a compatible fully-connected / classifier wiring; see method docs if you use a non-classic head.
-- A warning log means auto-resolution ran: `no value was provided for target_layer, thus set to '...'`.
-
-## 3D and higher-dimensional inputs
-
-Volumetric (or spatio-temporal) models are supported when activations keep spatial dimensions. Set `input_shape` to your tensor layout **without** batch, e.g. `(1, 32, 32, 32)` for a single-channel 3D volume.
-
-```python
-input_shape = (1, 32, 32, 32)  # (C, D, H, W)
-with LayerCAM(model, input_shape=input_shape) as cam_extractor:
-    out = model(volume_tensor)
-    cams = cam_extractor(class_idx, out)
-```
-
-Upsampling and fusion use **trilinear** interpolation when CAM tensors are 4D `(N, D, H, W)`; 2D maps use bilinear. Overlay utilities expect image-style inputs — resize or slice volumes yourself for visualization.
-
-Added in [v0.2.0](https://github.com/frgfm/torch-cam/releases/tag/v0.2.0); see the [release note](https://github.com/frgfm/torch-cam/releases/tag/v0.2.0) for examples.
-
-## Still stuck?
-
-- Compare your code with the [quick start](../../#quick-start) and [notebooks](../../getting-started/notebooks/).
-- Search [existing issues](https://github.com/frgfm/torch-cam/issues); include TorchCAM version, PyTorch version, method name, and `target_layer` choice when opening a new one.
 
 # Changelog
 

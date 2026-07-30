@@ -1,6 +1,6 @@
 # TorchCAM
 
-> Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).
+> Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).
 
 ## Getting started
 
@@ -17,6 +17,5 @@
 
 ## Notes
 
-- [Troubleshooting](https://frgfm.github.io/torch-cam/notes/troubleshooting/index.md)
 - [Changelog](https://frgfm.github.io/torch-cam/notes/changelog/index.md)
 

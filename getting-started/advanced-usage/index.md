@@ -1,10 +1,22 @@
 # Advanced usage
 
-The [quick start](../../) uses a torchvision classifier, but TorchCAM works with any PyTorch model. This guide covers the questions that come up most often once you move past the basic example. Hitting an error rather than a usage question? Jump to [Troubleshooting](../troubleshooting/).
+The [quick start](../../) uses a torchvision classifier, but TorchCAM works with many PyTorch classifiers. This guide covers the questions that come up most often once you move past the basic example. Hitting an error rather than a usage question? Jump to [Troubleshooting](../troubleshooting/).
+
+## Model and task compatibility
+
+TorchCAM needs a spatial feature tensor and a scalar class target to explain. The integration path depends on what your model accepts and returns:
+
+| Model or task                                             | Support                      | What TorchCAM needs                                                |
+| --------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------ |
+| CNN classifier                                            | Native                       | Class logits shaped `(N, num_classes)` and a spatial target layer. |
+| Batched, 3D, or video classifier                          | Native                       | One class index per sample and the correct `input_shape`.          |
+| Multi-input model or tuple/dict output                    | Adapter required             | Wrap the model so the hooked path returns one logits tensor.       |
+| ViT or Swin classifier                                    | Adapter required             | Set `target_layer` and reshape tokens with `reshape_transform`.    |
+| Detection, segmentation, generative, or non-scalar output | Not supported out of the box | Adapt the model and define the scalar class target to explain.     |
 
 ## Use your own model
 
-TorchCAM works with **any** `nn.Module` whose forward returns class scores (logits) of shape `(N, num_classes)` — it is not limited to torchvision. You only need to tell the extractor which layer to read the activations from.
+TorchCAM works with an `nn.Module` whose forward returns class scores (logits) of shape `(N, num_classes)` — it is not limited to torchvision. You only need to tell the extractor which layer to read the activations from.
 
 List the candidate layers by name:
 
@@ -115,6 +127,10 @@ print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
 ```
 
 ## Vision Transformers and other non-CNN models
+
+Development API
+
+`reshape_transform` is available on `main` and will ship in TorchCAM 0.4.2. Until then, use the [Git installation](../installation/) rather than the latest PyPI release.
 
 TorchCAM's methods operate on **spatial feature maps** of shape `(N, C, H, W)` (or `(N, C, D, H, W)` in 3D). Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so CAM methods do not apply directly and automatic `target_layer` resolution cannot infer the token layout.
 
