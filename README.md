@@ -62,7 +62,7 @@ Simple way to leverage the class-specific activation of convolutional layers in 
 
 TorchCAM leverages [PyTorch hooking mechanisms](https://pytorch.org/tutorials/beginner/former_torchies/nnft_tutorial.html#forward-and-backward-function-hooks) to seamlessly retrieve all required information to produce the class activation without additional efforts from the user. Each CAM object acts as a wrapper around your model.
 
-You can find the exhaustive list of supported CAM methods in the [documentation](https://frgfm.github.io/torch-cam/methods.html), then use it as follows:
+You can find the exhaustive list of supported CAM methods in the [documentation](https://frgfm.github.io/torch-cam/reference/methods/), then use it as follows:
 
 ```python
 from torchvision.models import get_model, get_model_weights
@@ -172,7 +172,7 @@ This project is developed and maintained by the repo owner, but the implementati
         <img src="https://github.com/frgfm/torch-cam/releases/download/v0.2.0/video_example_wallaby.gif" /></a>
 </p>
 <p align="center">
-    <em>Source: <a href="https://www.youtube.com/watch?v=hZJN5BzKfxk">YouTube video</a> (activation maps created by <a href="https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM">Layer-CAM</a> with a pretrained <a href="https://pytorch.org/vision/stable/models.html#torchvision.models.resnet18">ResNet-18</a>)</em>
+    <em>Source: <a href="https://www.youtube.com/watch?v=hZJN5BzKfxk">YouTube video</a> (activation maps created by <a href="https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM">Layer-CAM</a> with a pretrained <a href="https://pytorch.org/vision/stable/models.html#torchvision.models.resnet18">ResNet-18</a>)</em>
 </p>
 
 
@@ -217,19 +217,19 @@ python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 
 The purpose of CAM methods is to provide interpretability and they do so by pointing the biggest influence factors on the model outputs. Ideally the CAM should pinpoint all the visual cues that have any influence of the output classification score.
 For this, we use two metrics:
-- [Increase in Confidence](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (higher is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), how many times in the dataset has the classification probability improve.
-- [Average Drop](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric) (lower is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), by how much does the classification probability drop.
+- [Increase in Confidence](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric) (higher is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), how many times in the dataset has the classification probability improve.
+- [Average Drop](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric) (lower is better): if we forward the input masked with the CAM (keep origin pixel values where CAM is highest, nullify where lowest), by how much does the classification probability drop.
 
 | CAM method | Arch | Average drop (↓) | Increase in confidence (↑) |
 | ---------- | ---- | ---------------- | -------------------------- |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18 | 0.2686 | 0.2250 |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18 | 0.5271 | 0.1962 |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18 | 0.2088 | 0.2499 |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18 | 0.1712 | 0.2819 |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.2678 | 0.3483 |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.3182 | 0.2535 |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.2681 | 0.2678 |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.2526 | 0.2882 |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | resnet18 | 0.2686 | 0.2250 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | resnet18 | 0.5271 | 0.1962 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | resnet18 | 0.2088 | 0.2499 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18 | 0.1712 | 0.2819 |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.2678 | 0.3483 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.3182 | 0.2535 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.2681 | 0.2678 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.2526 | 0.2882 |
 
 This benchmark was performed over the validation set of [imagenette](https://github.com/fastai/imagenette), which is a subset of Imagenet, on (224, 224) inputs.
 
@@ -249,20 +249,20 @@ In the table below, you will find a latency overhead benchmark (forward pass not
 
 | CAM method | Arch | GPU mean (std) | CPU mean (std) |
 | ---------- | ---- | -------------- | -------------- |
-| [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
-| [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | mobilenet_v3_large | N/A*               | N/A*                 |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 8.61ms (1.04ms)    | 26.64ms (3.46ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
+| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
+| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
+| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | mobilenet_v3_large | N/A*               | N/A*                 |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | mobilenet_v3_large | 8.61ms (1.04ms)    | 26.64ms (3.46ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
+| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
 
 **The base CAM method cannot work with architectures that have multiple fully-connected layers*
 

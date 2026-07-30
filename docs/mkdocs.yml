@@ -1,7 +1,7 @@
 # Project information
 site_name: TorchCAM
 site_url: https://frgfm.github.io/torch-cam
-site_description: Class activation maps for your PyTorch models (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).
+site_description: Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).
 site_author: François-Guillaume Fernandez
 copyright: Copyright &copy; 2020-2025, François-Guillaume Fernandez
 
@@ -14,6 +14,7 @@ remote_branch: gh-pages
 # Configuration
 theme:
   name: material
+  custom_dir: overrides
   locale: en
   highlightjs: true
   favicon: img/favicon.svg
@@ -82,7 +83,6 @@ plugins:
         - reference/metrics.md
         - reference/utils.md
       Notes:
-        - notes/troubleshooting.md
         - notes/changelog.md
   # termynal:
   mkdocstrings:
@@ -180,5 +180,4 @@ nav:
     - Evaluation metrics: reference/metrics.md
     - Utilities: reference/utils.md
   - Notes:
-    - notes/troubleshooting.md
     - notes/changelog.md

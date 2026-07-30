@@ -59,7 +59,7 @@ def main(args):
         drop_last=False,
         sampler=SequentialSampler(ds),
         num_workers=args.workers,
-        pin_memory=True,
+        pin_memory=device.type == "cuda",
     )
 
     # Hook the corresponding layer in the model

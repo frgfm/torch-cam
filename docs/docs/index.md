@@ -1,6 +1,6 @@
 # TorchCAM: class activation explorer
 
-TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch model outputs. Check out the live demo on [HuggingFace Spaces](https://huggingface.co/spaces/frgfm/torch-cam) 🤗
+TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your PyTorch classifier outputs. Check out the live demo on [HuggingFace Spaces](https://huggingface.co/spaces/frgfm/torch-cam) 🤗
 
 <p align="center">
     <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" alt="CAM visualization" width="70%">
@@ -11,7 +11,7 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
 
 This project is meant for:
 
-* ⚡ **exploration**: easily assess the influence of spatial features on your model's outputs
+* ⚡ **exploration**: easily assess the influence of spatial features on classification outputs
 * 👩‍🔬 **research**: quickly implement your own ideas for new CAM methods
 
 ## Installation
@@ -24,7 +24,7 @@ pip install torchcam
 
 Check out the [installation guide](getting-started/installation.md) for more options.
 
-Having issues with gradients, hooks, or layer selection? See the [troubleshooting guide](notes/troubleshooting.md).
+Having issues with gradients, hooks, or layer selection? See the [troubleshooting guide](getting-started/troubleshooting.md).
 
 ## Quick start
 
@@ -88,5 +88,5 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 
 ## Next steps
 
-* [Advanced usage](getting-started/advanced-usage.md) — your own/non-torchvision models, choosing the target layer, batched inputs, ViT/3D, and picking a method.
+* [Advanced usage](getting-started/advanced-usage.md) — supported model and task boundaries, choosing the target layer, batched inputs, ViT/3D, and picking a method.
 * [Troubleshooting](getting-started/troubleshooting.md) — fixes for the `requires grad` error, `NaN`/blank maps, and hook issues.
