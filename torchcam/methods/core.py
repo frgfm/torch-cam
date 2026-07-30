@@ -5,7 +5,7 @@
 
 import logging
 from abc import abstractmethod
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from functools import partial
 from types import TracebackType
@@ -30,6 +30,7 @@ class _CAM:
         target_layer: either the target layer itself or its name
         input_shape: shape of the expected input tensor excluding the batch dimension
         enable_hooks: should hooks be enabled by default
+        reshape_transform: optional transform applied to hooked activations and gradients
 
     Raises:
         ValueError: if the argument is invalid
@@ -42,7 +43,13 @@ class _CAM:
         target_layer: nn.Module | str | list[nn.Module | str] | None = None,
         input_shape: tuple[int, ...] = (3, 224, 224),
         enable_hooks: bool = True,
+        reshape_transform: Callable[[Tensor], Tensor] | None = None,
     ) -> None:
+        if reshape_transform is not None and not callable(reshape_transform):
+            raise TypeError("`reshape_transform` must be callable")
+        if reshape_transform is not None and target_layer is None:
+            raise ValueError("`target_layer` must be specified when using `reshape_transform`")
+
         # Obtain a mapping from module name to module instance for each layer in the model
         self.submodule_dict = dict(model.named_modules())
 
@@ -73,6 +80,7 @@ class _CAM:
             raise ValueError(f"Unable to find all submodules {target_names} in the model")
         self.target_names = target_names
         self.model = model
+        self._reshape_transform = reshape_transform
         # Init hooks
         self.reset_hooks()
         self.hook_handles: list[torch.utils.hooks.RemovableHandle] = []
@@ -137,6 +145,8 @@ class _CAM:
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""
         if self._hooks_enabled:
+            if self._reshape_transform is not None:
+                output = self._reshape_transform(output)
             self.hook_a[idx] = output.detach()
 
     def reset_hooks(self) -> None:

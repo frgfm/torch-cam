@@ -42,6 +42,8 @@ class _GradCAM(_CAM):
 
     def _store_grad(self, grad: Tensor, idx: int = 0) -> None:
         if self._hooks_enabled:
+            if self._reshape_transform is not None:
+                grad = self._reshape_transform(grad)
             self.hook_g[idx] = grad.detach()
 
     def _hook_g(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
