@@ -180,30 +180,47 @@ print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
 
 ## Vision Transformers and other non-CNN models
 
-TorchCAM's methods operate on **convolutional feature maps** of shape `(N, C, H, W)` (or `(N, C, D, H, W)` in 3D). Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so the CAM methods do not apply directly and automatic `target_layer` resolution will not find a suitable layer.
+TorchCAM's methods operate on **spatial feature maps** of shape `(N, C, H, W)` (or `(N, C, D, H, W)` in 3D). Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so CAM methods do not apply directly and automatic `target_layer` resolution cannot infer the token layout.
 
-To use a ViT you have to reshape a block's token output back to a spatial grid (dropping the class token) and expose *that* as the `target_layer`. There is no built-in helper yet, but the wrapper below is a starting point — it turns a block's `(N, num_tokens, dim)` output into an `(N, dim, H, W)` map:
+Use `reshape_transform` to convert the hooked tokens and their gradients back to a spatial grid. For a torchvision ViT, drop the class token, reshape the remaining patch tokens, and move the embedding dimension before the spatial dimensions:
 
 ```python
-import torch.nn as nn
+from PIL import Image
+from torchvision.models import ViT_B_16_Weights, vit_b_16
+from torchcam.methods import GradCAM
 
-class ViTToGrid(nn.Module):
-    """Experimental: reshape a ViT block's token output to a spatial grid for CAM."""
-    def __init__(self, vit_block, h, w):   # h, w = patch grid, e.g. 14x14 for 224px / patch 16
-        super().__init__()
-        self.block = vit_block
-        self.h, self.w = h, w
+weights = ViT_B_16_Weights.DEFAULT
+model = vit_b_16(weights=weights).eval()
+grid_size = model.image_size // model.patch_size
+image = Image.open("path/to/image.jpg").convert("RGB")
 
-    def forward(self, x):
-        out = self.block(x)                                  # (N, num_tokens, dim)
-        return out[:, 1:].transpose(1, 2).reshape(x.size(0), -1, self.h, self.w)  # (N, dim, h, w)
+def reshape_transform(tensor):
+    patches = tensor[:, 1:, :].reshape(tensor.size(0), grid_size, grid_size, tensor.size(-1))
+    return patches.permute(0, 3, 1, 2)
+
+input_tensor = weights.transforms()(image).unsqueeze(0)
+target_layer = model.encoder.layers[-2].ln_1
+
+with GradCAM(model, target_layer, reshape_transform=reshape_transform) as extractor:
+    scores = model(input_tensor)
+    cam = extractor(scores[0].argmax().item(), scores)[0]
 ```
 
-Insert it into the model in place of the block you want to read, then point the extractor at it.
+DeiT-Tiny follows the same pattern: target `model.blocks[-1].norm1`, drop `model.num_prefix_tokens`, and reshape the remaining tokens using `model.patch_embed.grid_size`.
 
-Experimental
+For a complete example without additional dependencies, run the official pretrained torchvision Swin-T (patch size 4, window size 7, input size 224) from the repository checkout:
 
-This is a sketch, not a drop-in. The exact reshape is architecture-specific (patch grid size, and whether there is a class and/or distillation token to drop), and for gradient-based methods you must read a block whose tokens the class score actually depends on. If you get this working for a model, please share it in the [discussions](https://github.com/frgfm/torch-cam/discussions).
+```bash
+uv run --extra scripts python scripts/cam_example.py \
+    --arch swin_t --method GradCAM \
+    --savefig swin_t_cam.png --noblock
+```
+
+The first run downloads the torchvision Swin-T weights. The script selects the model prediction and targets the final block's `norm2`. This layer retains a 7×7 channels-last spatial grid, so its transform only moves the channel axis before the spatial axes.
+
+The exact transform is architecture-specific: models may use a different patch grid or have additional prefix tokens such as a distillation token. Always specify `target_layer` when using `reshape_transform`. For a ViT, choose a layer before the final attention operation; patch-token gradients are zero at the complete final block output because classification uses only the class token. The selected module must return a tensor, and the same transform is applied to every selected target layer. Keep the transform structural—token selection, reshaping, and axis permutation—because TorchCAM applies it identically to activation and gradient tensors.
+
+This enables activation- and gradient-based extractors such as `LayerCAM`, `GradCAM`, and `ScoreCAM`. The original weight-based `CAM` method still requires its global-pooling and classifier-weight assumptions, which standard ViTs do not satisfy. Attention rollout or attention flow are separate transformer-specific explanation techniques.
 
 ## 3D and video models
 
