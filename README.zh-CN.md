@@ -65,7 +65,7 @@
 
 TorchCAM 利用 [PyTorch 的钩子机制](https://pytorch.org/tutorials/beginner/former_torchies/nnft_tutorial.html#forward-and-backward-function-hooks)，自动获取生成类激活图所需的全部信息，无需用户执行额外操作。每个 CAM 对象都是模型的一个封装器。
 
-你可以在[文档](https://frgfm.github.io/torch-cam/methods.html)中查看所有支持的 CAM 方法，然后按如下方式使用：
+你可以在[文档](https://frgfm.github.io/torch-cam/reference/methods/)中查看所有支持的 CAM 方法，然后按如下方式使用：
 
 ```python
 from torchvision.models import get_model, get_model_weights
@@ -175,7 +175,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
         <img src="https://github.com/frgfm/torch-cam/releases/download/v0.2.0/video_example_wallaby.gif" /></a>
 </p>
 <p align="center">
-    <em>来源：<a href="https://www.youtube.com/watch?v=hZJN5BzKfxk">YouTube 视频</a>（激活图由 <a href="https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM">Layer-CAM</a> 和预训练的 <a href="https://pytorch.org/vision/stable/models.html#torchvision.models.resnet18">ResNet-18</a> 生成）</em>
+    <em>来源：<a href="https://www.youtube.com/watch?v=hZJN5BzKfxk">YouTube 视频</a>（激活图由 <a href="https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM">Layer-CAM</a> 和预训练的 <a href="https://pytorch.org/vision/stable/models.html#torchvision.models.resnet18">ResNet-18</a> 生成）</em>
 </p>
 
 
@@ -221,19 +221,19 @@ python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 CAM 方法旨在通过指出对模型输出影响最大的因素来提高模型的可解释性。理想情况下，CAM 应标出所有会影响分类分数的视觉线索。
 这里使用两个指标：
 
-- [置信度提升（Increase in Confidence）](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric)（越高越好）：将输入与 CAM 相乘（保留 CAM 值高处的原始像素，将 CAM 值低处置零）后再次进行前向传播，统计数据集中分类概率提高的次数。
-- [平均下降（Average Drop）](https://frgfm.github.io/torch-cam/latest/metrics.html#torchcam.metrics.ClassificationMetric)（越低越好）：将输入与 CAM 相乘（保留 CAM 值高处的原始像素，将 CAM 值低处置零）后再次进行前向传播，衡量分类概率下降的幅度。
+- [置信度提升（Increase in Confidence）](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric)（越高越好）：将输入与 CAM 相乘（保留 CAM 值高处的原始像素，将 CAM 值低处置零）后再次进行前向传播，统计数据集中分类概率提高的次数。
+- [平均下降（Average Drop）](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric)（越低越好）：将输入与 CAM 相乘（保留 CAM 值高处的原始像素，将 CAM 值低处置零）后再次进行前向传播，衡量分类概率下降的幅度。
 
 | CAM 方法 | 架构 | 平均下降（↓） | 置信度提升（↑） |
 | -------- | ---- | ------------- | ---------------- |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18 | 0.2686 | 0.2250 |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18 | 0.5271 | 0.1962 |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18 | 0.2088 | 0.2499 |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18 | 0.1712 | 0.2819 |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.2678 | 0.3483 |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.3182 | 0.2535 |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.2681 | 0.2678 |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.2526 | 0.2882 |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | resnet18 | 0.2686 | 0.2250 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | resnet18 | 0.5271 | 0.1962 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | resnet18 | 0.2088 | 0.2499 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18 | 0.1712 | 0.2819 |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.2678 | 0.3483 |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.3182 | 0.2535 |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.2681 | 0.2678 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.2526 | 0.2882 |
 
 该评测在 [Imagenette](https://github.com/fastai/imagenette) 验证集上进行。Imagenette 是 ImageNet 的一个子集，输入尺寸为 (224, 224)。
 
@@ -253,20 +253,20 @@ python scripts/eval_perf.py ~/Downloads/imagenette LayerCAM --arch mobilenet_v3_
 
 | CAM 方法 | 架构 | GPU 平均值（标准差） | CPU 平均值（标准差） |
 | -------- | ---- | -------------------- | -------------------- |
-| [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
-| [CAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.CAM) | mobilenet_v3_large | 不适用*            | 不适用*              |
-| [GradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAM) | mobilenet_v3_large | 8.61ms (1.04ms)    | 26.64ms (3.46ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
-| [XGradCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/latest/methods.html#torchcam.methods.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
+| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
+| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
+| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | mobilenet_v3_large | 不适用*            | 不适用*              |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | mobilenet_v3_large | 8.61ms (1.04ms)    | 26.64ms (3.46ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
+| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
 
 **基础 CAM 方法无法用于包含多个全连接层的架构。*
 

@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 465" role="img" aria-labelledby="title desc">
+  <title id="title">Choosing a convolutional target layer</title>
+  <desc id="desc">Earlier convolutional layers retain fine spatial detail but weak class semantics. Later layers become coarser and more class-specific. The usual default is the last convolution before global pooling because pooling and the classifier no longer provide a spatial grid.</desc>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --ink: #262931;
+      --muted: #5b6470;
+      --line: #87919e;
+      --surface: #f3f5f7;
+      --surface-strong: #ffffff;
+      --brand: #850040;
+      --brand-soft: #f7e8ef;
+      --accent: #007784;
+      --accent-soft: #e2f4f5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #f2f4f7;
+        --muted: #c2c8d0;
+        --line: #707987;
+        --surface: #252a32;
+        --surface-strong: #1c2026;
+        --brand: #ff8ab9;
+        --brand-soft: #472536;
+        --accent: #69d7e2;
+        --accent-soft: #183b40;
+      }
+    }
+    text { fill: #262931; fill: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .title { font-size: 28px; font-weight: 700; }
+    .label { font-size: 20px; font-weight: 650; }
+    .small { fill: #5b6470; fill: var(--muted); font-size: 16px; }
+    .panel { fill: #f3f5f7; fill: var(--surface); stroke: #87919e; stroke: var(--line); stroke-width: 1.5; }
+    .panel-strong { fill: #ffffff; fill: var(--surface-strong); stroke: #87919e; stroke: var(--line); stroke-width: 1.5; }
+    .selected { fill: #f7e8ef; fill: var(--brand-soft); stroke: #850040; stroke: var(--brand); stroke-width: 2.5; }
+    .arrow { fill: none; stroke: #87919e; stroke: var(--line); stroke-width: 2.2; marker-end: url(#arrow); }
+    .brand-arrow { fill: none; stroke: #850040; stroke: var(--brand); stroke-width: 2.4; marker-end: url(#arrow-brand); }
+    .accent-arrow { fill: none; stroke: #007784; stroke: var(--accent); stroke-width: 2.4; marker-end: url(#arrow-accent); }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#87919e;fill:var(--line)"/>
+    </marker>
+    <marker id="arrow-brand" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#850040;fill:var(--brand)"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#007784;fill:var(--accent)"/>
+    </marker>
+    <pattern id="fine-grid" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M12 0H0V12" fill="none" style="stroke:#87919e;stroke:var(--line)" stroke-width="1"/>
+    </pattern>
+    <pattern id="mid-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" style="stroke:#87919e;stroke:var(--line)" stroke-width="1"/>
+    </pattern>
+    <pattern id="coarse-grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" style="stroke:#87919e;stroke:var(--line)" stroke-width="1.2"/>
+    </pattern>
+  </defs>
+
+  <text class="title" x="20" y="38">Where should the hook go?</text>
+
+  <path class="accent-arrow" d="M305 78 H38"/>
+  <text class="label" x="168" y="69" text-anchor="middle" style="fill:#007784;fill:var(--accent)">more spatial detail</text>
+  <path class="brand-arrow" d="M335 78 H602"/>
+  <text class="label" x="470" y="69" text-anchor="middle" style="fill:#850040;fill:var(--brand)">more class specificity</text>
+
+  <rect class="panel" x="20" y="116" width="150" height="274" rx="10"/>
+  <text class="label" x="95" y="148" text-anchor="middle">Early conv</text>
+  <rect class="panel-strong" x="35" y="166" width="120" height="120" rx="5"/>
+  <rect x="35" y="166" width="120" height="120" rx="5" fill="url(#fine-grid)"/>
+  <rect x="47" y="178" width="12" height="12" style="fill:#007784;fill:var(--accent)" opacity=".72"/>
+  <rect x="83" y="190" width="12" height="12" style="fill:#850040;fill:var(--brand)" opacity=".62"/>
+  <rect x="119" y="226" width="12" height="12" style="fill:#007784;fill:var(--accent)" opacity=".65"/>
+  <rect x="71" y="250" width="12" height="12" style="fill:#850040;fill:var(--brand)" opacity=".55"/>
+  <text class="small" x="95" y="317" text-anchor="middle">fine grid</text>
+  <text class="small" x="95" y="343" text-anchor="middle">edges, texture</text>
+  <text class="small" x="95" y="369" text-anchor="middle">weak class signal</text>
+
+  <path class="arrow" d="M170 251 H197"/>
+
+  <rect class="panel" x="200" y="116" width="150" height="274" rx="10"/>
+  <text class="label" x="275" y="148" text-anchor="middle">Middle conv</text>
+  <rect class="panel-strong" x="215" y="166" width="120" height="120" rx="5"/>
+  <rect x="215" y="166" width="120" height="120" rx="5" fill="url(#mid-grid)"/>
+  <rect x="239" y="190" width="24" height="24" style="fill:#007784;fill:var(--accent)" opacity=".56"/>
+  <rect x="263" y="214" width="24" height="24" style="fill:#850040;fill:var(--brand)" opacity=".68"/>
+  <rect x="287" y="238" width="24" height="24" style="fill:#850040;fill:var(--brand)" opacity=".48"/>
+  <text class="small" x="275" y="317" text-anchor="middle">balanced grid</text>
+  <text class="small" x="275" y="343" text-anchor="middle">object parts</text>
+  <text class="small" x="275" y="369" text-anchor="middle">stronger semantics</text>
+
+  <path class="arrow" d="M350 251 H377"/>
+
+  <rect class="selected" x="380" y="104" width="150" height="298" rx="10"/>
+  <rect x="395" y="116" width="120" height="28" rx="14" style="fill:#850040;fill:var(--brand)"/>
+  <text x="455" y="135" text-anchor="middle" style="fill:#ffffff;fill:var(--surface-strong);font-size:12px;font-weight:700">USUAL DEFAULT</text>
+  <text class="label" x="455" y="171" text-anchor="middle">Final conv</text>
+  <rect class="panel-strong" x="395" y="188" width="120" height="120" rx="5"/>
+  <rect x="395" y="188" width="120" height="120" rx="5" fill="url(#coarse-grid)"/>
+  <rect x="443" y="236" width="48" height="48" style="fill:#850040;fill:var(--brand)" opacity=".78"/>
+  <text class="small" x="455" y="337" text-anchor="middle">coarse grid</text>
+  <text class="small" x="455" y="363" text-anchor="middle">class-discriminative</text>
+  <text class="small" x="455" y="389" text-anchor="middle">localization</text>
+
+  <path class="arrow" d="M530 251 H554"/>
+
+  <rect class="panel" x="556" y="116" width="64" height="274" rx="10"/>
+  <circle cx="588" cy="194" r="23" style="fill:#ffffff;fill:var(--surface-strong);stroke:#87919e;stroke:var(--line)" stroke-width="1.5"/>
+  <text class="small" x="588" y="188" text-anchor="middle">global</text>
+  <text class="small" x="588" y="207" text-anchor="middle">pool</text>
+  <path class="arrow" d="M588 218 V248"/>
+  <rect class="panel-strong" x="567" y="251" width="42" height="58" rx="6"/>
+  <text class="small" x="588" y="275" text-anchor="middle">class</text>
+  <text class="small" x="588" y="295" text-anchor="middle">head</text>
+  <text class="small" x="588" y="339" text-anchor="middle">no</text>
+  <text class="small" x="588" y="360" text-anchor="middle">spatial</text>
+  <text class="small" x="588" y="381" text-anchor="middle">grid</text>
+
+  <text class="small" x="320" y="442" text-anchor="middle">Choose a spatial layer; pooling and the classifier have already discarded location.</text>
+</svg>

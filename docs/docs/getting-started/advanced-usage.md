@@ -1,12 +1,25 @@
 # Advanced usage
 
-The [quick start](../index.md) uses a torchvision classifier, but TorchCAM works with any PyTorch model. This
+The [quick start](../index.md) uses a torchvision classifier, but TorchCAM works with many PyTorch classifiers. This
 guide covers the questions that come up most often once you move past the basic example. Hitting an error rather
 than a usage question? Jump to [Troubleshooting](troubleshooting.md).
 
+## Model and task compatibility
+
+TorchCAM needs a spatial feature tensor and a scalar class target to explain. The integration path depends on
+what your model accepts and returns:
+
+| Model or task | Support | What TorchCAM needs |
+| --- | --- | --- |
+| CNN classifier | Native | Class logits shaped `(N, num_classes)` and a spatial target layer. |
+| Batched, 3D, or video classifier | Native | One class index per sample and the correct `input_shape`. |
+| Multi-input model or tuple/dict output | Adapter required | Wrap the model so the hooked path returns one logits tensor. |
+| ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`. |
+| Detection, segmentation, generative, or non-scalar output | Not supported out of the box | Adapt the model and define the scalar class target to explain. |
+
 ## Use your own model
 
-TorchCAM works with **any** `nn.Module` whose forward returns class scores (logits) of shape
+TorchCAM works with an `nn.Module` whose forward returns class scores (logits) of shape
 `(N, num_classes)` — it is not limited to torchvision. You only need to tell the extractor which layer to read
 the activations from.
 
@@ -41,6 +54,8 @@ cam_extractor = LayerCAM(model, input_shape=(3, 384, 384))
 A CAM is computed on the activation map of a **convolutional (spatial)** layer. The default — the last
 convolutional layer before global pooling — is the most class-discriminative but also the coarsest. Earlier
 layers give finer, less semantic maps. Rules of thumb for common torchvision backbones:
+
+![The target-layer trade-off between spatial detail and class specificity across a convolutional network.](../img/target-layer-tradeoff.svg)
 
 | Architecture          | Typical `target_layer`   | `fc_layer` for `CAM`                 |
 | --------------------- | ------------------------ | ------------------------------------ |
@@ -140,6 +155,10 @@ print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
 
 ## Vision Transformers and other non-CNN models
 
+!!! warning "Development API"
+    `reshape_transform` is available on `main` and will ship in TorchCAM 0.4.2. Until then, use the
+    [Git installation](installation.md) rather than the latest PyPI release.
+
 TorchCAM's methods operate on **spatial feature maps** of shape `(N, C, H, W)` (or `(N, C, D, H, W)` in 3D).
 Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so CAM methods
 do not apply directly and automatic `target_layer` resolution cannot infer the token layout.
@@ -147,6 +166,8 @@ do not apply directly and automatic `target_layer` resolution cannot infer the t
 Use `reshape_transform` to convert the hooked tokens and their gradients back to a spatial grid. For a torchvision
 ViT, drop the class token, reshape the remaining patch tokens, and move the embedding dimension before the spatial
 dimensions:
+
+![A Vision Transformer hook and reshape transform converting patch tokens into a spatial feature tensor.](../img/vit-reshape-transform.svg)
 
 ```python
 from PIL import Image

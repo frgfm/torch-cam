@@ -4,6 +4,9 @@ The errors below are the ones most frequently reported on the
 [issue tracker](https://github.com/frgfm/torch-cam/issues) and in
 [discussions](https://github.com/frgfm/torch-cam/discussions). Each entry explains the cause and the fix.
 
+For model compatibility, target-layer selection, or 3D/video inputs, see
+[Advanced usage](advanced-usage.md#model-and-task-compatibility).
+
 ## `RuntimeError: cannot register a hook on a tensor that doesn't require gradient`
 
 *Also reported as `element 0 of tensors does not require grad and does not have a grad_fn`.*
@@ -12,6 +15,9 @@ Gradient-based methods (`GradCAM`, `GradCAMpp`, `SmoothGradCAMpp`, `XGradCAM`, `
 through the model, so the forward pass **must build an autograd graph**. The error is raised when autograd is
 disabled during the forward — almost always because it ran inside `torch.no_grad()` or `torch.inference_mode()`
 (or because *every* model parameter has `requires_grad=False`).
+
+The [quick-start extraction diagram](../index.md#quick-start) shows this as the dotted backward path:
+`no_grad()` prevents that path from reaching the target layer.
 
 !!! failure "Disables autograd — the gradient hook cannot attach"
     ```python
@@ -44,6 +50,11 @@ stay under `no_grad` if you like.
 !!! tip "Activation-based methods don't need gradients"
     `CAM`, `ScoreCAM`, `SSCAM` and `ISCAM` do not backpropagate, so you *can* keep their forward pass inside
     `torch.inference_mode()`. Only the gradient-based methods require autograd.
+
+| Method family | Model forward | Extractor call |
+| --- | --- | --- |
+| Activation-based (`CAM`, `ScoreCAM`, …) | `torch.no_grad()` or `torch.inference_mode()` is fine. | No backward pass. |
+| Gradient-based (`GradCAM`, `LayerCAM`, …) | Keep autograd enabled. | Backward runs inside the extractor. |
 
 ## `AssertionError: Inputs need to be forwarded in the model ...`
 
@@ -100,6 +111,20 @@ with GradCAM(model) as cam_extractor:
     cam_a = cam_extractor(class_a, out, retain_graph=True)
     cam_b = cam_extractor(class_b, out)
 ```
+
+## Hook lifecycle
+
+Extractors register hooks on `target_layer`. Prefer a context manager so hooks are removed automatically:
+
+```python
+with LayerCAM(model) as cam_extractor:
+    out = model(input_tensor)
+    cams = cam_extractor(class_idx, out)
+```
+
+For a long-lived extractor, call `disable_hooks()` during unrelated forward passes and `enable_hooks()` before
+the CAM forward. Use `reset_hooks()` to clear cached activations while keeping hooks registered; use
+`remove_hooks()` when the extractor is finished.
 
 ## `AttributeError: '...' object has no attribute 'enable_hooks'` / errors when clearing hooks
 
