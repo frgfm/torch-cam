@@ -151,7 +151,7 @@ dimensions:
 ```python
 from PIL import Image
 from torchvision.models import ViT_B_16_Weights, vit_b_16
-from torchcam.methods import LayerCAM
+from torchcam.methods import GradCAM
 
 weights = ViT_B_16_Weights.DEFAULT
 model = vit_b_16(weights=weights).eval()
@@ -163,12 +163,28 @@ def reshape_transform(tensor):
     return patches.permute(0, 3, 1, 2)
 
 input_tensor = weights.transforms()(image).unsqueeze(0)
-target_layer = model.encoder.layers[-1].ln_1
+target_layer = model.encoder.layers[-2].ln_1
 
-with LayerCAM(model, target_layer, reshape_transform=reshape_transform) as extractor:
+with GradCAM(model, target_layer, reshape_transform=reshape_transform) as extractor:
     scores = model(input_tensor)
     cam = extractor(scores[0].argmax().item(), scores)[0]
 ```
+
+DeiT-Tiny follows the same pattern: target `model.blocks[-1].norm1`, drop `model.num_prefix_tokens`, and reshape
+the remaining tokens using `model.patch_embed.grid_size`.
+
+For a complete example without additional dependencies, run the official pretrained torchvision Swin-T
+(patch size 4, window size 7, input size 224) from the repository checkout:
+
+```bash
+uv run --extra scripts python scripts/cam_example.py \
+    --arch swin_t --method GradCAM \
+    --savefig swin_t_cam.png --noblock
+```
+
+The first run downloads the torchvision Swin-T weights. The script selects the model prediction and targets the
+final block's `norm2`. This layer retains a 7×7 channels-last spatial grid, so its transform only moves the channel
+axis before the spatial axes.
 
 The exact transform is architecture-specific: models may use a different patch grid or have additional prefix
 tokens such as a distillation token. Always specify `target_layer` when using `reshape_transform`. For a ViT,

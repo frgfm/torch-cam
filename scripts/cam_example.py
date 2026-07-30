@@ -9,6 +9,7 @@ CAM visualization
 
 import argparse
 import math
+from functools import partial
 from io import BytesIO
 
 import matplotlib.pyplot as plt
@@ -16,13 +17,36 @@ import requests
 import torch
 from PIL import Image
 from torchvision.models import get_model, get_model_weights
+from torchvision.models.swin_transformer import SwinTransformer
+from torchvision.models.vision_transformer import VisionTransformer
 from torchvision.transforms.functional import to_pil_image, to_tensor
 
 from torchcam import methods
 from torchcam.utils import overlay_mask
 
 
-def main(args):
+def vit_reshape_transform(tensor, grid_size):
+    patches = tensor[:, 1:, :].reshape(tensor.size(0), grid_size, grid_size, tensor.size(-1))
+    return patches.permute(0, 3, 1, 2)
+
+
+def swin_reshape_transform(tensor):
+    return tensor.permute(0, 3, 1, 2)
+
+
+def resolve_transformer_config(model, target_layer):
+    reshape_transform = None
+    if isinstance(model, VisionTransformer):
+        grid_size = model.image_size // model.patch_size
+        target_layer = target_layer or model.encoder.layers[-2].ln_1
+        reshape_transform = partial(vit_reshape_transform, grid_size=grid_size)
+    elif isinstance(model, SwinTransformer):
+        target_layer = target_layer or model.features[-1][-1].norm2
+        reshape_transform = swin_reshape_transform
+    return target_layer, reshape_transform
+
+
+def main(args):  # noqa: PLR0912
     if args.device is None:
         args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -30,7 +54,7 @@ def main(args):
 
     # Pretrained imagenet model
     weights = get_model_weights(args.arch).DEFAULT
-    model = get_model(args.arch, weights=weights).to(device=device)
+    model = get_model(args.arch, weights=weights).to(device=device).eval()
     # Freeze the model
     for p in model.parameters():
         p.requires_grad_(False)
@@ -44,8 +68,12 @@ def main(args):
     img_tensor = preprocess(to_tensor(pil_img)).to(device=device)
     img_tensor.requires_grad_(True)
 
+    target_layer, reshape_transform = resolve_transformer_config(model, args.target)
+
     if isinstance(args.method, str):
         cam_methods = args.method.split(",")
+    elif reshape_transform is not None:
+        cam_methods = ["GradCAM"]
     else:
         cam_methods = [
             "CAM",
@@ -60,7 +88,13 @@ def main(args):
         ]
     # Hook the corresponding layer in the model
     cam_extractors = [
-        methods.__dict__[name](model, target_layer=args.target, enable_hooks=False) for name in cam_methods
+        methods.__dict__[name](
+            model,
+            target_layer=target_layer,
+            enable_hooks=False,
+            reshape_transform=reshape_transform,
+        )
+        for name in cam_methods
     ]
 
     # Homogenize number of elements in each row
@@ -78,6 +112,8 @@ def main(args):
 
         # Select the class index
         class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
+        class_name = weights.meta["categories"][class_idx]
+        print(f"{extractor.__class__.__name__}: class {class_idx} ({class_name})")
 
         # Use the hooked data to compute activation map
         activation_map = extractor(class_idx, scores)[0].squeeze(0).cpu()
@@ -94,7 +130,7 @@ def main(args):
         ax = axes[idx // num_cols][idx % num_cols] if args.rows > 1 else axes[idx] if num_cols > 1 else axes
 
         ax.imshow(result)
-        ax.set_title(extractor.__class__.__name__, size=8)
+        ax.set_title(f"{extractor.__class__.__name__}: {class_name}", size=8)
 
     # Clear axes
     if num_cols > 1:
@@ -111,7 +147,8 @@ def main(args):
     plt.tight_layout()
     if args.savefig:
         plt.savefig(args.savefig, dpi=200, transparent=True, bbox_inches="tight", pad_inches=0)
-    plt.show(block=not args.noblock)
+    if not args.noblock:
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -126,7 +163,7 @@ if __name__ == "__main__":
         default="https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg",
         help="The image to extract CAM from",
     )
-    parser.add_argument("--class-idx", type=int, default=232, help="Index of the class to inspect")
+    parser.add_argument("--class-idx", type=int, default=None, help="Class index to inspect (defaults to prediction)")
     parser.add_argument(
         "--device",
         type=str,
