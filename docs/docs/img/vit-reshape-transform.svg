@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 650" role="img" aria-labelledby="title desc">
+  <title id="title">Turning Vision Transformer tokens into a spatial feature map</title>
+  <desc id="desc">Hook a layer before the final attention operation. Its token tensor contains prefix and patch tokens. Remove prefix tokens, reshape the patch sequence into its height-by-width grid, and move the embedding dimension before the spatial axes to produce the N by D by H by W tensor TorchCAM expects.</desc>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --ink: #262931;
+      --muted: #5b6470;
+      --line: #87919e;
+      --surface: #f3f5f7;
+      --surface-strong: #ffffff;
+      --brand: #850040;
+      --brand-soft: #f7e8ef;
+      --accent: #007784;
+      --accent-soft: #e2f4f5;
+      --danger: #b42318;
+      --danger-soft: #feeeec;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #f2f4f7;
+        --muted: #c2c8d0;
+        --line: #707987;
+        --surface: #252a32;
+        --surface-strong: #1c2026;
+        --brand: #ff8ab9;
+        --brand-soft: #472536;
+        --accent: #69d7e2;
+        --accent-soft: #183b40;
+        --danger: #ff938a;
+        --danger-soft: #482724;
+      }
+    }
+    text { fill: #262931; fill: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .title { font-size: 28px; font-weight: 700; }
+    .label { font-size: 19px; font-weight: 650; }
+    .small { fill: #5b6470; fill: var(--muted); font-size: 15px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; }
+    .panel { fill: #f3f5f7; fill: var(--surface); stroke: #87919e; stroke: var(--line); stroke-width: 1.5; }
+    .panel-strong { fill: #ffffff; fill: var(--surface-strong); stroke: #87919e; stroke: var(--line); stroke-width: 1.5; }
+    .selected { fill: #f7e8ef; fill: var(--brand-soft); stroke: #850040; stroke: var(--brand); stroke-width: 2.4; }
+    .accent-panel { fill: #e2f4f5; fill: var(--accent-soft); stroke: #007784; stroke: var(--accent); stroke-width: 2; }
+    .danger-panel { fill: #feeeec; fill: var(--danger-soft); stroke: #b42318; stroke: var(--danger); stroke-width: 1.5; }
+    .arrow { fill: none; stroke: #87919e; stroke: var(--line); stroke-width: 2.2; marker-end: url(#arrow); }
+    .brand-arrow { fill: none; stroke: #850040; stroke: var(--brand); stroke-width: 2.5; marker-end: url(#arrow-brand); }
+    .accent-arrow { fill: none; stroke: #007784; stroke: var(--accent); stroke-width: 2.5; marker-end: url(#arrow-accent); }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#87919e;fill:var(--line)"/>
+    </marker>
+    <marker id="arrow-brand" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#850040;fill:var(--brand)"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#007784;fill:var(--accent)"/>
+    </marker>
+  </defs>
+
+  <text class="title" x="20" y="38">From tokens to a spatial grid</text>
+  <text class="small" x="20" y="65">Two decisions: where to hook, then how to reshape</text>
+
+  <text class="label" x="20" y="105">1 · Hook before the final attention operation</text>
+  <rect class="panel" x="20" y="125" width="105" height="70" rx="9"/>
+  <text class="small" x="72.5" y="154" text-anchor="middle">patch</text>
+  <text class="small" x="72.5" y="176" text-anchor="middle">embedding</text>
+  <path class="arrow" d="M125 160 H145"/>
+  <rect class="panel" x="147" y="125" width="100" height="70" rx="9"/>
+  <text class="small" x="197" y="154" text-anchor="middle">transformer</text>
+  <text class="small" x="197" y="176" text-anchor="middle">blocks</text>
+  <path class="arrow" d="M247 160 H267"/>
+  <rect class="selected" x="269" y="115" width="155" height="90" rx="9"/>
+  <text class="label" x="346.5" y="150" text-anchor="middle">pre-final</text>
+  <text class="label" x="346.5" y="176" text-anchor="middle">attention layer</text>
+  <rect x="297" y="188" width="99" height="28" rx="14" style="fill:#850040;fill:var(--brand)"/>
+  <text x="346.5" y="207" text-anchor="middle" style="fill:#ffffff;fill:var(--surface-strong);font-size:14px;font-weight:700">HOOK HERE</text>
+  <path class="arrow" d="M424 160 H444"/>
+  <rect class="danger-panel" x="446" y="125" width="94" height="70" rx="9"/>
+  <text class="small" x="493" y="154" text-anchor="middle">completed</text>
+  <text class="small" x="493" y="176" text-anchor="middle">final block</text>
+  <path class="arrow" d="M540 160 H560"/>
+  <rect class="panel" x="562" y="125" width="58" height="70" rx="9"/>
+  <text class="small" x="591" y="154" text-anchor="middle">class</text>
+  <text class="small" x="591" y="176" text-anchor="middle">head</text>
+  <text x="493" y="231" text-anchor="middle" style="fill:#b42318;fill:var(--danger);font-size:14px;font-weight:650">patch-token gradients can be zero here</text>
+
+  <path class="brand-arrow" d="M346.5 216 V270"/>
+
+  <text class="label" x="20" y="291">2 · Apply reshape_transform</text>
+
+  <rect class="panel" x="20" y="312" width="180" height="220" rx="10"/>
+  <text class="label" x="110" y="344" text-anchor="middle">Hooked tokens</text>
+  <text class="mono" x="110" y="373" text-anchor="middle">(N, 1 + P, D)</text>
+  <rect x="40" y="403" width="48" height="45" rx="6" style="fill:#f7e8ef;fill:var(--brand-soft);stroke:#850040;stroke:var(--brand)" stroke-width="2"/>
+  <text class="mono" x="64" y="432" text-anchor="middle">CLS</text>
+  <rect class="panel-strong" x="96" y="403" width="35" height="45" rx="6"/>
+  <text class="mono" x="113.5" y="432" text-anchor="middle">p₁</text>
+  <rect class="panel-strong" x="139" y="403" width="35" height="45" rx="6"/>
+  <text class="mono" x="156.5" y="432" text-anchor="middle">p₂</text>
+  <text class="label" x="178" y="432">…</text>
+  <path d="M40 472 H174" style="stroke:#87919e;stroke:var(--line)" stroke-width="1.5"/>
+  <text class="small" x="107" y="497" text-anchor="middle">each token has D values</text>
+  <text class="small" x="107" y="519" text-anchor="middle">drop all prefix tokens</text>
+
+  <path class="brand-arrow" d="M200 421 H224"/>
+
+  <rect class="panel" x="226" y="312" width="180" height="220" rx="10"/>
+  <text class="label" x="316" y="344" text-anchor="middle">Patch grid</text>
+  <text class="mono" x="316" y="373" text-anchor="middle">(N, H, W, D)</text>
+  <g transform="translate(268 397)">
+    <rect class="panel-strong" x="0" y="0" width="32" height="32"/>
+    <rect class="panel-strong" x="32" y="0" width="32" height="32"/>
+    <rect class="panel-strong" x="64" y="0" width="32" height="32"/>
+    <rect class="panel-strong" x="0" y="32" width="32" height="32"/>
+    <rect x="32" y="32" width="32" height="32" style="fill:#e2f4f5;fill:var(--accent-soft);stroke:#007784;stroke:var(--accent)" stroke-width="1.5"/>
+    <rect class="panel-strong" x="64" y="32" width="32" height="32"/>
+    <rect class="panel-strong" x="0" y="64" width="32" height="32"/>
+    <rect class="panel-strong" x="32" y="64" width="32" height="32"/>
+    <rect class="panel-strong" x="64" y="64" width="32" height="32"/>
+  </g>
+  <text class="small" x="316" y="516" text-anchor="middle">reshape P → H × W</text>
+
+  <path class="accent-arrow" d="M406 421 H430"/>
+
+  <rect class="accent-panel" x="432" y="312" width="188" height="220" rx="10"/>
+  <text class="label" x="526" y="344" text-anchor="middle">CAM-ready tensor</text>
+  <text class="mono" x="526" y="373" text-anchor="middle">(N, D, H, W)</text>
+  <g transform="translate(478 397)">
+    <rect x="16" y="16" width="96" height="96" rx="5" style="fill:#ffffff;fill:var(--surface-strong);stroke:#87919e;stroke:var(--line)" stroke-width="1.5"/>
+    <path d="M48 16V112M80 16V112M16 48H112M16 80H112" style="stroke:#87919e;stroke:var(--line)" stroke-width="1"/>
+    <rect x="8" y="8" width="96" height="96" rx="5" style="fill:#e2f4f5;fill:var(--accent-soft);stroke:#007784;stroke:var(--accent)" stroke-width="1.5" opacity=".82"/>
+    <path d="M40 8V104M72 8V104M8 40H104M8 72H104" style="stroke:#007784;stroke:var(--accent)" stroke-width="1" opacity=".55"/>
+    <rect x="0" y="0" width="96" height="96" rx="5" fill="none" style="stroke:#850040;stroke:var(--brand)" stroke-width="2"/>
+  </g>
+  <text class="small" x="526" y="516" text-anchor="middle">D spatial channels</text>
+
+  <path d="M20 570 H620" style="stroke:#87919e;stroke:var(--line)" stroke-width="1"/>
+  <rect class="accent-panel" x="87" y="588" width="466" height="42" rx="9"/>
+  <text class="small" x="320" y="614" text-anchor="middle">Same structural transform for activations and gradients.</text>
+</svg>

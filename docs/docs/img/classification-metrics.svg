@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 560" role="img" aria-labelledby="title desc">
+  <title id="title">How Average Drop and Increase in Confidence evaluate a CAM</title>
+  <desc id="desc">The classifier scores the selected class on the original input and again on an input multiplied by its resized class activation map. Average Drop measures the relative confidence decrease, while Increase in Confidence records how often the masked input raises confidence.</desc>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --ink: #262931;
+      --muted: #5b6470;
+      --line: #87919e;
+      --surface: #f3f5f7;
+      --surface-strong: #ffffff;
+      --brand: #850040;
+      --brand-soft: #f7e8ef;
+      --accent: #007784;
+      --accent-soft: #e2f4f5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #f2f4f7;
+        --muted: #c2c8d0;
+        --line: #707987;
+        --surface: #252a32;
+        --surface-strong: #1c2026;
+        --brand: #ff8ab9;
+        --brand-soft: #472536;
+        --accent: #69d7e2;
+        --accent-soft: #183b40;
+      }
+    }
+    text { fill: #262931; fill: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .title { font-size: 28px; font-weight: 700; }
+    .label { font-size: 20px; font-weight: 650; }
+    .small { fill: #5b6470; fill: var(--muted); font-size: 16px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 18px; }
+    .panel { fill: #f3f5f7; fill: var(--surface); stroke: #87919e; stroke: var(--line); stroke-width: 1.5; }
+    .panel-strong { fill: #ffffff; fill: var(--surface-strong); stroke: #87919e; stroke: var(--line); stroke-width: 1.5; }
+    .brand-panel { fill: #f7e8ef; fill: var(--brand-soft); stroke: #850040; stroke: var(--brand); stroke-width: 2; }
+    .accent-panel { fill: #e2f4f5; fill: var(--accent-soft); stroke: #007784; stroke: var(--accent); stroke-width: 2; }
+    .arrow { fill: none; stroke: #87919e; stroke: var(--line); stroke-width: 2.3; marker-end: url(#arrow); }
+    .brand-arrow { fill: none; stroke: #850040; stroke: var(--brand); stroke-width: 2.5; marker-end: url(#arrow-brand); }
+    .accent-arrow { fill: none; stroke: #007784; stroke: var(--accent); stroke-width: 2.5; marker-end: url(#arrow-accent); }
+    .brand-fill { fill: #850040; fill: var(--brand); }
+    .accent-fill { fill: #007784; fill: var(--accent); }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#87919e;fill:var(--line)"/>
+    </marker>
+    <marker id="arrow-brand" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#850040;fill:var(--brand)"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" style="fill:#007784;fill:var(--accent)"/>
+    </marker>
+  </defs>
+
+  <text class="title" x="20" y="38">Does the CAM preserve the class evidence?</text>
+  <text class="small" x="20" y="65">Compare one selected class on the original and CAM-masked inputs</text>
+
+  <text class="label" x="20" y="108">Original input</text>
+  <rect class="panel-strong" x="20" y="124" width="150" height="102" rx="10"/>
+  <g transform="translate(47 140)">
+    <rect width="96" height="68" rx="5" style="fill:#e2f4f5;fill:var(--accent-soft);stroke:#007784;stroke:var(--accent)" stroke-width="1.5"/>
+    <circle class="accent-fill" cx="28" cy="24" r="10" opacity=".75"/>
+    <path d="M11 62 L38 34 L57 50 L72 31 L90 62" style="fill:#f7e8ef;fill:var(--brand-soft);stroke:#850040;stroke:var(--brand)" stroke-width="2"/>
+  </g>
+  <path class="arrow" d="M170 175 H213"/>
+  <rect class="panel" x="215" y="135" width="150" height="80" rx="10"/>
+  <text class="label" x="290" y="169" text-anchor="middle">Classifier</text>
+  <text class="small" x="290" y="195" text-anchor="middle">same model + class</text>
+  <path class="brand-arrow" d="M365 175 H408"/>
+  <rect class="brand-panel" x="410" y="135" width="210" height="80" rx="10"/>
+  <text class="small" x="515" y="163" text-anchor="middle">baseline confidence</text>
+  <text class="mono" x="515" y="195" text-anchor="middle">p</text>
+
+  <text class="label" x="20" y="268">CAM-masked input</text>
+  <rect class="accent-panel" x="20" y="284" width="150" height="102" rx="10"/>
+  <g transform="translate(47 300)">
+    <rect width="96" height="68" rx="5" style="fill:#ffffff;fill:var(--surface-strong);stroke:#007784;stroke:var(--accent)" stroke-width="1.5"/>
+    <rect class="accent-fill" x="0" y="0" width="24" height="17" opacity=".12"/>
+    <rect class="accent-fill" x="24" y="0" width="24" height="17" opacity=".3"/>
+    <rect class="brand-fill" x="48" y="0" width="24" height="17" opacity=".2"/>
+    <rect class="brand-fill" x="72" y="0" width="24" height="17" opacity=".12"/>
+    <rect class="accent-fill" x="0" y="17" width="24" height="17" opacity=".22"/>
+    <rect class="brand-fill" x="24" y="17" width="24" height="17" opacity=".55"/>
+    <rect class="brand-fill" x="48" y="17" width="24" height="17" opacity=".84"/>
+    <rect class="brand-fill" x="72" y="17" width="24" height="17" opacity=".25"/>
+    <rect class="accent-fill" x="0" y="34" width="24" height="17" opacity=".15"/>
+    <rect class="brand-fill" x="24" y="34" width="24" height="17" opacity=".44"/>
+    <rect class="brand-fill" x="48" y="34" width="24" height="17" opacity=".72"/>
+    <rect class="accent-fill" x="72" y="34" width="24" height="17" opacity=".18"/>
+    <rect class="accent-fill" x="0" y="51" width="24" height="17" opacity=".08"/>
+    <rect class="accent-fill" x="24" y="51" width="24" height="17" opacity=".2"/>
+    <rect class="brand-fill" x="48" y="51" width="24" height="17" opacity=".3"/>
+    <rect class="accent-fill" x="72" y="51" width="24" height="17" opacity=".1"/>
+  </g>
+  <text class="small" x="95" y="377" text-anchor="middle">input × CAM</text>
+  <path class="arrow" d="M170 335 H213"/>
+  <rect class="panel" x="215" y="295" width="150" height="80" rx="10"/>
+  <text class="label" x="290" y="329" text-anchor="middle">Classifier</text>
+  <text class="small" x="290" y="355" text-anchor="middle">same model + class</text>
+  <path class="accent-arrow" d="M365 335 H408"/>
+  <rect class="accent-panel" x="410" y="295" width="210" height="80" rx="10"/>
+  <text class="small" x="515" y="323" text-anchor="middle">masked confidence</text>
+  <text class="mono" x="515" y="355" text-anchor="middle">p_CAM</text>
+
+  <text class="small" x="320" y="415" text-anchor="middle">Compare p and p_CAM over the dataset</text>
+
+  <rect class="brand-panel" x="20" y="432" width="290" height="108" rx="10"/>
+  <text class="label" x="165" y="464" text-anchor="middle">Average Drop ↓</text>
+  <text class="mono" x="165" y="496" text-anchor="middle">max(0, p − p_CAM) / p</text>
+  <text class="small" x="165" y="525" text-anchor="middle">mean relative decrease · lower is better</text>
+
+  <rect class="accent-panel" x="330" y="432" width="290" height="108" rx="10"/>
+  <text class="label" x="475" y="464" text-anchor="middle">Increase in Confidence ↑</text>
+  <text class="mono" x="475" y="496" text-anchor="middle">1 when p_CAM &gt; p</text>
+  <text class="small" x="475" y="525" text-anchor="middle">dataset frequency · higher is better</text>
+</svg>

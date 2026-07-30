@@ -16,6 +16,9 @@ through the model, so the forward pass **must build an autograd graph**. The err
 disabled during the forward — almost always because it ran inside `torch.no_grad()` or `torch.inference_mode()`
 (or because *every* model parameter has `requires_grad=False`).
 
+The [quick-start extraction diagram](../index.md#quick-start) shows this as the dotted backward path:
+`no_grad()` prevents that path from reaching the target layer.
+
 !!! failure "Disables autograd — the gradient hook cannot attach"
     ```python
     from torchcam.methods import GradCAM

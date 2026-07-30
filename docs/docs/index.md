@@ -57,6 +57,8 @@ with LayerCAM(model) as cam_extractor:
 
 `class_idx` (the first argument) is the index in the model's output logits of the class to explain; `argmax` picks the top prediction, but any class index works. The call returns one activation map per target layer. See [Advanced usage](getting-started/advanced-usage.md) for batches, custom models and method selection.
 
+![TorchCAM extraction flow from model input and target-layer hooks to a class activation map.](img/cam-extraction-flow.svg)
+
 Display it:
 
 ```python hl_lines="3 6"

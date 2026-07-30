@@ -55,6 +55,8 @@ A CAM is computed on the activation map of a **convolutional (spatial)** layer. 
 convolutional layer before global pooling — is the most class-discriminative but also the coarsest. Earlier
 layers give finer, less semantic maps. Rules of thumb for common torchvision backbones:
 
+![The target-layer trade-off between spatial detail and class specificity across a convolutional network.](../img/target-layer-tradeoff.svg)
+
 | Architecture          | Typical `target_layer`   | `fc_layer` for `CAM`                 |
 | --------------------- | ------------------------ | ------------------------------------ |
 | ResNet / ResNeXt      | `"layer4"`               | `"fc"`                               |
@@ -164,6 +166,8 @@ do not apply directly and automatic `target_layer` resolution cannot infer the t
 Use `reshape_transform` to convert the hooked tokens and their gradients back to a spatial grid. For a torchvision
 ViT, drop the class token, reshape the remaining patch tokens, and move the embedding dimension before the spatial
 dimensions:
+
+![A Vision Transformer hook and reshape transform converting patch tokens into a spatial feature tensor.](../img/vit-reshape-transform.svg)
 
 ```python
 from PIL import Image
