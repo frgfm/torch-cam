@@ -35,7 +35,7 @@ $ uv venv --python 3.11
 === "Latest"
 
     ```bash
-    $ uv pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
+    $ uv pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
     ```
 
 
@@ -52,7 +52,7 @@ You'll need [Python](https://www.python.org/downloads/) 3.11 or higher, and a pa
 === "Latest"
 
     ```bash
-    $ uv pip install --system torchcam @ git+https://github.com/frgfm/torch-cam.git
+    $ uv pip install --system "torchcam @ git+https://github.com/frgfm/torch-cam.git"
     ```
 
 === "Stable (pip)"
@@ -64,7 +64,7 @@ You'll need [Python](https://www.python.org/downloads/) 3.11 or higher, and a pa
 === "Latest (pip)"
 
     ```bash
-    $ pip install torchcam @ git+https://github.com/frgfm/torch-cam.git
+    $ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
     ```
 
 !!! info
