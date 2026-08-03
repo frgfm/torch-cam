@@ -167,6 +167,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 - [IS-CAM](https://arxiv.org/abs/2010.03023)：Score-CAM 的积分变体。
 - [XGrad-CAM](https://arxiv.org/abs/2008.02312)：在敏感性和守恒性方面改进的 Grad-CAM。
 - [Layer-CAM](http://mftp.mmcheng.net/Papers/21TIP_LayerCAM.pdf)：Grad-CAM 的替代方案，利用梯度对激活的逐像素贡献。
+- [RefineCAM](https://arxiv.org/abs/2605.14641)：融合多个网络层以生成高分辨率类激活图。
 
 *不知道该用哪一种？请参阅[如何选择 CAM 方法](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#choosing-a-cam-method)。*
 

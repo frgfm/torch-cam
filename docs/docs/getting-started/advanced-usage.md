@@ -86,6 +86,17 @@ with LayerCAM(model, ["layer2", "layer3", "layer4"]) as cam_extractor:
     fused = cam_extractor.fuse_cams(cams)       # single fused map
 ```
 
+`RefineCAM` formalizes multi-layer fusion by normalizing and multiplying the maps. It requires at least two target
+layers and uses `GradCAMpp` as its base method by default. Pass another extractor class to reuse its weighting:
+
+```python
+from torchcam.methods import LayerCAM, RefineCAM
+
+with RefineCAM(model, ["layer2", "layer3", "layer4"], base_method=LayerCAM) as cam_extractor:
+    out = model(input_tensor)
+    refined = cam_extractor(out.squeeze(0).argmax().item(), out)[0]
+```
+
 ## Understanding `class_idx` and the call signature
 
 ```python
@@ -101,7 +112,8 @@ cam_extractor(class_idx, scores=None, normalized=True)
   visualization/overlay. Pass `normalized=False` to get the raw weighted maps, e.g. when comparing magnitudes
   across layers before fusing them yourself.
 - **Returns** a `list` of activation maps, **one tensor per hooked layer**, each of shape `(N, H, W)`. With a
-  single layer and a single image, the map you want is `cams[0].squeeze(0)`.
+  single layer and a single image, the map you want is `cams[0].squeeze(0)`. `RefineCAM` instead returns a
+  one-element list containing its final fused map.
 
 Gradient-based extractors also accept `retain_graph=True` (forwarded to `loss.backward`), needed when you call
 the extractor several times after a single forward — see
@@ -243,6 +255,7 @@ extra spatial dimension). Note that `overlay_mask` works on 2D PIL images, so ov
 | `CAM`                       | no              | cheapest                 | needs global pooling + a **single** `nn.Linear` head (e.g. ResNet); fails on multi-FC heads like VGG |
 | `GradCAM`                   | yes             | one backward pass        | robust default for most CNNs |
 | `LayerCAM`                  | yes             | one backward pass        | best localization in our benchmark; ideal when fusing layers |
+| `RefineCAM`                 | depends on base | base method + cheap fusion | high-resolution fusion across at least two layers; defaults to `GradCAMpp` |
 | `GradCAMpp` / `XGradCAM`    | yes             | one backward pass        | alternative weighting schemes |
 | `SmoothGradCAMpp`           | yes             | `num_samples` forwards   | sharper maps via noise averaging |
 | `ScoreCAM` / `SSCAM` / `ISCAM` | no           | many forwards (slow)     | gradient-free; tune `batch_size`; useful when gradients are unavailable |

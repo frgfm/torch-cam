@@ -87,6 +87,7 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
    * Smooth Grad-CAM++ from ["Smooth Grad-CAM++: An Enhanced Inference Level Visualization Technique for Deep Convolutional Neural Network Models"](https://arxiv.org/pdf/1908.01224.pdf)
    * X-Grad-CAM from ["Axiom-based Grad-CAM: Towards Accurate Visualization and Explanation of CNNs"](https://arxiv.org/pdf/2008.02312.pdf)
    * Layer-CAM from ["LayerCAM: Exploring Hierarchical Class Activation Maps for Localization"](http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf)
+   * RefineCAM from ["How to Evaluate and Refine your CAM"](https://arxiv.org/abs/2605.14641)
 
 ## Next steps
 
