@@ -5,8 +5,9 @@
 
 from contextlib import AbstractContextManager
 from functools import partial
+from math import isfinite
 from types import TracebackType
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import torch
 from torch import Tensor, nn
@@ -14,7 +15,7 @@ from torch.nn import functional as F
 
 from .core import _CAM
 
-__all__ = ["GradCAM", "GradCAMpp", "LayerCAM", "RefineCAM", "SmoothGradCAMpp", "XGradCAM"]
+__all__ = ["FinerCAM", "GradCAM", "GradCAMpp", "LayerCAM", "RefineCAM", "SmoothGradCAMpp", "XGradCAM"]
 
 
 class _GradCAM(_CAM):
@@ -458,7 +459,55 @@ class LayerCAM(_GradCAM):
         return [torch.tanh(gamma * cam) for cam in cams]
 
 
-class RefineCAM:
+class _CAMWrapper:
+    """Delegate CAM extractor metadata and lifecycle without duplicating hooks."""
+
+    def __init__(self, base_cam: _CAM) -> None:
+        self.base_cam = base_cam
+
+    @property
+    def model(self) -> nn.Module:
+        """The model wrapped by the base extractor."""
+        return self.base_cam.model
+
+    @property
+    def target_names(self) -> list[str]:
+        """The target layer names used by the base extractor."""
+        return self.base_cam.target_names
+
+    def enable_hooks(self) -> None:
+        """Enable the base extractor hooks."""
+        self.base_cam.enable_hooks()
+
+    def disable_hooks(self) -> None:
+        """Disable the base extractor hooks."""
+        self.base_cam.disable_hooks()
+
+    def reset_hooks(self) -> None:
+        """Clear the activations and gradients stored by the base extractor."""
+        self.base_cam.reset_hooks()
+
+    def remove_hooks(self) -> None:
+        """Remove the base extractor hooks from the model."""
+        self.base_cam.remove_hooks()
+
+    def _hooks_off(self) -> AbstractContextManager[None]:
+        return self.base_cam._hooks_off()  # noqa: SLF001
+
+    def __enter__(self) -> Self:
+        self.base_cam.__enter__()
+        return self
+
+    def __exit__(
+        self,
+        exct_type: type[BaseException] | None,
+        exce_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.base_cam.__exit__(exct_type, exce_value, traceback)
+
+
+class RefineCAM(_CAMWrapper):
     r"""Implements the multi-layer refinement described in ["How to Evaluate and Refine your CAM"](
     https://arxiv.org/abs/2605.14641).
 
@@ -498,49 +547,7 @@ class RefineCAM:
         if not isinstance(base_method, type) or not issubclass(base_method, _CAM):
             raise TypeError("base_method must be a CAM extractor class")
 
-        self.base_cam = base_method(model, target_layer, input_shape=input_shape, **base_kwargs)
-
-    @property
-    def model(self) -> nn.Module:
-        """The model wrapped by the base extractor."""
-        return self.base_cam.model
-
-    @property
-    def target_names(self) -> list[str]:
-        """The target layer names used by the base extractor."""
-        return self.base_cam.target_names
-
-    def enable_hooks(self) -> None:
-        """Enable the base extractor hooks."""
-        self.base_cam.enable_hooks()
-
-    def disable_hooks(self) -> None:
-        """Disable the base extractor hooks."""
-        self.base_cam.disable_hooks()
-
-    def reset_hooks(self) -> None:
-        """Clear the activations and gradients stored by the base extractor."""
-        self.base_cam.reset_hooks()
-
-    def remove_hooks(self) -> None:
-        """Remove the base extractor hooks from the model."""
-        self.base_cam.remove_hooks()
-
-    def _hooks_off(self) -> AbstractContextManager[None]:
-        return self.base_cam._hooks_off()  # noqa: SLF001
-
-    def __enter__(self) -> Self:
-        """Return the RefineCAM context manager."""  # noqa: DOC201
-        return self
-
-    def __exit__(
-        self,
-        exct_type: type[BaseException] | None,
-        exce_value: BaseException | None,
-        traceback: TracebackType | None,
-    ) -> None:
-        """Remove and reset the base extractor hooks."""
-        self.base_cam.__exit__(exct_type, exce_value, traceback)
+        super().__init__(base_method(model, target_layer, input_shape=input_shape, **base_kwargs))
 
     def __call__(
         self,
@@ -602,3 +609,185 @@ class RefineCAM:
     def __repr__(self) -> str:
         """Return the RefineCAM representation."""  # noqa: DOC201
         return f"RefineCAM(base_method={self.base_cam.__class__.__name__}, target_layer={self.target_names})"
+
+
+class FinerCAM(_CAMWrapper):
+    r"""Implements ["Finer-CAM: Spotting the Difference Reveals Finer Details for Visual Explanation"](
+    https://arxiv.org/abs/2501.11309).
+
+    Finer-CAM changes the base extractor objective from the target score $y_c$ to the contrastive objective
+
+    $$
+    y_c - \gamma \frac{1}{T} \sum\limits_{t=1}^{T} y_{d_t},
+    $$
+
+    so comparisons are aggregated before the base method's final CAM ReLU. Automatic references are the classes
+    with scores closest to the target score. The target is always excluded, and the requested count is capped by the
+    available classes. Only GradCAM, GradCAMpp, and LayerCAM are supported initially.
+
+    Example:
+        ```python
+        from torchvision.models import get_model, get_model_weights
+        from torchcam.methods import FinerCAM, LayerCAM
+        model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+        with FinerCAM(model, "layer4", base_method=LayerCAM) as cam_extractor:
+            scores = model(input_tensor)
+            cams = cam_extractor(class_idx=100, scores=scores, comparison_idx=[101, 102, 103])
+        ```
+
+    Args:
+        model: input model
+        target_layer: either the target layer itself or its name, or a list of those
+        input_shape: shape of the expected input tensor excluding the batch dimension
+        base_method: gradient CAM extractor used to produce the maps
+        gamma: comparison strength applied to the mean reference score
+        num_references: number of automatic references to select, capped by the available non-target classes
+        base_kwargs: keyword arguments forwarded to ``base_method``
+    """
+
+    def __init__(
+        self,
+        model: nn.Module,
+        target_layer: nn.Module | str | list[nn.Module | str] | None = None,
+        input_shape: tuple[int, ...] = (3, 224, 224),
+        *,
+        base_method: type[GradCAM] | type[GradCAMpp] | type[LayerCAM] = GradCAM,
+        gamma: float = 0.6,
+        num_references: int = 3,
+        **base_kwargs: Any,
+    ) -> None:
+        if base_method not in {GradCAM, GradCAMpp, LayerCAM}:
+            raise TypeError("base_method must be GradCAM, GradCAMpp, or LayerCAM")
+        if isinstance(gamma, bool) or not isinstance(gamma, int | float):
+            raise TypeError("gamma must be a real number")
+        if not isfinite(gamma) or gamma < 0:
+            raise ValueError("gamma must be finite and non-negative")
+        if isinstance(num_references, bool) or not isinstance(num_references, int):
+            raise TypeError("num_references must be an integer")
+        if num_references < 1:
+            raise ValueError("num_references must be positive")
+
+        self.gamma = float(gamma)
+        self.num_references = num_references
+        super().__init__(base_method(model, target_layer, input_shape=input_shape, **base_kwargs))
+
+    @staticmethod
+    def _target_indices(class_idx: int | list[int], scores: Tensor) -> tuple[list[int], Tensor]:
+        batch_size, num_classes = scores.shape
+        if isinstance(class_idx, int) and not isinstance(class_idx, bool):
+            targets = [class_idx] * batch_size
+        elif isinstance(class_idx, list):
+            if len(class_idx) != batch_size:
+                raise ValueError("expected batch size and length of `class_idx` to be the same")
+            if any(isinstance(idx, bool) or not isinstance(idx, int) for idx in class_idx):
+                raise TypeError("class_idx must contain integers")
+            targets = class_idx
+        else:
+            raise TypeError("class_idx must be an integer or a list of integers")
+        if any(idx < 0 or idx >= num_classes for idx in targets):
+            raise ValueError("class_idx contains an out-of-range index")
+        return targets, torch.tensor(targets, device=scores.device).view(-1, 1)
+
+    @staticmethod
+    def _explicit_reference_rows(comparison_idx: int | list[int] | list[list[int]], batch_size: int) -> list[list[int]]:
+        if isinstance(comparison_idx, int) and not isinstance(comparison_idx, bool):
+            return [[comparison_idx]] * batch_size
+        if not isinstance(comparison_idx, list):
+            raise TypeError("comparison_idx must be an integer, a list, or a nested list")
+        if not comparison_idx:
+            raise ValueError("comparison_idx cannot be empty")
+        if all(isinstance(row, list) for row in comparison_idx):
+            references = cast(list[list[int]], comparison_idx)
+            if len(references) != batch_size:
+                raise ValueError("per-sample comparison_idx must match the batch size")
+            if any(not row for row in references):
+                raise ValueError("comparison_idx rows cannot be empty")
+            if len({len(row) for row in references}) != 1:
+                raise ValueError("per-sample comparison_idx rows must have equal lengths")
+            return references
+        if all(isinstance(idx, int) and not isinstance(idx, bool) for idx in comparison_idx):
+            return [cast(list[int], comparison_idx)] * batch_size
+        raise TypeError("comparison_idx must contain integers or lists of integers")
+
+    def _reference_indices(
+        self,
+        comparison_idx: int | list[int] | list[list[int]] | None,
+        scores: Tensor,
+        targets: list[int],
+        target_indices: Tensor,
+    ) -> Tensor:
+        batch_size, num_classes = scores.shape
+        if comparison_idx is None:
+            reference_count = min(self.num_references, num_classes - 1)
+            distances = (scores.detach() - scores.detach().gather(1, target_indices)).abs()
+            distances.scatter_(1, target_indices, float("inf"))
+            return distances.topk(reference_count, dim=1, largest=False).indices
+
+        references = self._explicit_reference_rows(comparison_idx, batch_size)
+        for sample_idx, (target, row) in enumerate(zip(targets, references, strict=True)):
+            if any(isinstance(idx, bool) or not isinstance(idx, int) for idx in row):
+                raise TypeError("comparison_idx must contain integers")
+            if any(idx < 0 or idx >= num_classes for idx in row):
+                raise ValueError(f"comparison_idx contains an out-of-range index for sample {sample_idx}")
+            if len(set(row)) != len(row):
+                raise ValueError(f"comparison_idx contains duplicates for sample {sample_idx}")
+            if target in row:
+                raise ValueError(f"comparison_idx contains the target class for sample {sample_idx}")
+        return torch.tensor(references, device=scores.device)
+
+    def _contrastive_scores(
+        self,
+        class_idx: int | list[int],
+        scores: Tensor | None,
+        comparison_idx: int | list[int] | list[list[int]] | None,
+    ) -> Tensor:
+        if scores is None:
+            raise ValueError("model output scores is required to compute FinerCAM")
+        if not isinstance(scores, Tensor):
+            raise TypeError("scores must be a tensor")
+        if scores.ndim != 2 or scores.shape[0] < 1:
+            raise ValueError("scores must have shape (batch_size, num_classes)")
+        if scores.shape[1] < 2:
+            raise ValueError("FinerCAM requires at least one comparison class")
+
+        targets, target_indices = self._target_indices(class_idx, scores)
+        reference_indices = self._reference_indices(comparison_idx, scores, targets, target_indices)
+        target_scores = scores.gather(1, target_indices)
+        reference_scores = scores.gather(1, reference_indices).mean(dim=1, keepdim=True)
+        return target_scores - self.gamma * reference_scores
+
+    def __call__(
+        self,
+        class_idx: int | list[int],
+        scores: Tensor | None = None,
+        comparison_idx: int | list[int] | list[list[int]] | None = None,
+        normalized: bool = True,
+        **kwargs: Any,
+    ) -> list[Tensor]:
+        """Compute Finer-CAMs for the target and comparison classes."""  # noqa: DOC201
+        contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
+        # The contrastive objective is the sole score column, at class index 0.
+        return self.base_cam([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
+
+    def compute_cams(
+        self,
+        class_idx: int | list[int],
+        scores: Tensor | None = None,
+        comparison_idx: int | list[int] | list[list[int]] | None = None,
+        normalized: bool = True,
+        **kwargs: Any,
+    ) -> list[Tensor]:
+        """Compute Finer-CAMs without the base extractor precheck."""  # noqa: DOC201
+        contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
+        return self.base_cam.compute_cams([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
+
+    def fuse_cams(self, cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor:
+        """Fuse maps using the selected base extractor."""  # noqa: DOC201
+        return self.base_cam.fuse_cams(cams, target_shape)
+
+    def __repr__(self) -> str:
+        """Return the FinerCAM representation."""  # noqa: DOC201
+        return (
+            f"FinerCAM(base_method={self.base_cam.__class__.__name__}, target_layer={self.target_names}, "
+            f"gamma={self.gamma}, num_references={self.num_references})"
+        )
