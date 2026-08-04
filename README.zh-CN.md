@@ -168,6 +168,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 - [XGrad-CAM](https://arxiv.org/abs/2008.02312)：在敏感性和守恒性方面改进的 Grad-CAM。
 - [Layer-CAM](http://mftp.mmcheng.net/Papers/21TIP_LayerCAM.pdf)：Grad-CAM 的替代方案，利用梯度对激活的逐像素贡献。
 - [Finer-CAM](https://arxiv.org/abs/2501.11309)：通过对比相似类别突出细粒度差异的 CAM 目标。
+- [LeGrad](https://arxiv.org/abs/2404.03214)：利用视觉 Transformer 各层注意力概率的正梯度生成解释图。
 - [RefineCAM](https://arxiv.org/abs/2605.14641)：融合多个网络层以生成高分辨率类激活图。
 
 *不知道该用哪一种？请参阅[如何选择 CAM 方法](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#choosing-a-cam-method)。*
