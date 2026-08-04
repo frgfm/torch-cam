@@ -13,7 +13,14 @@ on:
       - '.github/workflows/demo.yml'
       - 'demo/**'
       - 'pyproject.toml'
-  workflow_dispatch:  # Allow manual trigger from Actions tab
+  workflow_dispatch:  # Allow trusted manual runs from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'trusted' }}
+  cancel-in-progress: true
 
 env:
   PYTHON_VERSION: "3.11"
@@ -36,21 +43,78 @@ jobs:
         env:
           UV_TORCH_BACKEND: cpu
         run: make install-demo
-      - name: Run demo app
+      - name: Run demo smoke check
+        run: uv run python demo/smoke.py
+      - name: Start demo and wait for health
+        shell: bash
         run: |
-          screen -dm streamlit run demo/app.py --server.port 8080
-          sleep 10 && nc -vz localhost 8080
+          set -euo pipefail
+          log_file="${RUNNER_TEMP}/torchcam-demo.log"
+          uv run streamlit run demo/app.py \
+            --server.headless true \
+            --server.port 8080 \
+            >"${log_file}" 2>&1 &
+          server_pid=$!
+
+          cleanup() {
+            kill "${server_pid}" 2>/dev/null || true
+            wait "${server_pid}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          if ! python - <<'PY'
+          import time
+          from urllib.request import urlopen
+
+          url = "http://127.0.0.1:8080/_stcore/health"
+          deadline = time.monotonic() + 60
+          last_error = None
+          while time.monotonic() < deadline:
+              try:
+                  with urlopen(url, timeout=2) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except OSError as exc:
+                  last_error = exc
+              time.sleep(1)
+          raise SystemExit(f"Streamlit health check timed out: {last_error}")
+          PY
+          then
+            cat "${log_file}"
+            exit 1
+          fi
 
   sync-to-hub:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          lfs: true
-      - name: Push to hub
+      - name: Sync demo to existing Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://frgfm:$HF_TOKEN@huggingface.co/spaces/frgfm/torch-cam main
+        shell: bash
+        run: |
+          set -euo pipefail
+          space_dir="$(mktemp -d)"
+          trap 'rm -rf "${space_dir}"' EXIT
+
+          git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
+          mkdir -p "${space_dir}/src"
+          cp demo/app.py "${space_dir}/src/streamlit_app.py"
+          printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
+            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" \
+            >"${space_dir}/requirements.txt"
+
+          git -C "${space_dir}" config user.name "github-actions[bot]"
+          git -C "${space_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${space_dir}" add requirements.txt src
+          if git -C "${space_dir}" diff --cached --quiet; then
+            echo "Space already matches ${GITHUB_SHA}."
+            exit 0
+          fi
+
+          git -C "${space_dir}" commit -m "sync(demo): ${GITHUB_SHA::7}"
+          git -C "${space_dir}" push \
+            "https://frgfm:${HF_TOKEN}@huggingface.co/spaces/frgfm/torch-cam" \
+            HEAD:main
