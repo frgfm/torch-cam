@@ -1,9 +1,12 @@
+from functools import partial
+
 import pytest
 import torch
 from torch import nn
 from torchvision.models import get_model
 
-from torchcam.methods import gradient
+from torchcam.methods import activation, gradient
+from torchcam.metrics import ClassificationMetric
 
 
 def _verify_cam(activation_map, output_size):
@@ -11,6 +14,18 @@ def _verify_cam(activation_map, output_size):
     assert isinstance(activation_map, torch.Tensor)
     assert activation_map.shape == output_size
     assert not torch.isnan(activation_map).any()
+
+
+def _tiny_model():
+    return nn.Sequential(
+        nn.Conv2d(3, 4, 3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(4, 4, 3, padding=1),
+        nn.ReLU(),
+        nn.AdaptiveAvgPool2d((1, 1)),
+        nn.Flatten(1),
+        nn.Linear(4, 3),
+    ).eval()
 
 
 @pytest.mark.parametrize(
@@ -112,6 +127,75 @@ def test_layercam_fuse_cams():
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (1, 16, 16)
+
+
+def test_refinecam_fuse_cams():
+    cams = [
+        torch.tensor([[[0.0, 1.0], [2.0, 3.0]]]),
+        torch.tensor([[[3.0, 2.0], [1.0, 0.0]]]),
+    ]
+    originals = [cam.clone() for cam in cams]
+
+    assert torch.allclose(
+        gradient.RefineCAM.fuse_cams(cams, normalized=False),
+        torch.tensor([[[0.0, 2 / 9], [2 / 9, 0.0]]]),
+    )
+    assert torch.allclose(
+        gradient.RefineCAM.fuse_cams(cams),
+        torch.tensor([[[0.0, 1.0], [1.0, 0.0]]]),
+    )
+    assert all(map(torch.equal, cams, originals))
+
+    larger_cam = torch.arange(16, dtype=torch.float32).reshape(1, 4, 4)
+    assert gradient.RefineCAM.fuse_cams([cams[0], larger_cam]).shape == (1, 4, 4)
+    assert gradient.RefineCAM.fuse_cams([cams[0], larger_cam], (2, 2)).shape == (1, 2, 2)
+    assert gradient.RefineCAM.fuse_cams(cams[:1]).shape == cams[0].shape
+
+    volume = torch.arange(8, dtype=torch.float32).reshape(1, 2, 2, 2)
+    assert gradient.RefineCAM.fuse_cams([volume, volume.flip(-1)]).shape == volume.shape
+
+    with pytest.raises(TypeError):
+        gradient.RefineCAM.fuse_cams(torch.zeros((1, 2, 2)))
+    with pytest.raises(ValueError):
+        gradient.RefineCAM.fuse_cams([])
+
+
+@pytest.mark.parametrize("base_method", [gradient.GradCAMpp, gradient.LayerCAM, activation.ScoreCAM])
+def test_refinecam_base_methods(base_method):
+    model = _tiny_model()
+    input_tensor = torch.rand((2, 3, 8, 8))
+
+    with gradient.RefineCAM(model, ["0", "2"], base_method=base_method) as extractor:
+        scores = model(input_tensor)
+        cams = extractor([0, 1], scores)
+        assert len(cams) == 1
+        _verify_cam(cams[0], (2, 8, 8))
+        assert extractor.model is model
+        assert extractor.target_names == ["0", "2"]
+        assert repr(extractor) == f"RefineCAM(base_method={base_method.__name__}, target_layer=['0', '2'])"
+
+    assert extractor.base_cam.hook_handles == []
+
+
+def test_refinecam_metric_compatibility():
+    model = _tiny_model()
+    input_tensor = torch.rand((1, 3, 8, 8))
+
+    with gradient.RefineCAM(model, ["0", "2"]) as extractor:
+        metric = ClassificationMetric(extractor, partial(torch.softmax, dim=-1))
+        metric.update(input_tensor)
+        summary = metric.summary()
+
+    assert set(summary) == {"avg_drop", "conf_increase"}
+
+
+def test_refinecam_rejects_invalid_configuration():
+    model = _tiny_model()
+
+    with pytest.raises(ValueError, match="at least two target layers"):
+        gradient.RefineCAM(model, ["0"])
+    with pytest.raises(TypeError, match="CAM extractor class"):
+        gradient.RefineCAM(model, ["0", "2"], base_method=nn.Module)
 
 
 def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):

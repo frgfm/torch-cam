@@ -4,11 +4,26 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 from collections.abc import Callable
-from typing import cast
+from contextlib import AbstractContextManager
+from typing import Any, Protocol, cast
 
 import torch
 
-from .methods.core import _CAM
+
+class _CAMExtractor(Protocol):
+    model: torch.nn.Module
+
+    def __call__(
+        self,
+        class_idx: int | list[int],
+        scores: torch.Tensor | None = None,
+        normalized: bool = True,
+        **kwargs: Any,
+    ) -> list[torch.Tensor]: ...
+
+    def fuse_cams(self, cams: list[torch.Tensor]) -> torch.Tensor: ...
+
+    def _hooks_off(self) -> AbstractContextManager[None]: ...
 
 
 class ClassificationMetric:
@@ -59,7 +74,7 @@ class ClassificationMetric:
 
     def __init__(
         self,
-        cam_extractor: _CAM,
+        cam_extractor: _CAMExtractor,
         logits_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
     ) -> None:
         # This is a typa, I don't know how to rites
