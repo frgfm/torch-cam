@@ -140,7 +140,6 @@ class ClassificationMetric:
         cam_extractor: _CAMExtractor,
         logits_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
     ) -> None:
-        # This is a typa, I don't know how to rites
         self.cam_extractor = cam_extractor
         self.logits_fn = logits_fn
         self.reset()
@@ -297,6 +296,7 @@ class DeletionInsertionMetric:
         interior_jobs = [
             (curve_idx, point_idx, count) for point_idx, count in enumerate(counts[1:-1], 1) for curve_idx in range(2)
         ]
+        # Curve 2 is the all-baseline input shared by deletion's final point and insertion's first.
         jobs = [
             (sample_idx, curve_idx, point_idx, count)
             for sample_idx in range(input_tensor.shape[0])
