@@ -277,27 +277,6 @@ class DeletionInsertionMetric:
         except RuntimeError as exc:
             raise ValueError("baseline must be broadcastable to the input shape") from exc
 
-    def _score_perturbations(
-        self,
-        input_tensor: torch.Tensor,
-        baseline: torch.Tensor,
-        ranks: torch.Tensor,
-        target_indices: torch.Tensor,
-        jobs: list[tuple[int, int, int, int]],
-    ) -> torch.Tensor:
-        sample_indices = torch.tensor([job[0] for job in jobs], device=input_tensor.device)
-        curve_indices = torch.tensor([job[1] for job in jobs], device=input_tensor.device)
-        perturb_counts = torch.tensor([job[3] for job in jobs], device=input_tensor.device)
-        relevant = ranks[sample_indices] < perturb_counts.unsqueeze(1)
-        use_original = torch.where(curve_indices.unsqueeze(1) == 1, relevant, ~relevant)
-        perturbed = torch.where(
-            use_original.unsqueeze(1),
-            input_tensor.flatten(2)[sample_indices],
-            baseline.flatten(2)[sample_indices],
-        ).reshape((-1, *input_tensor.shape[1:]))
-        scores = _get_scores(self.cam_extractor, self.logits_fn, perturbed)
-        return scores.gather(1, target_indices[sample_indices].unsqueeze(1)).squeeze(1)
-
     def _compute_curves(
         self,
         input_tensor: torch.Tensor,
@@ -306,13 +285,12 @@ class DeletionInsertionMetric:
         target_indices: torch.Tensor,
         original_scores: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        num_samples = input_tensor.shape[0]
         num_positions = ranks.shape[1]
         step_size = (num_positions + self.steps - 1) // self.steps
         counts = [*range(0, num_positions, step_size), num_positions]
         fractions = torch.tensor(counts, device=original_scores.device, dtype=torch.float32).div_(num_positions)
-        deletion = original_scores.new_empty((num_samples, len(counts)))
-        insertion = original_scores.new_empty((num_samples, len(counts)))
+        deletion = original_scores.new_empty((input_tensor.shape[0], len(counts)))
+        insertion = original_scores.new_empty((input_tensor.shape[0], len(counts)))
         deletion[:, 0] = original_scores
         insertion[:, -1] = original_scores
 
@@ -321,14 +299,31 @@ class DeletionInsertionMetric:
         ]
         jobs = [
             (sample_idx, curve_idx, point_idx, count)
-            for sample_idx in range(num_samples)
+            for sample_idx in range(input_tensor.shape[0])
             for curve_idx, point_idx, count in [(2, len(counts) - 1, num_positions), *interior_jobs]
         ]
 
         with self.cam_extractor._hooks_off(), torch.inference_mode():  # noqa: SLF001
             for start in range(0, len(jobs), self.batch_size):
                 chunk = jobs[start : start + self.batch_size]
-                selected_scores = self._score_perturbations(input_tensor, baseline, ranks, target_indices, chunk)
+                sample_indices = torch.tensor([job[0] for job in chunk], device=input_tensor.device)
+                perturb_counts = torch.tensor([job[3] for job in chunk], device=input_tensor.device)
+                relevant = ranks[sample_indices] < perturb_counts.unsqueeze(1)
+                use_original = torch.where(
+                    torch.tensor([job[1] for job in chunk], device=input_tensor.device).unsqueeze(1) == 1,
+                    relevant,
+                    ~relevant,
+                )
+                perturbed = torch.where(
+                    use_original.unsqueeze(1),
+                    input_tensor.flatten(2)[sample_indices],
+                    baseline.flatten(2)[sample_indices],
+                ).reshape((-1, *input_tensor.shape[1:]))
+                selected_scores = (
+                    _get_scores(self.cam_extractor, self.logits_fn, perturbed)
+                    .gather(1, target_indices[sample_indices].unsqueeze(1))
+                    .squeeze(1)
+                )
 
                 for score, job in zip(selected_scores, chunk, strict=True):
                     if job[1] == 0:
