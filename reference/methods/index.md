@@ -755,6 +755,146 @@ def __init__(
     self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 ```
 
+### torchcam.methods.LeGrad
+
+```python
+LeGrad(model: Module, target_layer: Module | str | list[Module | str], *, score_projection: Callable[[Tensor], Tensor] | None = None, prefix_tokens: int = 1, grid_shape: tuple[int, int] | None = None, enable_hooks: bool = True)
+```
+
+Implements LeGrad as described in ["LeGrad: An Explainability Method for Vision Transformers via Feature Formation Sensitivity"](https://arxiv.org/abs/2404.03214).
+
+For every selected transformer block :math:`l`, LeGrad differentiates that block's class score :math:`s^l` with respect to its post-softmax attention probabilities :math:`A^l`. Positive gradients are averaged over heads and query tokens, prefix keys are removed, and the resulting patch maps are averaged over layers before normalization. Attention values are not multiplied into the gradients.
+
+Target layers must return tokens shaped `(batch, tokens, embedding)` and expose a direct `self_attention` child implemented by batch-first :class:`torch.nn.MultiheadAttention`. The built-in score projection supports torchvision `VisionTransformer` models; other matching blocks require `score_projection` to map intermediate tokens to class logits.
+
+Example
+
+```python
+from torchvision.models import ViT_B_16_Weights, vit_b_16
+from torchcam.methods import LeGrad
+
+model = vit_b_16(weights=ViT_B_16_Weights.DEFAULT).eval()
+with LeGrad(model, list(model.encoder.layers)[-4:]) as cam_extractor:
+    scores = model(input_tensor)
+    cam = cam_extractor(scores[0].argmax().item())[0]
+```
+
+| PARAMETER          | DESCRIPTION                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `model`            | input model **TYPE:** `Module`                                                                                       |
+| `target_layer`     | transformer block or blocks, specified as modules or their names **TYPE:** \`Module                                  |
+| `score_projection` | optional function mapping intermediate tokens to class logits shaped (N, C) **TYPE:** \`Callable\[[Tensor], Tensor\] |
+| `prefix_tokens`    | number of non-spatial key tokens to remove before reshaping **TYPE:** `int` **DEFAULT:** `1`                         |
+| `grid_shape`       | patch-grid (height, width); inferred when the patch count is a perfect square **TYPE:** \`tuple[int, int]            |
+| `enable_hooks`     | whether hooks should be enabled by default **TYPE:** `bool` **DEFAULT:** `True`                                      |
+
+| RAISES       | DESCRIPTION                                                             |
+| ------------ | ----------------------------------------------------------------------- |
+| `TypeError`  | if an argument has an invalid type                                      |
+| `ValueError` | if the model, target blocks, attention modules, or grid are unsupported |
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def __init__(
+    self,
+    model: nn.Module,
+    target_layer: nn.Module | str | list[nn.Module | str],
+    *,
+    score_projection: Callable[[Tensor], Tensor] | None = None,
+    prefix_tokens: int = 1,
+    grid_shape: tuple[int, int] | None = None,
+    enable_hooks: bool = True,
+) -> None:
+    if target_layer is None or (isinstance(target_layer, list) and not target_layer):
+        raise ValueError("LeGrad requires at least one explicit target block")
+    self._validate_init_args(prefix_tokens, grid_shape, score_projection)
+
+    if score_projection is None:
+        encoder = getattr(model, "encoder", None)
+        norm = getattr(encoder, "ln", None)
+        heads = getattr(model, "heads", None)
+        if not isinstance(norm, nn.Module) or not isinstance(heads, nn.Module):
+            raise ValueError("`score_projection` is required for models other than torchvision VisionTransformer")
+
+        def project_tokens(tokens: Tensor) -> Tensor:
+            return heads(norm(tokens.mean(dim=1)))
+
+        score_projection = project_tokens
+
+    self._score_projection = score_projection
+    self.prefix_tokens = prefix_tokens
+    self.grid_shape = grid_shape
+    super().__init__(model, target_layer, enable_hooks=enable_hooks)
+
+    try:
+        self._register_attention_hooks()
+    except Exception:
+        self.remove_hooks()
+        raise
+```
+
+#### torchcam.methods.LeGrad.reset_hooks
+
+```python
+reset_hooks() -> None
+```
+
+Clear stored layer scores and attention probabilities.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def reset_hooks(self) -> None:
+    """Clear stored layer scores and attention probabilities."""
+    super().reset_hooks()
+    self.hook_attn: list[Tensor | None] = [None] * len(self.target_names)
+    self._token_counts: list[int | None] = [None] * len(self.target_names)
+    self._weight_options: list[tuple[bool, bool] | None] = [None] * len(self.target_names)
+```
+
+#### torchcam.methods.LeGrad.compute_cams
+
+```python
+compute_cams(class_idx: int | list[int], scores: Tensor | None = None, normalized: bool = True, retain_graph: bool = False, **kwargs: Any) -> list[Tensor]
+```
+
+Compute and average layerwise positive attention-gradient maps.
+
+| RAISES       | DESCRIPTION                                    |
+| ------------ | ---------------------------------------------- |
+| `ValueError` | if attention and token shapes are incompatible |
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def compute_cams(
+    self,
+    class_idx: int | list[int],
+    scores: Tensor | None = None,
+    normalized: bool = True,
+    retain_graph: bool = False,
+    **kwargs: Any,
+) -> list[Tensor]:
+    """Compute and average layerwise positive attention-gradient maps.
+
+    Raises:
+        ValueError: if attention and token shapes are incompatible
+    """  # noqa: DOC201
+    relevances = self._get_weights(class_idx, scores, retain_graph=retain_graph, **kwargs)
+    maps: list[Tensor] = []
+    for idx, relevance in enumerate(relevances):
+        token_count = self._token_counts[idx]
+        if token_count is None or token_count != relevance.shape[-1] + self.prefix_tokens:
+            raise ValueError("attention keys and target-block tokens must have matching lengths")
+        height, width = self._resolve_grid_shape(relevance.shape[-1])
+        maps.append(relevance.reshape(relevance.shape[0], height, width))
+
+    with torch.no_grad():
+        cam = torch.stack(maps).mean(dim=0)
+        return [self._normalize(cam) if normalized else cam]
+```
+
 ### torchcam.methods.RefineCAM
 
 ```python

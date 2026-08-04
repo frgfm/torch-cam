@@ -85,13 +85,14 @@ The [quick start](../../) uses a torchvision classifier, but TorchCAM works with
 
 TorchCAM needs a spatial feature tensor and a scalar class target to explain. The integration path depends on what your model accepts and returns:
 
-| Model or task                                             | Support                      | What TorchCAM needs                                                |
-| --------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------ |
-| CNN classifier                                            | Native                       | Class logits shaped `(N, num_classes)` and a spatial target layer. |
-| Batched, 3D, or video classifier                          | Native                       | One class index per sample and the correct `input_shape`.          |
-| Multi-input model or tuple/dict output                    | Adapter required             | Wrap the model so the hooked path returns one logits tensor.       |
-| ViT or Swin classifier                                    | Adapter required             | Set `target_layer` and reshape tokens with `reshape_transform`.    |
-| Detection, segmentation, generative, or non-scalar output | Not supported out of the box | Adapt the model and define the scalar class target to explain.     |
+| Model or task                                             | Support                      | What TorchCAM needs                                                                                        |
+| --------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| CNN classifier                                            | Native                       | Class logits shaped `(N, num_classes)` and a spatial target layer.                                         |
+| Batched, 3D, or video classifier                          | Native                       | One class index per sample and the correct `input_shape`.                                                  |
+| Multi-input model or tuple/dict output                    | Adapter required             | Wrap the model so the hooked path returns one logits tensor.                                               |
+| torchvision VisionTransformer                             | Native with `LeGrad`         | Target supported encoder blocks; other CAM methods need `reshape_transform`.                               |
+| Other ViT or Swin classifier                              | Adapter required             | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
+| Detection, segmentation, generative, or non-scalar output | Not supported out of the box | Adapt the model and define the scalar class target to explain.                                             |
 
 ## Use your own model
 
@@ -184,11 +185,11 @@ cam_extractor(class_idx, scores=None, normalized=True)
 ```
 
 - **`class_idx`** (`int` or `list[int]`) — the index, in the output logits, of the class you want to explain. To explain the top prediction use the argmax (`out.squeeze(0).argmax().item()`), but you can pass **any** valid index to see where the model looks for that class. For a batch, pass one index per sample (see below).
-- **`scores`** — the raw model output of shape `(N, num_classes)`. Required by the gradient-based methods (used for backprop) and by the Score-CAM family; ignored by `SmoothGradCAMpp` and `CAM`.
+- **`scores`** — the raw model output of shape `(N, num_classes)`. Required by the gradient-based methods (used for backprop) and by the Score-CAM family; ignored by `LeGrad`, `SmoothGradCAMpp`, and `CAM`.
 - **`normalized`** — when `True` (default) each map is min-max normalized to `[0, 1]`, which is what you want for visualization/overlay. Pass `normalized=False` to get the raw weighted maps, e.g. when comparing magnitudes across layers before fusing them yourself.
-- **Returns** a `list` of activation maps, **one tensor per hooked layer**, each of shape `(N, H, W)`. With a single layer and a single image, the map you want is `cams[0].squeeze(0)`. `RefineCAM` instead returns a one-element list containing its final fused map.
+- **Returns** a `list` of activation maps, **one tensor per hooked layer**, each of shape `(N, H, W)`. With a single layer and a single image, the map you want is `cams[0].squeeze(0)`. `LeGrad` and `RefineCAM` instead return a one-element list containing their final fused map.
 
-Gradient-based extractors also accept `retain_graph=True` (forwarded to `loss.backward`), needed when you call the extractor several times after a single forward — see [Troubleshooting](../troubleshooting/#runtimeerror-trying-to-backward-through-the-graph-a-second-time).
+Gradient-based extractors also accept `retain_graph=True` (forwarded to the gradient computation), needed when you call the extractor several times after a single forward — see [Troubleshooting](../troubleshooting/#runtimeerror-trying-to-backward-through-the-graph-a-second-time).
 
 ## Batched inputs
 
@@ -280,6 +281,41 @@ The exact transform is architecture-specific: models may use a different patch g
 
 This enables activation- and gradient-based extractors such as `LayerCAM`, `GradCAM`, and `ScoreCAM`. The original weight-based `CAM` method still requires its global-pooling and classifier-weight assumptions, which standard ViTs do not satisfy. Attention rollout or attention flow are separate transformer-specific explanation techniques.
 
+### LeGrad for torchvision Vision Transformers
+
+[`LeGrad`](../../reference/methods/#torchcam.methods.LeGrad) uses the positive gradient of each layer-specific class score with respect to the post-softmax attention probabilities. For layer (l), head (h), query (q), and key (k):
+
+[ E^l_k = \\frac{1}{H Q} \\sum\_{h,q} \\operatorname{ReLU}\\left(\\frac{\\partial s^l}{\\partial A^l\_{h,q,k}}\\right), \\qquad E = \\operatorname{normalize}\\left(\\frac{1}{L} \\sum_l \\operatorname{reshape}(E^l\_{\\text{patch keys}})\\right). ]
+
+LeGrad does **not** multiply gradients by attention values. That multiplication is AttentionCAM. It also differs from GradCAM-on-tokens, which weights token activations, and attention rollout, which multiplies attention matrices across layers.
+
+For torchvision `VisionTransformer`, target complete encoder blocks. The default layer score averages that block's tokens, then applies `model.encoder.ln` and `model.heads` as the shared classifier projection:
+
+```python
+from torchvision.models import ViT_B_16_Weights, vit_b_16
+from torchcam.methods import LeGrad
+
+weights = ViT_B_16_Weights.DEFAULT
+model = vit_b_16(weights=weights).eval()
+input_tensor = weights.transforms()(image).unsqueeze(0)
+target_layers = list(model.encoder.layers)[-4:]
+
+with LeGrad(model, target_layers, prefix_tokens=1) as extractor:
+    scores = model(input_tensor)
+    cam = extractor(scores[0].argmax().item())[0]
+```
+
+The 196 patch keys form a square 14×14 grid, so `grid_shape` is inferred. Pass `grid_shape=(height, width)` for a non-square patch layout. Custom models must provide `score_projection(tokens) -> logits` and meet every condition below:
+
+| Requirement    | Supported contract                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| Target output  | One tensor shaped `(batch, tokens, embedding)`.                                            |
+| Attention      | Direct `self_attention` child using batch-first, shared-dimension `nn.MultiheadAttention`. |
+| Attention mode | Self-attention without added key/value tokens or active attention dropout.                 |
+| Prefix/grid    | Configurable prefix count; square grid inferred or non-square grid specified explicitly.   |
+
+Swin, timm, OpenCLIP, cross-attention, attentional poolers, and arbitrary transformer layouts are not supported by this initial implementation. Run the model with gradient tracking enabled; `torch.no_grad()` and `torch.inference_mode()` cannot produce LeGrad maps.
+
 ## 3D and video models
 
 Volumetric inputs work out of the box: set `input_shape` to your 3D input shape as `(C, D, H, W)` (i.e. excluding the batch dimension) and the resulting map has shape `(N, D, H, W)`. Visualize it slice by slice:
@@ -298,16 +334,17 @@ Video models that output `(N, C, T, H, W)` features are handled the same way (th
 
 ## Choosing a CAM method
 
-| Method                         | Needs gradients | Relative cost              | Notes                                                                                                |
-| ------------------------------ | --------------- | -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `CAM`                          | no              | cheapest                   | needs global pooling + a **single** `nn.Linear` head (e.g. ResNet); fails on multi-FC heads like VGG |
-| `GradCAM`                      | yes             | one backward pass          | robust default for most CNNs                                                                         |
-| `LayerCAM`                     | yes             | one backward pass          | best localization in our benchmark; ideal when fusing layers                                         |
-| `FinerCAM`                     | yes             | one backward pass          | contrastive fine-grained cues with `GradCAM`, `GradCAMpp`, or `LayerCAM`                             |
-| `RefineCAM`                    | depends on base | base method + cheap fusion | high-resolution fusion across at least two layers; defaults to `GradCAMpp`                           |
-| `GradCAMpp` / `XGradCAM`       | yes             | one backward pass          | alternative weighting schemes                                                                        |
-| `SmoothGradCAMpp`              | yes             | `num_samples` forwards     | sharper maps via noise averaging                                                                     |
-| `ScoreCAM` / `SSCAM` / `ISCAM` | no              | many forwards (slow)       | gradient-free; tune `batch_size`; useful when gradients are unavailable                              |
+| Method                         | Needs gradients | Relative cost                   | Notes                                                                                                |
+| ------------------------------ | --------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `CAM`                          | no              | cheapest                        | needs global pooling + a **single** `nn.Linear` head (e.g. ResNet); fails on multi-FC heads like VGG |
+| `GradCAM`                      | yes             | one backward pass               | robust default for most CNNs                                                                         |
+| `LayerCAM`                     | yes             | one backward pass               | best localization in our benchmark; ideal when fusing layers                                         |
+| `FinerCAM`                     | yes             | one backward pass               | contrastive fine-grained cues with `GradCAM`, `GradCAMpp`, or `LayerCAM`                             |
+| `LeGrad`                       | yes             | one gradient per selected layer | attention-gradient maps for supported torchvision-style ViTs                                         |
+| `RefineCAM`                    | depends on base | base method + cheap fusion      | high-resolution fusion across at least two layers; defaults to `GradCAMpp`                           |
+| `GradCAMpp` / `XGradCAM`       | yes             | one backward pass               | alternative weighting schemes                                                                        |
+| `SmoothGradCAMpp`              | yes             | `num_samples` forwards          | sharper maps via noise averaging                                                                     |
+| `ScoreCAM` / `SSCAM` / `ISCAM` | no              | many forwards (slow)            | gradient-free; tune `batch_size`; useful when gradients are unavailable                              |
 
 See the latency and faithfulness benchmarks in the [README](https://github.com/frgfm/torch-cam#performance-benchmarks) for concrete numbers, and the [methods reference](../../reference/methods/) for the full API.
 
@@ -1200,6 +1237,146 @@ def __init__(
         # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
         self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
     self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
+```
+
+### torchcam.methods.LeGrad
+
+```python
+LeGrad(model: Module, target_layer: Module | str | list[Module | str], *, score_projection: Callable[[Tensor], Tensor] | None = None, prefix_tokens: int = 1, grid_shape: tuple[int, int] | None = None, enable_hooks: bool = True)
+```
+
+Implements LeGrad as described in ["LeGrad: An Explainability Method for Vision Transformers via Feature Formation Sensitivity"](https://arxiv.org/abs/2404.03214).
+
+For every selected transformer block :math:`l`, LeGrad differentiates that block's class score :math:`s^l` with respect to its post-softmax attention probabilities :math:`A^l`. Positive gradients are averaged over heads and query tokens, prefix keys are removed, and the resulting patch maps are averaged over layers before normalization. Attention values are not multiplied into the gradients.
+
+Target layers must return tokens shaped `(batch, tokens, embedding)` and expose a direct `self_attention` child implemented by batch-first :class:`torch.nn.MultiheadAttention`. The built-in score projection supports torchvision `VisionTransformer` models; other matching blocks require `score_projection` to map intermediate tokens to class logits.
+
+Example
+
+```python
+from torchvision.models import ViT_B_16_Weights, vit_b_16
+from torchcam.methods import LeGrad
+
+model = vit_b_16(weights=ViT_B_16_Weights.DEFAULT).eval()
+with LeGrad(model, list(model.encoder.layers)[-4:]) as cam_extractor:
+    scores = model(input_tensor)
+    cam = cam_extractor(scores[0].argmax().item())[0]
+```
+
+| PARAMETER          | DESCRIPTION                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `model`            | input model **TYPE:** `Module`                                                                                       |
+| `target_layer`     | transformer block or blocks, specified as modules or their names **TYPE:** \`Module                                  |
+| `score_projection` | optional function mapping intermediate tokens to class logits shaped (N, C) **TYPE:** \`Callable\[[Tensor], Tensor\] |
+| `prefix_tokens`    | number of non-spatial key tokens to remove before reshaping **TYPE:** `int` **DEFAULT:** `1`                         |
+| `grid_shape`       | patch-grid (height, width); inferred when the patch count is a perfect square **TYPE:** \`tuple[int, int]            |
+| `enable_hooks`     | whether hooks should be enabled by default **TYPE:** `bool` **DEFAULT:** `True`                                      |
+
+| RAISES       | DESCRIPTION                                                             |
+| ------------ | ----------------------------------------------------------------------- |
+| `TypeError`  | if an argument has an invalid type                                      |
+| `ValueError` | if the model, target blocks, attention modules, or grid are unsupported |
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def __init__(
+    self,
+    model: nn.Module,
+    target_layer: nn.Module | str | list[nn.Module | str],
+    *,
+    score_projection: Callable[[Tensor], Tensor] | None = None,
+    prefix_tokens: int = 1,
+    grid_shape: tuple[int, int] | None = None,
+    enable_hooks: bool = True,
+) -> None:
+    if target_layer is None or (isinstance(target_layer, list) and not target_layer):
+        raise ValueError("LeGrad requires at least one explicit target block")
+    self._validate_init_args(prefix_tokens, grid_shape, score_projection)
+
+    if score_projection is None:
+        encoder = getattr(model, "encoder", None)
+        norm = getattr(encoder, "ln", None)
+        heads = getattr(model, "heads", None)
+        if not isinstance(norm, nn.Module) or not isinstance(heads, nn.Module):
+            raise ValueError("`score_projection` is required for models other than torchvision VisionTransformer")
+
+        def project_tokens(tokens: Tensor) -> Tensor:
+            return heads(norm(tokens.mean(dim=1)))
+
+        score_projection = project_tokens
+
+    self._score_projection = score_projection
+    self.prefix_tokens = prefix_tokens
+    self.grid_shape = grid_shape
+    super().__init__(model, target_layer, enable_hooks=enable_hooks)
+
+    try:
+        self._register_attention_hooks()
+    except Exception:
+        self.remove_hooks()
+        raise
+```
+
+#### torchcam.methods.LeGrad.reset_hooks
+
+```python
+reset_hooks() -> None
+```
+
+Clear stored layer scores and attention probabilities.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def reset_hooks(self) -> None:
+    """Clear stored layer scores and attention probabilities."""
+    super().reset_hooks()
+    self.hook_attn: list[Tensor | None] = [None] * len(self.target_names)
+    self._token_counts: list[int | None] = [None] * len(self.target_names)
+    self._weight_options: list[tuple[bool, bool] | None] = [None] * len(self.target_names)
+```
+
+#### torchcam.methods.LeGrad.compute_cams
+
+```python
+compute_cams(class_idx: int | list[int], scores: Tensor | None = None, normalized: bool = True, retain_graph: bool = False, **kwargs: Any) -> list[Tensor]
+```
+
+Compute and average layerwise positive attention-gradient maps.
+
+| RAISES       | DESCRIPTION                                    |
+| ------------ | ---------------------------------------------- |
+| `ValueError` | if attention and token shapes are incompatible |
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def compute_cams(
+    self,
+    class_idx: int | list[int],
+    scores: Tensor | None = None,
+    normalized: bool = True,
+    retain_graph: bool = False,
+    **kwargs: Any,
+) -> list[Tensor]:
+    """Compute and average layerwise positive attention-gradient maps.
+
+    Raises:
+        ValueError: if attention and token shapes are incompatible
+    """  # noqa: DOC201
+    relevances = self._get_weights(class_idx, scores, retain_graph=retain_graph, **kwargs)
+    maps: list[Tensor] = []
+    for idx, relevance in enumerate(relevances):
+        token_count = self._token_counts[idx]
+        if token_count is None or token_count != relevance.shape[-1] + self.prefix_tokens:
+            raise ValueError("attention keys and target-block tokens must have matching lengths")
+        height, width = self._resolve_grid_shape(relevance.shape[-1])
+        maps.append(relevance.reshape(relevance.shape[0], height, width))
+
+    with torch.no_grad():
+        cam = torch.stack(maps).mean(dim=0)
+        return [self._normalize(cam) if normalized else cam]
 ```
 
 ### torchcam.methods.RefineCAM

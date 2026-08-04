@@ -660,6 +660,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Vision Transformers and other non-CNN models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#legrad-for-torchvision-vision-transformers" class="md-nav__link">
+    <span class="md-ellipsis">
+      LeGrad for torchvision Vision Transformers
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1015,6 +1030,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Vision Transformers and other non-CNN models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#legrad-for-torchvision-vision-transformers" class="md-nav__link">
+    <span class="md-ellipsis">
+      LeGrad for torchvision Vision Transformers
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1095,9 +1125,14 @@ what your model accepts and returns:</p>
 <td>Wrap the model so the hooked path returns one logits tensor.</td>
 </tr>
 <tr>
-<td>ViT or Swin classifier</td>
+<td>torchvision VisionTransformer</td>
+<td>Native with <code>LeGrad</code></td>
+<td>Target supported encoder blocks; other CAM methods need <code>reshape_transform</code>.</td>
+</tr>
+<tr>
+<td>Other ViT or Swin classifier</td>
 <td>Adapter required</td>
-<td>Set <code>target_layer</code> and reshape tokens with <code>reshape_transform</code>.</td>
+<td>Set <code>target_layer</code> and reshape tokens with <code>reshape_transform</code>; <code>LeGrad</code> only supports the contract below.</td>
 </tr>
 <tr>
 <td>Detection, segmentation, generative, or non-scalar output</td>
@@ -1230,15 +1265,15 @@ classes; it is not a universal guarantee of better localization. Score-based CAM
   To explain the top prediction use the argmax (<code>out.squeeze(0).argmax().item()</code>), but you can pass <strong>any</strong> valid
   index to see where the model looks for that class. For a batch, pass one index per sample (see below).</li>
 <li><strong><code>scores</code></strong> — the raw model output of shape <code>(N, num_classes)</code>. Required by the gradient-based methods (used
-  for backprop) and by the Score-CAM family; ignored by <code>SmoothGradCAMpp</code> and <code>CAM</code>.</li>
+  for backprop) and by the Score-CAM family; ignored by <code>LeGrad</code>, <code>SmoothGradCAMpp</code>, and <code>CAM</code>.</li>
 <li><strong><code>normalized</code></strong> — when <code>True</code> (default) each map is min-max normalized to <code>[0, 1]</code>, which is what you want for
   visualization/overlay. Pass <code>normalized=False</code> to get the raw weighted maps, e.g. when comparing magnitudes
   across layers before fusing them yourself.</li>
 <li><strong>Returns</strong> a <code>list</code> of activation maps, <strong>one tensor per hooked layer</strong>, each of shape <code>(N, H, W)</code>. With a
-  single layer and a single image, the map you want is <code>cams[0].squeeze(0)</code>. <code>RefineCAM</code> instead returns a
-  one-element list containing its final fused map.</li>
+  single layer and a single image, the map you want is <code>cams[0].squeeze(0)</code>. <code>LeGrad</code> and <code>RefineCAM</code> instead
+  return a one-element list containing their final fused map.</li>
 </ul>
-<p>Gradient-based extractors also accept <code>retain_graph=True</code> (forwarded to <code>loss.backward</code>), needed when you call
+<p>Gradient-based extractors also accept <code>retain_graph=True</code> (forwarded to the gradient computation), needed when you call
 the extractor several times after a single forward — see
 <a href="../troubleshooting/#runtimeerror-trying-to-backward-through-the-graph-a-second-time">Troubleshooting</a>.</p>
 <h2 id="batched-inputs">Batched inputs<a class="headerlink" href="#batched-inputs" title="Permanent link">&para;</a></h2>
@@ -1329,16 +1364,73 @@ axis permutation—because TorchCAM applies it identically to activation and gra
 <p>This enables activation- and gradient-based extractors such as <code>LayerCAM</code>, <code>GradCAM</code>, and <code>ScoreCAM</code>. The original
 weight-based <code>CAM</code> method still requires its global-pooling and classifier-weight assumptions, which standard ViTs
 do not satisfy. Attention rollout or attention flow are separate transformer-specific explanation techniques.</p>
+<h3 id="legrad-for-torchvision-vision-transformers">LeGrad for torchvision Vision Transformers<a class="headerlink" href="#legrad-for-torchvision-vision-transformers" title="Permanent link">&para;</a></h3>
+<p><a href="../../reference/methods/#torchcam.methods.LeGrad"><code>LeGrad</code></a> uses the positive gradient of each layer-specific class
+score with respect to the post-softmax attention probabilities. For layer <span class="arithmatex">\(l\)</span>, head <span class="arithmatex">\(h\)</span>, query <span class="arithmatex">\(q\)</span>, and key <span class="arithmatex">\(k\)</span>:</p>
+<div class="arithmatex">\[
+E^l_k = \frac{1}{H Q} \sum_{h,q} \operatorname{ReLU}\left(\frac{\partial s^l}{\partial A^l_{h,q,k}}\right),
+\qquad
+E = \operatorname{normalize}\left(\frac{1}{L} \sum_l \operatorname{reshape}(E^l_{\text{patch keys}})\right).
+\]</div>
+<p>LeGrad does <strong>not</strong> multiply gradients by attention values. That multiplication is AttentionCAM. It also differs
+from GradCAM-on-tokens, which weights token activations, and attention rollout, which multiplies attention matrices
+across layers.</p>
+<p>For torchvision <code>VisionTransformer</code>, target complete encoder blocks. The default layer score averages that block's
+tokens, then applies <code>model.encoder.ln</code> and <code>model.heads</code> as the shared classifier projection:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchvision.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ViT_B_16_Weights</span><span class="p">,</span> <span class="n">vit_b_16</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchcam.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">LeGrad</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">weights</span> <span class="o">=</span> <span class="n">ViT_B_16_Weights</span><span class="o">.</span><span class="n">DEFAULT</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">model</span> <span class="o">=</span> <span class="n">vit_b_16</span><span class="p">(</span><span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">)</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">input_tensor</span> <span class="o">=</span> <span class="n">weights</span><span class="o">.</span><span class="n">transforms</span><span class="p">()(</span><span class="n">image</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="n">target_layers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">layers</span><span class="p">)[</span><span class="o">-</span><span class="mi">4</span><span class="p">:]</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="k">with</span> <span class="n">LeGrad</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layers</span><span class="p">,</span> <span class="n">prefix_tokens</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">as</span> <span class="n">extractor</span><span class="p">:</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a>    <span class="n">scores</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">)</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>    <span class="n">cam</span> <span class="o">=</span> <span class="n">extractor</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+</span></code></pre></div>
+<p>The 196 patch keys form a square 14×14 grid, so <code>grid_shape</code> is inferred. Pass <code>grid_shape=(height, width)</code> for a
+non-square patch layout. Custom models must provide <code>score_projection(tokens) -&gt; logits</code> and meet every condition
+below:</p>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Supported contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Target output</td>
+<td>One tensor shaped <code>(batch, tokens, embedding)</code>.</td>
+</tr>
+<tr>
+<td>Attention</td>
+<td>Direct <code>self_attention</code> child using batch-first, shared-dimension <code>nn.MultiheadAttention</code>.</td>
+</tr>
+<tr>
+<td>Attention mode</td>
+<td>Self-attention without added key/value tokens or active attention dropout.</td>
+</tr>
+<tr>
+<td>Prefix/grid</td>
+<td>Configurable prefix count; square grid inferred or non-square grid specified explicitly.</td>
+</tr>
+</tbody>
+</table>
+<p>Swin, timm, OpenCLIP, cross-attention, attentional poolers, and arbitrary transformer layouts are not supported by
+this initial implementation. Run the model with gradient tracking enabled; <code>torch.no_grad()</code> and
+<code>torch.inference_mode()</code> cannot produce LeGrad maps.</p>
 <h2 id="3d-and-video-models">3D and video models<a class="headerlink" href="#3d-and-video-models" title="Permanent link">&para;</a></h2>
 <p>Volumetric inputs work out of the box: set <code>input_shape</code> to your 3D input shape as <code>(C, D, H, W)</code> (i.e. excluding
 the batch dimension) and the resulting map has shape <code>(N, D, H, W)</code>. Visualize it slice by slice:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchcam.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">GradCAM</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">cam_extractor</span> <span class="o">=</span> <span class="n">GradCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">input_shape</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">))</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">volume</span><span class="p">)</span>                                  <span class="c1"># volume: (N, C, D, H, W)</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">cam</span> <span class="o">=</span> <span class="n">cam_extractor</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">out</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>   <span class="c1"># (N, D, H, W)</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">cam</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>                 <span class="c1"># one depth slice</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">torchcam.methods</span><span class="w"> </span><span class="kn">import</span> <span class="n">GradCAM</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">cam_extractor</span> <span class="o">=</span> <span class="n">GradCAM</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">target_layer</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span> <span class="n">input_shape</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">))</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">volume</span><span class="p">)</span>                                  <span class="c1"># volume: (N, C, D, H, W)</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="n">cam</span> <span class="o">=</span> <span class="n">cam_extractor</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="n">out</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>   <span class="c1"># (N, D, H, W)</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">cam</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">32</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>                 <span class="c1"># one depth slice</span>
 </span></code></pre></div>
 <p>Video models that output <code>(N, C, T, H, W)</code> features are handled the same way (the temporal axis behaves like an
 extra spatial dimension). Note that <code>overlay_mask</code> works on 2D PIL images, so overlay each slice/frame separately.</p>
@@ -1376,6 +1468,12 @@ extra spatial dimension). Note that <code>overlay_mask</code> works on 2D PIL im
 <td>yes</td>
 <td>one backward pass</td>
 <td>contrastive fine-grained cues with <code>GradCAM</code>, <code>GradCAMpp</code>, or <code>LayerCAM</code></td>
+</tr>
+<tr>
+<td><code>LeGrad</code></td>
+<td>yes</td>
+<td>one gradient per selected layer</td>
+<td>attention-gradient maps for supported torchvision-style ViTs</td>
 </tr>
 <tr>
 <td><code>RefineCAM</code></td>
