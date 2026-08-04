@@ -5,7 +5,7 @@ Apart from qualitative visual comparison, it is important to have a refined eval
 ## ClassificationMetric
 
 ```python
-ClassificationMetric(cam_extractor: _CAM, logits_fn: Callable[[Tensor], Tensor] | None = None)
+ClassificationMetric(cam_extractor: _CAMExtractor, logits_fn: Callable[[Tensor], Tensor] | None = None)
 ```
 
 Implements Average Drop and Increase in Confidence from ["Grad-CAM++: Improved Visual Explanations for Deep Convolutional Networks."](https://arxiv.org/pdf/1710.11063.pdf).
@@ -39,7 +39,7 @@ Source code in `torchcam/metrics.py`
 ```python
 def __init__(
     self,
-    cam_extractor: _CAM,
+    cam_extractor: _CAMExtractor,
     logits_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
 ) -> None:
     # This is a typa, I don't know how to rites

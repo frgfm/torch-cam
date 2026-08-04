@@ -649,3 +649,206 @@ def __init__(
         self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
     self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 ```
+
+### torchcam.methods.RefineCAM
+
+```python
+RefineCAM(model: Module, target_layer: list[Module | str], input_shape: tuple[int, ...] = (3, 224, 224), *, base_method: type[_CAM] = GradCAMpp, **base_kwargs: Any)
+```
+
+Implements the multi-layer refinement described in ["How to Evaluate and Refine your CAM"](https://arxiv.org/abs/2605.14641).
+
+RefineCAM normalizes class activation maps from multiple layers, resizes them to a common spatial shape, and multiplies them element-wise. Grad-CAM++ is used by default, but any CAM extractor supporting multiple target layers can be passed as `base_method`.
+
+Example
+
+```python
+from torchvision.models import get_model, get_model_weights
+from torchcam.methods import LayerCAM, RefineCAM
+model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+with RefineCAM(model, ["layer2", "layer3", "layer4"], base_method=LayerCAM) as cam_extractor:
+    scores = model(input_tensor)
+    cam = cam_extractor(class_idx=100, scores=scores)[0]
+```
+
+| PARAMETER      | DESCRIPTION                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `model`        | input model **TYPE:** `Module`                                                                                            |
+| `target_layer` | target layers, specified as modules or their names **TYPE:** \`list\[Module                                               |
+| `input_shape`  | shape of the expected input tensor excluding the batch dimension **TYPE:** `tuple[int, ...]` **DEFAULT:** `(3, 224, 224)` |
+| `base_method`  | CAM extractor used to produce the per-layer maps **TYPE:** `type[_CAM]` **DEFAULT:** `GradCAMpp`                          |
+| `base_kwargs`  | keyword arguments forwarded to base_method **TYPE:** `Any` **DEFAULT:** `{}`                                              |
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def __init__(
+    self,
+    model: nn.Module,
+    target_layer: list[nn.Module | str],
+    input_shape: tuple[int, ...] = (3, 224, 224),
+    *,
+    base_method: type[_CAM] = GradCAMpp,
+    **base_kwargs: Any,
+) -> None:
+    if not isinstance(target_layer, list) or len(target_layer) < 2:
+        raise ValueError("RefineCAM requires at least two target layers")
+    if not isinstance(base_method, type) or not issubclass(base_method, _CAM):
+        raise TypeError("base_method must be a CAM extractor class")
+
+    self.base_cam = base_method(model, target_layer, input_shape=input_shape, **base_kwargs)
+```
+
+#### torchcam.methods.RefineCAM.model
+
+```python
+model: Module
+```
+
+The model wrapped by the base extractor.
+
+#### torchcam.methods.RefineCAM.target_names
+
+```python
+target_names: list[str]
+```
+
+The target layer names used by the base extractor.
+
+#### torchcam.methods.RefineCAM.enable_hooks
+
+```python
+enable_hooks() -> None
+```
+
+Enable the base extractor hooks.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def enable_hooks(self) -> None:
+    """Enable the base extractor hooks."""
+    self.base_cam.enable_hooks()
+```
+
+#### torchcam.methods.RefineCAM.disable_hooks
+
+```python
+disable_hooks() -> None
+```
+
+Disable the base extractor hooks.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def disable_hooks(self) -> None:
+    """Disable the base extractor hooks."""
+    self.base_cam.disable_hooks()
+```
+
+#### torchcam.methods.RefineCAM.reset_hooks
+
+```python
+reset_hooks() -> None
+```
+
+Clear the activations and gradients stored by the base extractor.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def reset_hooks(self) -> None:
+    """Clear the activations and gradients stored by the base extractor."""
+    self.base_cam.reset_hooks()
+```
+
+#### torchcam.methods.RefineCAM.remove_hooks
+
+```python
+remove_hooks() -> None
+```
+
+Remove the base extractor hooks from the model.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def remove_hooks(self) -> None:
+    """Remove the base extractor hooks from the model."""
+    self.base_cam.remove_hooks()
+```
+
+#### torchcam.methods.RefineCAM.compute_cams
+
+```python
+compute_cams(class_idx: int | list[int], scores: Tensor | None = None, normalized: bool = True, target_shape: tuple[int, ...] | None = None, **kwargs: Any) -> list[Tensor]
+```
+
+Compute and refine CAMs without the base extractor precheck.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def compute_cams(
+    self,
+    class_idx: int | list[int],
+    scores: Tensor | None = None,
+    normalized: bool = True,
+    target_shape: tuple[int, ...] | None = None,
+    **kwargs: Any,
+) -> list[Tensor]:
+    """Compute and refine CAMs without the base extractor precheck."""  # noqa: DOC201
+    cams = self.base_cam.compute_cams(class_idx, scores, normalized=True, **kwargs)
+    return [self.fuse_cams(cams, target_shape, normalized)]
+```
+
+#### torchcam.methods.RefineCAM.fuse_cams
+
+```python
+fuse_cams(cams: list[Tensor], target_shape: tuple[int, ...] | None = None, normalized: bool = True) -> Tensor
+```
+
+Normalize, resize, and multiply maps from multiple layers.
+
+| RAISES       | DESCRIPTION                      |
+| ------------ | -------------------------------- |
+| `TypeError`  | if cams is not a list of tensors |
+| `ValueError` | if cams is empty                 |
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+@staticmethod
+@torch.no_grad()
+def fuse_cams(
+    cams: list[Tensor],
+    target_shape: tuple[int, ...] | None = None,
+    normalized: bool = True,
+) -> Tensor:
+    """Normalize, resize, and multiply maps from multiple layers.
+
+    Raises:
+        TypeError: if ``cams`` is not a list of tensors
+        ValueError: if ``cams`` is empty
+    """  # noqa: DOC201
+    if not isinstance(cams, list) or any(not isinstance(cam, Tensor) for cam in cams):
+        raise TypeError("invalid argument type for `cams`")
+    if not cams:
+        raise ValueError("argument `cams` cannot be an empty list")
+
+    shape = target_shape or tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams], strict=True)))
+    interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
+    resize_kwargs = {} if interpolation_mode == "nearest" else {"align_corners": False}
+    resized_cams = [
+        F.interpolate(
+            _CAM._normalize(cam.clone()).unsqueeze(1),  # noqa: SLF001
+            shape,
+            mode=interpolation_mode,
+            **resize_kwargs,
+        )
+        for cam in cams
+    ]
+    refined_cam = torch.stack(resized_cams).prod(dim=0).squeeze(1)
+    return _CAM._normalize(refined_cam) if normalized else refined_cam  # noqa: SLF001
+```
