@@ -160,6 +160,23 @@ with RefineCAM(model, ["layer2", "layer3", "layer4"], base_method=LayerCAM) as c
     refined = cam_extractor(out.squeeze(0).argmax().item(), out)[0]
 ```
 
+`FinerCAM` instead changes **what** a gradient method explains. For target class (c) and reference classes (d_t), it replaces the target score with the contrastive objective
+
+[ y_c - \\gamma \\frac{1}{T} \\sum\\limits\_{t=1}^{T} y\_{d_t}. ]
+
+The references are averaged before the base method's final CAM ReLU. By default, `gamma=0.6` and up to three classes whose logits are closest to the target logit are selected automatically, excluding the target. Pass an integer or flat list to share explicit references across the batch, or an equal-width nested list with one row per sample. Explicit references override `num_references`.
+
+```python
+from torchcam.methods import FinerCAM, LayerCAM
+
+with FinerCAM(model, "layer4", base_method=LayerCAM) as cam_extractor:
+    out = model(input_tensor)
+    class_idx = out.squeeze(0).argmax().item()
+    cams = cam_extractor(class_idx, out, comparison_idx=[12, 37, 84])
+```
+
+`FinerCAM` supports `GradCAM`, `GradCAMpp`, and `LayerCAM`, requires the original differentiable score tensor, and returns one tensor per selected layer. Its intended behavior is improved discrimination between fine-grained classes; it is not a universal guarantee of better localization. Score-based CAM methods are not approximated.
+
 ## Understanding `class_idx` and the call signature
 
 ```python
@@ -286,6 +303,7 @@ Video models that output `(N, C, T, H, W)` features are handled the same way (th
 | `CAM`                          | no              | cheapest                   | needs global pooling + a **single** `nn.Linear` head (e.g. ResNet); fails on multi-FC heads like VGG |
 | `GradCAM`                      | yes             | one backward pass          | robust default for most CNNs                                                                         |
 | `LayerCAM`                     | yes             | one backward pass          | best localization in our benchmark; ideal when fusing layers                                         |
+| `FinerCAM`                     | yes             | one backward pass          | contrastive fine-grained cues with `GradCAM`, `GradCAMpp`, or `LayerCAM`                             |
 | `RefineCAM`                    | depends on base | base method + cheap fusion | high-resolution fusion across at least two layers; defaults to `GradCAMpp`                           |
 | `GradCAMpp` / `XGradCAM`       | yes             | one backward pass          | alternative weighting schemes                                                                        |
 | `SmoothGradCAMpp`              | yes             | `num_samples` forwards     | sharper maps via noise averaging                                                                     |
@@ -781,6 +799,111 @@ def __init__(
 
 Methods related to gradient-based class activation maps.
 
+### torchcam.methods.FinerCAM
+
+```python
+FinerCAM(model: Module, target_layer: Module | str | list[Module | str] | None = None, input_shape: tuple[int, ...] = (3, 224, 224), *, base_method: type[GradCAM] | type[GradCAMpp] | type[LayerCAM] = GradCAM, gamma: float = 0.6, num_references: int = 3, **base_kwargs: Any)
+```
+
+Implements ["Finer-CAM: Spotting the Difference Reveals Finer Details for Visual Explanation"](https://arxiv.org/abs/2501.11309).
+
+Finer-CAM changes the base extractor objective from the target score (y_c) to the contrastive objective
+
+[ y_c - \\gamma \\frac{1}{T} \\sum\\limits\_{t=1}^{T} y\_{d_t}, ]
+
+so comparisons are aggregated before the base method's final CAM ReLU. Automatic references are the classes with scores closest to the target score. The target is always excluded, and the requested count is capped by the available classes. Only GradCAM, GradCAMpp, and LayerCAM are supported initially.
+
+Example
+
+```python
+from torchvision.models import get_model, get_model_weights
+from torchcam.methods import FinerCAM, LayerCAM
+model = get_model("resnet18", weights=get_model_weights("resnet18").DEFAULT).eval()
+with FinerCAM(model, "layer4", base_method=LayerCAM) as cam_extractor:
+    scores = model(input_tensor)
+    cams = cam_extractor(class_idx=100, scores=scores, comparison_idx=[101, 102, 103])
+```
+
+| PARAMETER        | DESCRIPTION                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `model`          | input model **TYPE:** `Module`                                                                                            |
+| `target_layer`   | either the target layer itself or its name, or a list of those **TYPE:** \`Module                                         |
+| `input_shape`    | shape of the expected input tensor excluding the batch dimension **TYPE:** `tuple[int, ...]` **DEFAULT:** `(3, 224, 224)` |
+| `base_method`    | gradient CAM extractor used to produce the maps **TYPE:** \`type[GradCAM]                                                 |
+| `gamma`          | comparison strength applied to the mean reference score **TYPE:** `float` **DEFAULT:** `0.6`                              |
+| `num_references` | number of automatic references to select, capped by the available non-target classes **TYPE:** `int` **DEFAULT:** `3`     |
+| `base_kwargs`    | keyword arguments forwarded to base_method **TYPE:** `Any` **DEFAULT:** `{}`                                              |
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def __init__(
+    self,
+    model: nn.Module,
+    target_layer: nn.Module | str | list[nn.Module | str] | None = None,
+    input_shape: tuple[int, ...] = (3, 224, 224),
+    *,
+    base_method: type[GradCAM] | type[GradCAMpp] | type[LayerCAM] = GradCAM,
+    gamma: float = 0.6,
+    num_references: int = 3,
+    **base_kwargs: Any,
+) -> None:
+    if base_method not in {GradCAM, GradCAMpp, LayerCAM}:
+        raise TypeError("base_method must be GradCAM, GradCAMpp, or LayerCAM")
+    if isinstance(gamma, bool) or not isinstance(gamma, int | float):
+        raise TypeError("gamma must be a real number")
+    if not isfinite(gamma) or gamma < 0:
+        raise ValueError("gamma must be finite and non-negative")
+    if isinstance(num_references, bool) or not isinstance(num_references, int):
+        raise TypeError("num_references must be an integer")
+    if num_references < 1:
+        raise ValueError("num_references must be positive")
+
+    self.gamma = float(gamma)
+    self.num_references = num_references
+    super().__init__(base_method(model, target_layer, input_shape=input_shape, **base_kwargs))
+```
+
+#### torchcam.methods.FinerCAM.compute_cams
+
+```python
+compute_cams(class_idx: int | list[int], scores: Tensor | None = None, comparison_idx: int | list[int] | list[list[int]] | None = None, normalized: bool = True, **kwargs: Any) -> list[Tensor]
+```
+
+Compute Finer-CAMs without the base extractor precheck.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def compute_cams(
+    self,
+    class_idx: int | list[int],
+    scores: Tensor | None = None,
+    comparison_idx: int | list[int] | list[list[int]] | None = None,
+    normalized: bool = True,
+    **kwargs: Any,
+) -> list[Tensor]:
+    """Compute Finer-CAMs without the base extractor precheck."""  # noqa: DOC201
+    contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
+    return self.base_cam.compute_cams([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
+```
+
+#### torchcam.methods.FinerCAM.fuse_cams
+
+```python
+fuse_cams(cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor
+```
+
+Fuse maps using the selected base extractor.
+
+Source code in `torchcam/methods/gradient.py`
+
+```python
+def fuse_cams(self, cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor:
+    """Fuse maps using the selected base extractor."""  # noqa: DOC201
+    return self.base_cam.fuse_cams(cams, target_shape)
+```
+
 ### torchcam.methods.GradCAM
 
 ```python
@@ -1125,87 +1248,7 @@ def __init__(
     if not isinstance(base_method, type) or not issubclass(base_method, _CAM):
         raise TypeError("base_method must be a CAM extractor class")
 
-    self.base_cam = base_method(model, target_layer, input_shape=input_shape, **base_kwargs)
-```
-
-#### torchcam.methods.RefineCAM.model
-
-```python
-model: Module
-```
-
-The model wrapped by the base extractor.
-
-#### torchcam.methods.RefineCAM.target_names
-
-```python
-target_names: list[str]
-```
-
-The target layer names used by the base extractor.
-
-#### torchcam.methods.RefineCAM.enable_hooks
-
-```python
-enable_hooks() -> None
-```
-
-Enable the base extractor hooks.
-
-Source code in `torchcam/methods/gradient.py`
-
-```python
-def enable_hooks(self) -> None:
-    """Enable the base extractor hooks."""
-    self.base_cam.enable_hooks()
-```
-
-#### torchcam.methods.RefineCAM.disable_hooks
-
-```python
-disable_hooks() -> None
-```
-
-Disable the base extractor hooks.
-
-Source code in `torchcam/methods/gradient.py`
-
-```python
-def disable_hooks(self) -> None:
-    """Disable the base extractor hooks."""
-    self.base_cam.disable_hooks()
-```
-
-#### torchcam.methods.RefineCAM.reset_hooks
-
-```python
-reset_hooks() -> None
-```
-
-Clear the activations and gradients stored by the base extractor.
-
-Source code in `torchcam/methods/gradient.py`
-
-```python
-def reset_hooks(self) -> None:
-    """Clear the activations and gradients stored by the base extractor."""
-    self.base_cam.reset_hooks()
-```
-
-#### torchcam.methods.RefineCAM.remove_hooks
-
-```python
-remove_hooks() -> None
-```
-
-Remove the base extractor hooks from the model.
-
-Source code in `torchcam/methods/gradient.py`
-
-```python
-def remove_hooks(self) -> None:
-    """Remove the base extractor hooks from the model."""
-    self.base_cam.remove_hooks()
+    super().__init__(base_method(model, target_layer, input_shape=input_shape, **base_kwargs))
 ```
 
 #### torchcam.methods.RefineCAM.compute_cams
