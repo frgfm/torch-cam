@@ -210,6 +210,31 @@ def test_deletion_insertion_class_indices(class_idx, expected):
     assert set(metric.summary()) == {"deletion_auc", "insertion_auc"}
 
 
+@pytest.mark.parametrize(
+    ("class_idx", "error"),
+    [
+        (2, ValueError),
+        ("0", TypeError),
+        ([0], ValueError),
+        ([0, 2], ValueError),
+        ([False, 0], TypeError),
+    ],
+)
+def test_metrics_reject_invalid_class_indices(class_idx, error):
+    extractor = _FixedExtractor(_SumClassifier(), _exact_input().squeeze(1))
+    metric = metrics.ClassificationMetric(extractor)
+
+    with pytest.raises(error):
+        metric.update(_exact_input().expand(2, -1, -1, -1), class_idx=class_idx)
+
+
+def test_metrics_reject_unsupported_spatial_rank():
+    extractor = _FixedExtractor(_SumClassifier(), _exact_input().squeeze(1))
+
+    with pytest.raises(ValueError, match="1D"):
+        metrics.ClassificationMetric(extractor).update(torch.ones((1, 1)), class_idx=0)
+
+
 @pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
 def test_metrics_skip_nan_cams(metric_cls):
     model = _SumClassifier()
@@ -351,9 +376,24 @@ def test_deletion_insertion_reset():
         ({"steps": 0}, ValueError),
         ({"steps": 1.5}, TypeError),
         ({"batch_size": 0}, ValueError),
+        ({"batch_size": 1.5}, TypeError),
         ({"baseline": 0}, TypeError),
     ],
 )
 def test_deletion_insertion_rejects_invalid_configuration(kwargs, error):
     with pytest.raises(error):
         metrics.DeletionInsertionMetric(_FixedExtractor(_SumClassifier(), _exact_input().squeeze(1)), **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("baseline", "error"),
+    [
+        (lambda _input: 0, TypeError),
+        (torch.zeros((3, 3)), ValueError),
+    ],
+)
+def test_deletion_insertion_rejects_invalid_baseline_result(baseline, error):
+    metric = _fixed_metric(baseline=baseline)
+
+    with pytest.raises(error):
+        metric.update(_exact_input(), class_idx=0)
