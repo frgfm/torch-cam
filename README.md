@@ -164,6 +164,7 @@ This project is developed and maintained by the repo owner, but the implementati
 - [IS-CAM](https://arxiv.org/abs/2010.03023): integration-based variant of Score-CAM.
 - [XGrad-CAM](https://arxiv.org/abs/2008.02312): improved version of Grad-CAM in terms of sensitivity and conservation.
 - [Layer-CAM](http://mftp.mmcheng.net/Papers/21TIP_LayerCAM.pdf): Grad-CAM alternative leveraging pixel-wise contribution of the gradient to the activation.
+- [Finer-CAM](https://arxiv.org/abs/2501.11309): contrastive CAM objective highlighting differences between similar classes.
 - [RefineCAM](https://arxiv.org/abs/2605.14641): multi-layer refinement producing high-resolution activation maps.
 
 *Not sure which one to use? See [Choosing a CAM method](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#choosing-a-cam-method).*

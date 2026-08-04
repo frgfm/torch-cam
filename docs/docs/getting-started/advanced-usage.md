@@ -97,6 +97,31 @@ with RefineCAM(model, ["layer2", "layer3", "layer4"], base_method=LayerCAM) as c
     refined = cam_extractor(out.squeeze(0).argmax().item(), out)[0]
 ```
 
+`FinerCAM` instead changes **what** a gradient method explains. For target class $c$ and reference classes $d_t$,
+it replaces the target score with the contrastive objective
+
+$$
+y_c - \gamma \frac{1}{T} \sum\limits_{t=1}^{T} y_{d_t}.
+$$
+
+The references are averaged before the base method's final CAM ReLU. By default, `gamma=0.6` and up to three
+classes whose logits are closest to the target logit are selected automatically, excluding the target. Pass an
+integer or flat list to share explicit references across the batch, or an equal-width nested list with one row per
+sample. Explicit references override `num_references`.
+
+```python
+from torchcam.methods import FinerCAM, LayerCAM
+
+with FinerCAM(model, "layer4", base_method=LayerCAM) as cam_extractor:
+    out = model(input_tensor)
+    class_idx = out.squeeze(0).argmax().item()
+    cams = cam_extractor(class_idx, out, comparison_idx=[12, 37, 84])
+```
+
+`FinerCAM` supports `GradCAM`, `GradCAMpp`, and `LayerCAM`, requires the original differentiable score tensor, and
+returns one tensor per selected layer. Its intended behavior is improved discrimination between fine-grained
+classes; it is not a universal guarantee of better localization. Score-based CAM methods are not approximated.
+
 ## Understanding `class_idx` and the call signature
 
 ```python
@@ -255,6 +280,7 @@ extra spatial dimension). Note that `overlay_mask` works on 2D PIL images, so ov
 | `CAM`                       | no              | cheapest                 | needs global pooling + a **single** `nn.Linear` head (e.g. ResNet); fails on multi-FC heads like VGG |
 | `GradCAM`                   | yes             | one backward pass        | robust default for most CNNs |
 | `LayerCAM`                  | yes             | one backward pass        | best localization in our benchmark; ideal when fusing layers |
+| `FinerCAM`                  | yes             | one backward pass        | contrastive fine-grained cues with `GradCAM`, `GradCAMpp`, or `LayerCAM` |
 | `RefineCAM`                 | depends on base | base method + cheap fusion | high-resolution fusion across at least two layers; defaults to `GradCAMpp` |
 | `GradCAMpp` / `XGradCAM`    | yes             | one backward pass        | alternative weighting schemes |
 | `SmoothGradCAMpp`           | yes             | `num_samples` forwards   | sharper maps via noise averaging |

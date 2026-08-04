@@ -1,3 +1,4 @@
+from copy import deepcopy
 from functools import partial
 
 import pytest
@@ -16,7 +17,7 @@ def _verify_cam(activation_map, output_size):
     assert not torch.isnan(activation_map).any()
 
 
-def _tiny_model():
+def _tiny_model(num_classes=3):
     return nn.Sequential(
         nn.Conv2d(3, 4, 3, padding=1),
         nn.ReLU(),
@@ -24,8 +25,20 @@ def _tiny_model():
         nn.ReLU(),
         nn.AdaptiveAvgPool2d((1, 1)),
         nn.Flatten(1),
-        nn.Linear(4, 3),
+        nn.Linear(4, num_classes),
     ).eval()
+
+
+def _contrastive_scores(scores, class_idx, comparison_idx, gamma):
+    batch_size = scores.shape[0]
+    targets = [class_idx] * batch_size if isinstance(class_idx, int) else class_idx
+    if isinstance(comparison_idx, int):
+        references = [[comparison_idx]] * batch_size
+    else:
+        references = [comparison_idx] * batch_size if isinstance(comparison_idx[0], int) else comparison_idx
+    target_indices = torch.tensor(targets, device=scores.device).view(-1, 1)
+    reference_indices = torch.tensor(references, device=scores.device)
+    return scores.gather(1, target_indices) - gamma * scores.gather(1, reference_indices).mean(1, keepdim=True)
 
 
 @pytest.mark.parametrize(
@@ -196,6 +209,281 @@ def test_refinecam_rejects_invalid_configuration():
         gradient.RefineCAM(model, ["0"])
     with pytest.raises(TypeError, match="CAM extractor class"):
         gradient.RefineCAM(model, ["0", "2"], base_method=nn.Module)
+
+
+@pytest.mark.parametrize("base_method", [gradient.GradCAM, gradient.GradCAMpp, gradient.LayerCAM])
+@pytest.mark.parametrize(
+    ("class_idx", "comparison_idx"),
+    [(0, 2), ([0, 1], [2]), ([0, 1], [[1, 2], [0, 2]])],
+)
+@pytest.mark.parametrize("normalized", [False, True])
+def test_finercam_matches_manual_contrastive_score(base_method, class_idx, comparison_idx, normalized):
+    model = _tiny_model()
+    manual_model = deepcopy(model)
+    input_tensor = torch.rand((2, 3, 8, 8))
+    gamma = 0.6
+
+    with gradient.FinerCAM(model, "2", base_method=base_method, gamma=gamma) as extractor:
+        scores = model(input_tensor)
+        original_scores = scores.detach().clone()
+        cams = extractor(class_idx, scores, comparison_idx, normalized)
+
+    with base_method(manual_model, "2") as base_cam:
+        manual_scores = manual_model(input_tensor)
+        contrastive_scores = _contrastive_scores(manual_scores, class_idx, comparison_idx, gamma)
+        expected = base_cam([0, 0], contrastive_scores, normalized)
+
+    assert len(cams) == len(expected) == 1
+    torch.testing.assert_close(cams[0], expected[0])
+    assert torch.equal(scores.detach(), original_scores)
+    assert scores.shape == (2, 3)
+
+
+def test_finercam_automatic_references_cap_and_use_closest_scores(monkeypatch):
+    model = _tiny_model(num_classes=3)
+    input_tensor = torch.rand((2, 3, 8, 8))
+
+    with gradient.FinerCAM(model, "2", num_references=10) as extractor:
+        scores = model(input_tensor)
+        class_idx = [1, 2]
+        target_indices = torch.tensor(class_idx).view(-1, 1)
+        distances = (scores.detach() - scores.detach().gather(1, target_indices)).abs()
+        distances.scatter_(1, target_indices, float("inf"))
+        references = distances.topk(2, dim=1, largest=False).indices
+        expected = scores.gather(1, target_indices) - 0.6 * scores.gather(1, references).mean(1, keepdim=True)
+        calls = []
+        backprop = extractor.base_cam._backprop
+
+        def capture_backprop(contrastive_scores, objective_idx, **kwargs):
+            calls.append((contrastive_scores, objective_idx))
+            return backprop(contrastive_scores, objective_idx, **kwargs)
+
+        monkeypatch.setattr(extractor.base_cam, "_backprop", capture_backprop)
+        extractor(class_idx, scores)
+
+    assert len(calls) == 1
+    torch.testing.assert_close(calls[0][0], expected)
+    assert calls[0][1] == [0, 0]
+
+
+@pytest.mark.parametrize("num_classes", [2, 3])
+def test_finercam_caps_automatic_references_for_small_outputs(num_classes):
+    model = _tiny_model(num_classes)
+    input_tensor = torch.rand((1, 3, 8, 8))
+
+    with gradient.FinerCAM(model, "2") as extractor:
+        scores = model(input_tensor)
+        cams = extractor(0, scores, normalized=False)
+
+    _verify_cam(cams[0], (1, 8, 8))
+
+
+def test_finercam_gamma_zero_matches_base_cam():
+    model = _tiny_model()
+    manual_model = deepcopy(model)
+    input_tensor = torch.rand((2, 3, 8, 8))
+    class_idx = [0, 1]
+
+    with gradient.FinerCAM(model, "2", gamma=0) as extractor:
+        scores = model(input_tensor)
+        cams = extractor(class_idx, scores, normalized=False)
+
+    with gradient.GradCAM(manual_model, "2") as base_cam:
+        scores = manual_model(input_tensor)
+        expected = base_cam(class_idx, scores, normalized=False)
+
+    torch.testing.assert_close(cams[0], expected[0])
+
+
+def test_finercam_aggregates_before_relu():
+    class ContrastiveModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.features = nn.Conv2d(1, 1, 1, bias=False)
+            self.pool = nn.AdaptiveAvgPool2d((1, 1))
+            self.classifier = nn.Linear(1, 3, bias=False)
+            with torch.no_grad():
+                self.features.weight.fill_(1)
+                self.classifier.weight.copy_(torch.tensor([[1.0], [3.0], [-1.0]]))
+
+        def forward(self, input_tensor):
+            return self.classifier(self.pool(self.features(input_tensor)).flatten(1))
+
+    model = ContrastiveModel().eval()
+    input_tensor = torch.ones((1, 1, 2, 2))
+
+    with gradient.FinerCAM(model, "features", gamma=1) as extractor:
+        scores = model(input_tensor)
+        aggregated = extractor(0, scores, [1, 2], normalized=False)[0]
+
+    pairwise_cams = []
+    for reference in [1, 2]:
+        pair_model = deepcopy(model)
+        with gradient.GradCAM(pair_model, "features") as extractor:
+            scores = pair_model(input_tensor)
+            contrastive_scores = _contrastive_scores(scores, 0, [reference], 1)
+            pairwise_cams.append(extractor(0, contrastive_scores, normalized=False)[0])
+
+    assert torch.count_nonzero(aggregated) == 0
+    assert torch.stack(pairwise_cams).mean(0).max() > 0
+
+
+def test_finercam_multiple_layers_and_compute_cams():
+    model = nn.Sequential(
+        nn.Conv2d(3, 4, 3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(4, 4, 3, stride=2, padding=1),
+        nn.ReLU(),
+        nn.AdaptiveAvgPool2d((1, 1)),
+        nn.Flatten(1),
+        nn.Linear(4, 3),
+    ).eval()
+    input_tensor = torch.rand((1, 3, 8, 8))
+
+    with gradient.FinerCAM(model, ["0", "2"]) as extractor:
+        scores = model(input_tensor)
+        cams = extractor.compute_cams(0, scores, [1, 2], normalized=False)
+
+    assert [cam.shape for cam in cams] == [(1, 8, 8), (1, 4, 4)]
+
+
+def test_finercam_video_cam(mock_video_tensor):
+    model = nn.Sequential(
+        nn.Conv3d(3, 4, 3, padding=1),
+        nn.ReLU(),
+        nn.AdaptiveAvgPool3d((1, 1, 1)),
+        nn.Flatten(1),
+        nn.Linear(4, 3),
+    ).eval()
+
+    with gradient.FinerCAM(model, "0", base_method=gradient.LayerCAM) as extractor:
+        scores = model(mock_video_tensor)
+        cams = extractor(0, scores, comparison_idx=[1, 2])
+
+    _verify_cam(cams[0], (1, 8, 16, 16))
+
+
+@pytest.mark.parametrize(
+    "device",
+    [
+        torch.device("cpu"),
+        pytest.param(torch.device("cuda"), marks=pytest.mark.skipif(not torch.cuda.is_available(), reason="no CUDA")),
+    ],
+)
+def test_finercam_preserves_dtype_and_device(device):
+    model = _tiny_model().to(device=device, dtype=torch.float64)
+    input_tensor = torch.rand((1, 3, 8, 8), device=device, dtype=torch.float64)
+
+    with gradient.FinerCAM(model, "2") as extractor:
+        scores = model(input_tensor)
+        cams = extractor(0, scores, comparison_idx=[1, 2], normalized=False)
+
+    assert cams[0].dtype == scores.dtype == torch.float64
+    assert cams[0].device == scores.device == device
+
+
+def test_finercam_lifecycle_repr_and_metric_compatibility():
+    model = _tiny_model()
+    input_tensor = torch.rand((1, 3, 8, 8))
+    target_layer = model[2]
+    assert len(target_layer._forward_hooks) == 0
+
+    with gradient.FinerCAM(model, "2") as extractor:
+        assert len(target_layer._forward_hooks) == 2
+        assert extractor.model is model
+        assert extractor.target_names == ["2"]
+        assert repr(extractor) == ("FinerCAM(base_method=GradCAM, target_layer=['2'], gamma=0.6, num_references=3)")
+        metric = ClassificationMetric(extractor, partial(torch.softmax, dim=-1))
+        metric.update(input_tensor)
+        assert set(metric.summary()) == {"avg_drop", "conf_increase"}
+
+    assert len(target_layer._forward_hooks) == 0
+    assert extractor.base_cam.hook_handles == []
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "error", "match"),
+    [
+        ({"base_method": activation.ScoreCAM}, TypeError, "GradCAM, GradCAMpp, or LayerCAM"),
+        ({"base_method": gradient.SmoothGradCAMpp}, TypeError, "GradCAM, GradCAMpp, or LayerCAM"),
+        ({"base_method": nn.Identity()}, TypeError, "GradCAM, GradCAMpp, or LayerCAM"),
+        ({"gamma": True}, TypeError, "real number"),
+        ({"gamma": "0.6"}, TypeError, "real number"),
+        ({"gamma": -0.1}, ValueError, "finite and non-negative"),
+        ({"gamma": float("inf")}, ValueError, "finite and non-negative"),
+        ({"gamma": float("nan")}, ValueError, "finite and non-negative"),
+        ({"num_references": True}, TypeError, "integer"),
+        ({"num_references": 1.5}, TypeError, "integer"),
+        ({"num_references": 0}, ValueError, "positive"),
+    ],
+)
+def test_finercam_rejects_invalid_configuration(kwargs, error, match):
+    with pytest.raises(error, match=match):
+        gradient.FinerCAM(_tiny_model(), "2", **kwargs)
+
+
+def test_finercam_rejects_invalid_scores_targets_and_references():
+    model = _tiny_model()
+    input_tensor = torch.rand((2, 3, 8, 8))
+
+    with gradient.FinerCAM(model, "2") as extractor:
+        with pytest.raises(ValueError, match="scores is required"):
+            extractor(0)
+        with pytest.raises(TypeError, match="scores must be a tensor"):
+            extractor(0, [[1.0, 2.0]])
+        with pytest.raises(ValueError, match="shape"):
+            extractor(0, torch.rand(3))
+        with pytest.raises(ValueError, match="comparison class"):
+            extractor(0, torch.rand((2, 1)))
+
+        scores = model(input_tensor)
+        with pytest.raises(TypeError, match="class_idx"):
+            extractor(True, scores)
+        with pytest.raises(TypeError, match="contain integers"):
+            extractor([0, True], scores)
+        with pytest.raises(ValueError, match="batch size"):
+            extractor([0], scores)
+        with pytest.raises(ValueError, match="out-of-range"):
+            extractor([0, 3], scores)
+        with pytest.raises(ValueError, match="cannot be empty"):
+            extractor([0, 1], scores, [])
+        with pytest.raises(TypeError, match="integer, a list, or a nested list"):
+            extractor([0, 1], scores, (2,))
+        with pytest.raises(ValueError, match="target class"):
+            extractor([0, 1], scores, [0, 2])
+        with pytest.raises(ValueError, match="duplicates"):
+            extractor([0, 1], scores, [2, 2])
+        with pytest.raises(ValueError, match="out-of-range"):
+            extractor([0, 1], scores, [2, 3])
+        with pytest.raises(TypeError, match="contain integers"):
+            extractor([0, 1], scores, [True])
+        with pytest.raises(ValueError, match="batch size"):
+            extractor([0, 1], scores, [[1, 2]])
+        with pytest.raises(ValueError, match="rows cannot be empty"):
+            extractor([0, 1], scores, [[], []])
+        with pytest.raises(ValueError, match="equal lengths"):
+            extractor([0, 1], scores, [[1], [0, 2]])
+        with pytest.raises(TypeError, match="contain integers"):
+            extractor([0, 1], scores, [[True], [0]])
+        with pytest.raises(TypeError, match="integers or lists"):
+            extractor([0, 1], scores, [2, [0]])
+
+
+def test_refinecam_shared_wrapper_regression():
+    model = _tiny_model()
+    input_tensor = torch.rand((1, 3, 8, 8))
+    extractor = gradient.RefineCAM(model, ["0", "2"])
+
+    with extractor as entered:
+        assert entered is extractor
+        extractor.disable_hooks()
+        assert not extractor.base_cam._hooks_enabled
+        extractor.enable_hooks()
+        scores = model(input_tensor)
+        _verify_cam(extractor(0, scores)[0], (1, 8, 8))
+        assert repr(extractor) == "RefineCAM(base_method=GradCAMpp, target_layer=['0', '2'])"
+
+    assert extractor.base_cam.hook_handles == []
 
 
 def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):
