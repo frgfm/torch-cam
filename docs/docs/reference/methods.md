@@ -47,4 +47,5 @@ Methods related to gradient-based class activation maps.
             - SmoothGradCAMpp
             - XGradCAM
             - LayerCAM
+            - LeGrad
             - RefineCAM
