@@ -21,7 +21,7 @@ from torchvision.transforms import v2 as T
 from torchvision.transforms.functional import InterpolationMode
 
 from torchcam import methods
-from torchcam.metrics import ClassificationMetric
+from torchcam.metrics import ClassificationMetric, DeletionInsertionMetric
 
 
 def main(args):
@@ -65,6 +65,16 @@ def main(args):
     # Hook the corresponding layer in the model
     with methods.__dict__[args.method](model, args.target.split(",") if args.target else None) as cam_extractor:
         metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
+        deletion_insertion_metric = (
+            DeletionInsertionMetric(
+                cam_extractor,
+                partial(torch.softmax, dim=-1),
+                steps=args.di_steps,
+                batch_size=args.di_batch_size,
+            )
+            if args.deletion_insertion
+            else None
+        )
 
         # Evaluation runs
         for x, _ in loader:
@@ -72,12 +82,21 @@ def main(args):
             x = x.to(device=device)
             x.requires_grad_(True)
             metric.update(x)
+            if deletion_insertion_metric is not None:
+                model.zero_grad()
+                deletion_insertion_metric.update(x.detach().requires_grad_(True))
 
     print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
     metrics_dict = metric.summary()
     print(
         f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}, Skipped {metric.nan_count} samples"
     )
+    if deletion_insertion_metric is not None:
+        faithfulness = deletion_insertion_metric.summary()
+        print(
+            f"Deletion AUC {faithfulness['deletion_auc']:.4f}, Insertion AUC {faithfulness['insertion_auc']:.4f}, "
+            f"Skipped {deletion_insertion_metric.nan_count} samples"
+        )
 
 
 if __name__ == "__main__":
@@ -96,6 +115,13 @@ if __name__ == "__main__":
     parser.add_argument("--target", type=str, default=None, help="Target layer name")
     parser.add_argument("--size", type=int, default=224, help="The image input size")
     parser.add_argument("-b", "--batch-size", default=32, type=int, help="batch size")
+    parser.add_argument(
+        "--deletion-insertion",
+        action="store_true",
+        help="also compute deletion and insertion faithfulness AUCs",
+    )
+    parser.add_argument("--di-steps", default=20, type=int, help="maximum deletion/insertion perturbation intervals")
+    parser.add_argument("--di-batch-size", default=32, type=int, help="deletion/insertion perturbation chunk size")
     parser.add_argument(
         "--device",
         type=str,
