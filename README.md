@@ -47,6 +47,8 @@
 
 Simple way to leverage the class-specific activation of convolutional layers in PyTorch.
 
+Debugging one surprising classifier result? Use the [predicted-versus-expected agent workflow](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/), give a compatible agent the [portable skill](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/SKILL.md), or start from [`llms.txt`](https://frgfm.github.io/torch-cam/llms.txt).
+
 <p align="center">
     <a alt="cam_examples">
         <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" /></a>
