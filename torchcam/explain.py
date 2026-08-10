@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import platform
+import shutil
 from collections.abc import Mapping, Sequence
+from contextlib import ExitStack
 from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
@@ -66,60 +68,63 @@ class PredictionExplanation:
         if output_dir.exists():
             raise FileExistsError(f"output directory already exists: {output_dir}")
         output_dir.mkdir(parents=True)
-        probabilities = self.logits.softmax(dim=1)[0]
-        classes: dict[str, dict[str, Any]] = {}
+        with ExitStack() as cleanup:
+            cleanup.callback(shutil.rmtree, output_dir)
+            probabilities = self.logits.softmax(dim=1)[0]
+            classes: dict[str, dict[str, Any]] = {}
 
-        for class_idx, maps in sorted(self.cams.items()):
-            artifacts = []
-            if len(maps) == len(self.target_layers):
-                artifact_layers = tuple((name,) for name in self.target_layers)
-            elif len(maps) == 1:
-                artifact_layers = (self.target_layers,)
-            else:
-                raise ValueError("CAM count does not match the resolved target layers")
+            for class_idx, maps in sorted(self.cams.items()):
+                artifacts = []
+                if len(maps) == len(self.target_layers):
+                    artifact_layers = tuple((name,) for name in self.target_layers)
+                elif len(maps) == 1:
+                    artifact_layers = (self.target_layers,)
+                else:
+                    raise ValueError("CAM count does not match the resolved target layers")
 
-            for layer_idx, (target_layers, cam) in enumerate(zip(artifact_layers, maps, strict=True)):
-                stem = f"class-{class_idx}-layer-{layer_idx}"
-                array = cam.numpy()
-                npy_path = output_dir / f"{stem}.npy"
-                heatmap_path = output_dir / f"{stem}-heatmap.png"
-                overlay_path = output_dir / f"{stem}-overlay.png"
+                for layer_idx, (target_layers, cam) in enumerate(zip(artifact_layers, maps, strict=True)):
+                    stem = f"class-{class_idx}-layer-{layer_idx}"
+                    array = cam.numpy()
+                    npy_path = output_dir / f"{stem}.npy"
+                    heatmap_path = output_dir / f"{stem}-heatmap.png"
+                    overlay_path = output_dir / f"{stem}-overlay.png"
 
-                np.save(npy_path, array, allow_pickle=False)
-                heatmap = fromarray((255 * np.clip(array, 0, 1)).round().astype(np.uint8))
-                heatmap.save(heatmap_path)
-                overlay_mask(image, heatmap, alpha=alpha).save(overlay_path)
-                artifacts.append({
-                    "target_layers": list(target_layers),
-                    "map": npy_path.name,
-                    "heatmap": heatmap_path.name,
-                    "overlay": overlay_path.name,
-                })
+                    np.save(npy_path, array, allow_pickle=False)
+                    heatmap = fromarray((255 * np.clip(array, 0, 1)).round().astype(np.uint8))
+                    heatmap.save(heatmap_path)
+                    overlay_mask(image, heatmap, alpha=alpha).save(overlay_path)
+                    artifacts.append({
+                        "target_layers": list(target_layers),
+                        "map": npy_path.name,
+                        "heatmap": heatmap_path.name,
+                        "overlay": overlay_path.name,
+                    })
 
-            classes[str(class_idx)] = {
-                "class_idx": class_idx,
-                "class_name": self._class_name(class_idx),
-                "logit": self.logits[0, class_idx].item(),
-                "probability": probabilities[class_idx].item(),
-                "artifacts": artifacts,
+                classes[str(class_idx)] = {
+                    "class_idx": class_idx,
+                    "class_name": self._class_name(class_idx),
+                    "logit": self.logits[0, class_idx].item(),
+                    "probability": probabilities[class_idx].item(),
+                    "artifacts": artifacts,
+                }
+
+            manifest = {
+                "schema_version": 1,
+                "prediction": self._class_reference(self.predicted_class_idx),
+                "expected": self._class_reference(self.expected_class_idx),
+                "classes": classes,
+                "method": self.method,
+                "target_layers": list(self.target_layers),
+                "model": self.model,
+                "input_shape": list(self.input_shape),
+                "versions": dict(self.versions),
+                "image_size": list(image.size),
+                "alpha": alpha,
             }
-
-        manifest = {
-            "schema_version": 1,
-            "prediction": self._class_reference(self.predicted_class_idx),
-            "expected": self._class_reference(self.expected_class_idx),
-            "classes": classes,
-            "method": self.method,
-            "target_layers": list(self.target_layers),
-            "model": self.model,
-            "input_shape": list(self.input_shape),
-            "versions": dict(self.versions),
-            "image_size": list(image.size),
-            "alpha": alpha,
-        }
-        (output_dir / "manifest.json").write_text(
-            json.dumps(manifest, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8"
-        )
+            (output_dir / "manifest.json").write_text(
+                json.dumps(manifest, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8"
+            )
+            cleanup.pop_all()
         return output_dir
 
     def _class_name(self, class_idx: int) -> str | None:

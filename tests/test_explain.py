@@ -217,12 +217,16 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
 def test_save_writes_manifest_only_after_artifacts(tmp_path, monkeypatch):
     model = _TinyCNN().eval()
     result = explain(model, torch.randn(1, 3, 8, 8), target_layer="features.1")
+    output_dir = tmp_path / "incomplete"
+    image = Image.new("RGB", (8, 8))
 
     def fail_overlay(*_args, **_kwargs):
         raise RuntimeError("render failed")
 
-    monkeypatch.setattr(explain_module, "overlay_mask", fail_overlay)
-    with pytest.raises(RuntimeError, match="render failed"):
-        result.save(tmp_path / "incomplete", Image.new("RGB", (8, 8)))
+    with monkeypatch.context() as patch:
+        patch.setattr(explain_module, "overlay_mask", fail_overlay)
+        with pytest.raises(RuntimeError, match="render failed"):
+            result.save(output_dir, image)
 
-    assert not (tmp_path / "incomplete" / "manifest.json").exists()
+    assert not output_dir.exists()
+    assert result.save(output_dir, image) == output_dir
