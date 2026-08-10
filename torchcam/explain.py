@@ -59,7 +59,6 @@ class PredictionExplanation:
         Raises:
             TypeError: if the image is not a PIL image
             FileExistsError: if the output directory already exists
-            ValueError: if the image, alpha, or CAM metadata is unsupported
         """
         if not isinstance(image, Image):
             raise TypeError("`image` must be a PIL image")
@@ -75,12 +74,9 @@ class PredictionExplanation:
 
             for class_idx, maps in sorted(self.cams.items()):
                 artifacts = []
-                if len(maps) == len(self.target_layers):
-                    artifact_layers = tuple((name,) for name in self.target_layers)
-                elif len(maps) == 1:
-                    artifact_layers = (self.target_layers,)
-                else:
-                    raise ValueError("CAM count does not match the resolved target layers")
+                artifact_layers = (
+                    (self.target_layers,) if len(maps) == 1 else tuple((name,) for name in self.target_layers)
+                )
 
                 for layer_idx, (target_layers, cam) in enumerate(zip(artifact_layers, maps, strict=True)):
                     stem = f"class-{class_idx}-layer-{layer_idx}"

@@ -1,5 +1,6 @@
 import importlib
 import json
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -116,23 +117,46 @@ def test_explain_supports_torchvision_vit_with_legrad(tmp_path):
     assert artifact["target_layers"] == list(result.target_layers)
 
 
-def test_explain_rejects_invalid_inputs_and_outputs(monkeypatch):
+def test_explain_rejects_invalid_requests():
     model = _TinyCNN()
     input_tensor = torch.randn(1, 3, 8, 8)
+    with pytest.raises(ValueError, match="model output must have shape"):
+        explain_module._validate_logits(torch.zeros(3))
     with pytest.raises(ValueError, match="no CAMs"):
         explain_module._prepare_maps([])
+    with pytest.raises(ValueError, match="CAMs must have shape"):
+        explain_module._prepare_maps([torch.zeros(2, 2)])
+    with pytest.raises(TypeError, match="Module"):
+        explain(cast(Any, None), input_tensor)
     with pytest.raises(ValueError, match="evaluation mode"):
         explain(model, input_tensor, target_layer="features.1")
 
     model.eval()
+    with pytest.raises(TypeError, match="Tensor"):
+        explain(model, cast(Any, None), target_layer="features.1")
     with pytest.raises(ValueError, match="shape"):
         explain(model, torch.randn(2, 3, 8, 8), target_layer="features.1")
     with pytest.raises(ValueError, match="floating-point"):
         explain(model, torch.zeros(1, 3, 8, 8, dtype=torch.uint8), target_layer="features.1")
+    with pytest.raises(TypeError, match="integer or None"):
+        explain(model, input_tensor, expected_class_idx=cast(Any, "0"), target_layer="features.1")
+    with pytest.raises(TypeError, match="extractor class"):
+        explain(model, input_tensor, method=cast(Any, nn.Module), target_layer="features.1")
+    with pytest.raises(TypeError, match="mapping"):
+        explain(model, input_tensor, method_kwargs=cast(Any, []), target_layer="features.1")
     with pytest.raises(ValueError, match="output range"):
         explain(model, input_tensor, expected_class_idx=3, target_layer="features.1")
     with pytest.raises(ValueError, match="class_names"):
         explain(model, input_tensor, class_names=["a"], target_layer="features.1")
+    with pytest.raises(TypeError, match="class name"):
+        explain(model, input_tensor, class_names=cast(Any, ["a", "b", 3]), target_layer="features.1")
+    with pytest.raises(ValueError, match="directly"):
+        explain(model, input_tensor, method_kwargs={"target_layer": "features.1"})
+
+
+def test_explain_rejects_invalid_outputs(monkeypatch):
+    model = _TinyCNN().eval()
+    input_tensor = torch.randn(1, 3, 8, 8)
     with pytest.raises(TypeError, match="tensor"):
         explain(_TupleModel().eval(), input_tensor, target_layer="features.1")
     with pytest.raises(ValueError, match="non-finite logits"):
@@ -143,9 +167,26 @@ def test_explain_rejects_invalid_inputs_and_outputs(monkeypatch):
         maps[0][0, 0, 0] = float("nan")
         return prepare_maps(maps)
 
-    monkeypatch.setattr(explain_module, "_prepare_maps", inject_non_finite)
-    with pytest.raises(ValueError, match="non-finite"):
-        explain(model, input_tensor, target_layer="features.1")
+    with monkeypatch.context() as patch:
+        patch.setattr(explain_module, "_prepare_maps", inject_non_finite)
+        with pytest.raises(ValueError, match="non-finite"):
+            explain(model, input_tensor, target_layer="features.1")
+
+    predicted = int(model(input_tensor).argmax().item())
+    expected = (predicted + 1) % 3
+    original_forward = model.forward
+    forward_count = 0
+
+    def change_output_shape(tensor):
+        nonlocal forward_count
+        forward_count += 1
+        output = original_forward(tensor)
+        return output if forward_count == 1 else output[:, :-1]
+
+    with monkeypatch.context() as patch:
+        patch.setattr(model, "forward", change_output_shape)
+        with pytest.raises(ValueError, match="shape changed"):
+            explain(model, input_tensor, expected_class_idx=expected, target_layer="features.1")
 
     with torch.inference_mode(), pytest.raises(RuntimeError, match="inference_mode"):
         explain(model, input_tensor, target_layer="features.1")
@@ -182,6 +223,8 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
         target_layer="features.1",
     )
     image = Image.fromarray(np.zeros((13, 19, 3), dtype=np.uint8))
+    with pytest.raises(TypeError, match="PIL image"):
+        result.save(tmp_path / "bad-image", cast(Any, None))
     bundle = result.save(tmp_path / "bundle", image)
 
     expected_files = {"manifest.json"}
