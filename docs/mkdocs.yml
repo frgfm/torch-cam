@@ -72,13 +72,19 @@ plugins:
   llmstxt:
     full_output: llms-full.txt
     autoclean: true
+    markdown_description: >-
+      Start with [Debug one prediction with an AI agent](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/)
+      and the canonical [portable TorchCAM skill](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/SKILL.md).
+      The skill carries execution instructions; this file is a discovery aid.
     sections:
       Getting started:
         - getting-started/installation.md
         - getting-started/notebooks.md
+        - getting-started/debug-prediction.md
         - getting-started/advanced-usage.md
         - getting-started/troubleshooting.md
       Package Reference:
+        - reference/explain.md
         - reference/methods.md
         - reference/metrics.md
         - reference/utils.md
@@ -173,9 +179,11 @@ nav:
   - Getting started:
     - getting-started/installation.md
     - getting-started/notebooks.md
+    - Debug one prediction: getting-started/debug-prediction.md
     - getting-started/advanced-usage.md
     - getting-started/troubleshooting.md
   - Package Reference:
+    - Prediction explanations: reference/explain.md
     - Interpretability methods: reference/methods.md
     - Evaluation metrics: reference/metrics.md
     - Utilities: reference/utils.md
