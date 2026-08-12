@@ -1,3 +1,5 @@
+from operator import itemgetter
+
 import pytest
 import torch
 
@@ -105,6 +107,32 @@ def test_cam_precheck(mock_img_model, mock_img_tensor):
         if extractor._score_used:
             with pytest.raises(ValueError):
                 extractor(0)
+
+
+def test_output_target_validation(mock_img_model):
+    with core._CAM(mock_img_model, "0.3") as extractor:
+        with pytest.raises(ValueError, match="exactly one"):
+            extractor(0, targets=itemgetter(0))
+        with pytest.raises(ValueError, match="does not support"):
+            extractor(targets=itemgetter(0))
+
+    with pytest.raises(TypeError, match="callable"):
+        core._resolve_targets(0, 1)
+    with pytest.raises(TypeError, match="callable"):
+        core._resolve_targets([0], 1)
+    with pytest.raises(ValueError, match="batch size"):
+        core._resolve_targets([itemgetter(0)], 2)
+
+    with pytest.raises(ValueError, match="batch dimension"):
+        core._target_scores(torch.tensor(1.0), itemgetter(0))
+    with pytest.raises(TypeError, match="tensor or a per-sample list"):
+        core._target_scores((torch.ones(1), torch.ones(1)), itemgetter(0))
+
+    def number_target(_output):
+        return 1
+
+    with pytest.raises(TypeError, match="return a tensor"):
+        core._target_scores(torch.ones(1, 1), number_target)
 
 
 @pytest.mark.parametrize(

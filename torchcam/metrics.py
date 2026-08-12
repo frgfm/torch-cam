@@ -84,6 +84,26 @@ def _get_cam(
     return cam_extractor.fuse_cams(cams), target_indices
 
 
+def _select_scores(
+    scores: Any,
+    target_indices: torch.Tensor | None,
+    targets: list[OutputTarget] | None,
+) -> torch.Tensor:
+    if targets is not None:
+        return _target_scores(scores, targets)
+    return cast(torch.Tensor, scores).gather(1, cast(torch.Tensor, target_indices).unsqueeze(1)).squeeze(1)
+
+
+def _filter_selection(
+    target_indices: torch.Tensor | None,
+    targets: list[OutputTarget] | None,
+    valid: torch.Tensor,
+) -> tuple[torch.Tensor | None, list[OutputTarget] | None]:
+    if targets is not None:
+        return None, [target for target, keep in zip(targets, valid, strict=True) if keep]
+    return cast(torch.Tensor, target_indices)[valid], None
+
+
 def _resize_cam(cam: torch.Tensor, spatial_shape: tuple[int, ...]) -> torch.Tensor:
     interpolation_mode = {1: "linear", 2: "bilinear", 3: "trilinear"}.get(len(spatial_shape))
     if interpolation_mode is None:
@@ -183,21 +203,12 @@ class ClassificationMetric:
 
             cam = _resize_cam(cam[~discard], tuple(input_tensor.shape[2:]))
             valid_input = input_tensor[~discard]
-            if target_fns is None:
-                valid_indices = cast(torch.Tensor, target_indices)[~discard]
-                selected_scores = scores[~discard].gather(1, valid_indices.unsqueeze(1)).squeeze(1)
-                valid_targets = None
-            else:
-                valid_indices = None
-                selected_scores = _target_scores(scores, target_fns)[~discard]
-                valid_targets = [target for target, valid in zip(target_fns, ~discard, strict=True) if valid]
+            selected_scores = _select_scores(scores, target_indices, target_fns)[~discard]
+            valid_indices, valid_targets = _filter_selection(target_indices, target_fns, ~discard)
 
             with self.cam_extractor._hooks_off(), torch.inference_mode():  # noqa: SLF001
                 masked_scores = _get_scores(self.cam_extractor, self.logits_fn, cam.unsqueeze(1) * valid_input)
-            if valid_targets is None:
-                masked_scores = masked_scores.gather(1, cast(torch.Tensor, valid_indices).unsqueeze(1)).squeeze(1)
-            else:
-                masked_scores = _target_scores(masked_scores, valid_targets)
+            masked_scores = _select_scores(masked_scores, valid_indices, valid_targets)
             drop = torch.relu(selected_scores - masked_scores).div(selected_scores + 1e-7)
             increase = selected_scores < masked_scores
 
@@ -349,12 +360,11 @@ class DeletionInsertionMetric:
                 perturbed_scores = _get_scores(self.cam_extractor, self.logits_fn, perturbed)
                 if targets is None:
                     indices = cast(torch.Tensor, target_indices)[sample_indices]
-                    selected_scores = perturbed_scores.gather(1, indices.unsqueeze(1)).squeeze(1)
+                    selected_targets = None
                 else:
-                    selected_scores = _target_scores(
-                        perturbed_scores,
-                        [targets[idx] for idx in sample_indices.tolist()],
-                    )
+                    indices = None
+                    selected_targets = [targets[idx] for idx in sample_indices.tolist()]
+                selected_scores = _select_scores(perturbed_scores, indices, selected_targets)
 
                 for score, job in zip(selected_scores, chunk, strict=True):
                     if job[1] == 0:
@@ -400,14 +410,8 @@ class DeletionInsertionMetric:
                 baseline = self._get_baseline(input_tensor)[~discard]
             valid_input = input_tensor[~discard]
             cam = _resize_cam(cam[~discard], tuple(input_tensor.shape[2:]))
-            if target_fns is None:
-                valid_indices = cast(torch.Tensor, target_indices)[~discard]
-                original_scores = scores[~discard].gather(1, valid_indices.unsqueeze(1)).squeeze(1).detach()
-                valid_targets = None
-            else:
-                valid_indices = None
-                original_scores = _target_scores(scores, target_fns)[~discard].detach()
-                valid_targets = [target for target, valid in zip(target_fns, ~discard, strict=True) if valid]
+            original_scores = _select_scores(scores, target_indices, target_fns)[~discard].detach()
+            valid_indices, valid_targets = _filter_selection(target_indices, target_fns, ~discard)
             order = torch.argsort(cam.flatten(1), dim=1, descending=True, stable=True)
             ranks = torch.argsort(order, dim=1)
             fractions, deletion, insertion = self._compute_curves(

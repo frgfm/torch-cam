@@ -145,6 +145,29 @@ def test_gradcam_supports_per_sample_output_targets_without_touching_parameter_g
     assert all(torch.equal(parameter.grad, torch.ones_like(parameter)) for parameter in model.parameters())
 
 
+def test_smoothgradcampp_supports_output_targets():
+    model = _StructuredModel().eval()
+
+    with gradient.SmoothGradCAMpp(model, "features", num_samples=2) as extractor:
+        model(torch.rand(2, 1, 4, 4))
+        cams = extractor(targets=itemgetter("primary"))
+
+    _verify_cam(cams[0], (2, 4, 4))
+
+
+def test_gradcam_reports_disconnected_output_target():
+    model = _StructuredModel().eval()
+
+    with gradient.GradCAM(model, "features") as extractor:
+        output = model(torch.rand(1, 1, 4, 4))
+
+        def detached_target(sample):
+            return sample["primary"].detach()
+
+        with pytest.raises(RuntimeError, match="not connected to every target layer"):
+            extractor(scores=output, targets=detached_target)
+
+
 def test_output_target_must_return_a_scalar_tensor():
     model = _tiny_model()
 
@@ -162,6 +185,15 @@ def test_refinecam_supports_output_targets():
         cams = extractor(scores=scores, targets=itemgetter(1))
 
     _verify_cam(cams[0], (2, 4, 4))
+
+
+def test_finercam_rejects_output_targets():
+    model = _tiny_model()
+
+    with gradient.FinerCAM(model, "2") as extractor:
+        scores = model(torch.rand(1, 3, 4, 4))
+        with pytest.raises(ValueError, match="does not support"):
+            extractor(0, scores, targets=itemgetter(0))
 
 
 def test_layercam_fuse_cams():

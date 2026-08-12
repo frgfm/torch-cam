@@ -39,10 +39,10 @@ def _target_scores(output: Any, targets: OutputTarget | list[OutputTarget]) -> T
         if output.ndim == 0:
             raise ValueError("model output must have a batch dimension")
         samples: tuple[Any, ...] | list[Any] = output.unbind(0)
-    elif isinstance(output, (list, tuple)):
+    elif isinstance(output, list):
         samples = output
     else:
-        raise TypeError("model output must be a tensor, list, or tuple")
+        raise TypeError("model output must be a tensor or a per-sample list")
 
     values = [target(sample) for target, sample in zip(_resolve_targets(targets, len(samples)), samples, strict=True)]
     if any(not isinstance(value, Tensor) for value in values):
@@ -226,8 +226,8 @@ class _CAM:
             # Check batch size
             if isinstance(class_idx, list) and fmap.shape[0] != len(class_idx):
                 raise ValueError("expected batch size and length of `class_idx` to be the same.")
-            if targets is not None:
-                _resolve_targets(targets, fmap.shape[0])
+        if targets is not None:
+            _resolve_targets(targets, cast(Tensor, self.hook_a[0]).shape[0])
 
         # Check class_idx value
         if (

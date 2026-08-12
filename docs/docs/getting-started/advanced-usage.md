@@ -14,7 +14,7 @@ what your model accepts and returns:
 | CNN classifier | Native | Class logits shaped `(N, num_classes)` and a spatial target layer. |
 | Batched, 3D, or video classifier | Native | One class index per sample and the correct `input_shape`. |
 | Multi-input model | Adapter required | Wrap the inputs into one tensor argument while preserving the hooked path. |
-| Tensor or per-sample list/tuple output | Native with `targets` | Reduce each sample output to one scalar tensor. |
+| Tensor or per-sample list output | Native with `targets` | Reduce each sample output to one scalar tensor. |
 | torchvision VisionTransformer | Native with `LeGrad` | Target supported encoder blocks; other CAM methods need `reshape_transform`. |
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
 | Detection, segmentation, embedding, or other output | Native with `targets` | Define a scalar target; gradient methods require it to remain differentiable. |
@@ -134,8 +134,8 @@ cam_extractor(class_idx=None, scores=None, normalized=True, *, targets=None)
   To explain the top prediction use the argmax (`out.squeeze(0).argmax().item()`), but you can pass **any** valid
   index to see where the model looks for that class. For a batch, pass one index per sample (see below).
 - **`scores`** — the raw model output. `class_idx` expects a tensor shaped `(N, num_classes)`; `targets` accepts a
-  batched tensor or one list/tuple item per sample. Required by gradient methods; ignored by `LeGrad`,
-  `SmoothGradCAMpp`, `CAM`, and the Score-CAM family.
+  batched tensor or one list item per sample. Required by gradient methods; ignored by `LeGrad`,
+  `SmoothGradCAMpp`, and `CAM`. The Score-CAM family re-runs the stored input, so `scores` can be omitted.
 - **`targets`** — one callable shared by the batch or one callable per sample. Each callable receives one sample's
   model output and must return a scalar tensor. Pass exactly one of `class_idx` or `targets`.
 - **`normalized`** — when `True` (default) each map is min-max normalized to `[0, 1]`, which is what you want for
@@ -169,8 +169,8 @@ with LayerCAM(model, target_layer="visual.layer4") as cam_extractor:
     cams = cam_extractor(scores=image_embeddings, targets=target)
 ```
 
-Tensor outputs are split along their batch dimension. A model may instead return a list or tuple with one item per
-sample, such as detection dictionaries; in that case each target receives the corresponding item. `GradCAM`,
+Tensor outputs are split along their batch dimension. A model may instead return a list with one item per sample,
+such as detection dictionaries; in that case each target receives the corresponding item. `GradCAM`,
 `GradCAMpp`, `SmoothGradCAMpp`, `XGradCAM`, `LayerCAM`, `ScoreCAM`, `SSCAM`, and `ISCAM` support this contract, as
 does `RefineCAM` when its base method supports it. `CAM`, `FinerCAM`, and `LeGrad` retain their specialized
 class-based objectives.
@@ -192,9 +192,9 @@ with GradCAM(model) as cam_extractor:
 
 ## Models with multiple inputs or batched dictionary outputs
 
-The hooked layer must output a tensor. `targets` handles a batched tensor or a list/tuple containing one output per
-sample. If your model instead returns one dictionary containing batched tensors, or takes several inputs (e.g. a
-siamese network), wrap only that boundary into one of the supported shapes:
+The hooked layer must output a tensor. `targets` handles a batched tensor or a list containing one output per sample.
+Tuple outputs such as `(logits, aux)`, one dictionary containing batched tensors, and models taking several inputs
+(e.g. a siamese network) need a thin wrapper around that boundary:
 
 ```python
 import torch.nn as nn
@@ -373,3 +373,5 @@ for concrete numbers, and the [methods reference](../reference/methods.md) for t
 CAM methods are **post-hoc**: run them on a trained model in `eval()` mode to interpret its predictions — they
 are not a training objective. To quantify how faithful a method is on your own data, use the
 [`ClassificationMetric`](../reference/metrics.md).
+Metrics re-run masked or perturbed inputs in batches, so the model must support batched inference and return the
+same output structure for those forwards.

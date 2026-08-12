@@ -61,7 +61,11 @@ class _GradCAM(_CAM):
         retain_graph: bool = False,
         targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> None:
-        """Backpropagate the loss for a specific output class."""
+        """Backpropagate the loss for a specific output class.
+
+        Raises:
+            RuntimeError: if the target score is disconnected from a target layer
+        """
         if targets is not None:
             loss = _target_scores(scores, targets).sum()
         elif isinstance(class_idx, int):
@@ -69,7 +73,10 @@ class _GradCAM(_CAM):
         else:
             loss = scores.gather(1, torch.tensor(class_idx, device=scores.device).view(-1, 1)).sum()
         outputs = cast(list[Tensor], self._hook_outputs)
-        gradients = torch.autograd.grad(loss, outputs, retain_graph=retain_graph)
+        try:
+            gradients = torch.autograd.grad(loss, outputs, retain_graph=retain_graph)
+        except RuntimeError as exc:
+            raise RuntimeError("target score is not connected to every target layer") from exc
         for idx, gradient in enumerate(gradients):
             transformed = self._reshape_transform(gradient) if self._reshape_transform is not None else gradient
             self.hook_g[idx] = transformed.detach()
@@ -1080,7 +1087,13 @@ class FinerCAM(_CAMWrapper):
         normalized: bool = True,
         **kwargs: Any,
     ) -> list[Tensor]:
-        """Compute Finer-CAMs for the target and comparison classes."""  # noqa: DOC201
+        """Compute Finer-CAMs for the target and comparison classes.
+
+        Raises:
+            ValueError: if arbitrary output targets are provided
+        """  # noqa: DOC201
+        if kwargs.get("targets") is not None:
+            raise ValueError("FinerCAM does not support arbitrary output targets")
         contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
         # The contrastive objective is the sole score column, at class index 0.
         return self.base_cam([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
@@ -1093,7 +1106,13 @@ class FinerCAM(_CAMWrapper):
         normalized: bool = True,
         **kwargs: Any,
     ) -> list[Tensor]:
-        """Compute Finer-CAMs without the base extractor precheck."""  # noqa: DOC201
+        """Compute Finer-CAMs without the base extractor precheck.
+
+        Raises:
+            ValueError: if arbitrary output targets are provided
+        """  # noqa: DOC201
+        if kwargs.get("targets") is not None:
+            raise ValueError("FinerCAM does not support arbitrary output targets")
         contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
         return self.base_cam.compute_cams([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
 
