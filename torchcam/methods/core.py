@@ -17,9 +17,39 @@ from torch import Tensor, nn
 
 from ._utils import locate_candidate_layer
 
-__all__ = ["_CAM"]
+__all__ = ["_CAM", "OutputTarget"]
 
 logger = logging.getLogger(__name__)
+
+OutputTarget = Callable[[Any], Tensor]
+
+
+def _resolve_targets(targets: OutputTarget | list[OutputTarget], batch_size: int) -> list[OutputTarget]:
+    if callable(targets):
+        return [cast(OutputTarget, targets)] * batch_size
+    if not isinstance(targets, list) or any(not callable(target) for target in targets):
+        raise TypeError("targets must be a callable or a list of callables")
+    if len(targets) != batch_size:
+        raise ValueError("per-sample targets must match the batch size")
+    return targets
+
+
+def _target_scores(output: Any, targets: OutputTarget | list[OutputTarget]) -> Tensor:
+    if isinstance(output, Tensor):
+        if output.ndim == 0:
+            raise ValueError("model output must have a batch dimension")
+        samples: tuple[Any, ...] | list[Any] = output.unbind(0)
+    elif isinstance(output, (list, tuple)):
+        samples = output
+    else:
+        raise TypeError("model output must be a tensor, list, or tuple")
+
+    values = [target(sample) for target, sample in zip(_resolve_targets(targets, len(samples)), samples, strict=True)]
+    if any(not isinstance(value, Tensor) for value in values):
+        raise TypeError("each target must return a tensor")
+    if any(value.numel() != 1 for value in values):
+        raise ValueError("each target must return a scalar tensor")
+    return torch.stack([value.reshape(()) for value in values])
 
 
 class _CAM:
@@ -93,6 +123,8 @@ class _CAM:
         self._relu = False
         # Model output is used by the extractor
         self._score_used = False
+        # Arbitrary scalar output targets are supported by the extractor
+        self._targets_supported = False
 
     def enable_hooks(self) -> None:
         """Enable hooks."""
@@ -175,44 +207,64 @@ class _CAM:
     def _get_weights(self, class_idx: int | list[int], *args: Any, **kwargs: Any) -> list[Tensor]:
         raise NotImplementedError
 
-    def _precheck(self, class_idx: int | list[int], scores: Tensor | None = None) -> None:
+    def _precheck(
+        self,
+        class_idx: int | list[int] | None,
+        scores: Any = None,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+    ) -> None:
         """Check for invalid computation cases."""  # noqa: DOC501
+        if (class_idx is None) == (targets is None):
+            raise ValueError("provide exactly one of class_idx or targets")
+        if targets is not None and not self._targets_supported:
+            raise ValueError(f"{self.__class__.__name__} does not support arbitrary output targets")
+
         for fmap in self.hook_a:
             # Check that forward has already occurred
             if not isinstance(fmap, Tensor):
                 raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")  # noqa: TRY004
             # Check batch size
-            if not isinstance(class_idx, int) and fmap.shape[0] != len(class_idx):
+            if isinstance(class_idx, list) and fmap.shape[0] != len(class_idx):
                 raise ValueError("expected batch size and length of `class_idx` to be the same.")
+            if targets is not None:
+                _resolve_targets(targets, fmap.shape[0])
 
         # Check class_idx value
-        if (not isinstance(class_idx, int) or class_idx < 0) and (
-            not isinstance(class_idx, list) or any(idx < 0 for idx in class_idx)
+        if (
+            targets is None
+            and (not isinstance(class_idx, int) or class_idx < 0)
+            and (not isinstance(class_idx, list) or any(idx < 0 for idx in class_idx))
         ):
             raise ValueError("Incorrect `class_idx` argument value")
 
         # Check scores arg
-        if self._score_used and not isinstance(scores, torch.Tensor):
+        if self._score_used and scores is None:
             raise ValueError("model output scores is required to be passed to compute CAMs")
+        if self._score_used and targets is None and not isinstance(scores, Tensor):
+            raise TypeError("model output scores must be a tensor when using class_idx")
 
     def __call__(
         self,
-        class_idx: int | list[int],
-        scores: Tensor | None = None,
+        class_idx: int | list[int] | None = None,
+        scores: Any = None,
         normalized: bool = True,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
         **kwargs: Any,
     ) -> list[Tensor]:
         # Integrity check
-        self._precheck(class_idx, scores)
+        self._precheck(class_idx, scores, targets)
 
         # Compute CAM
-        return self.compute_cams(class_idx, scores, normalized, **kwargs)
+        return self.compute_cams(class_idx, scores, normalized, targets=targets, **kwargs)
 
     def compute_cams(
         self,
-        class_idx: int | list[int],
-        scores: Tensor | None = None,
+        class_idx: int | list[int] | None = None,
+        scores: Any = None,
         normalized: bool = True,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
         **kwargs: Any,
     ) -> list[Tensor]:
         """Compute the CAM for a specific output class.
@@ -222,6 +274,7 @@ class _CAM:
                 the list needs to have valid class indices and have a length equal to the batch size.
             scores: forward output scores of the hooked model of shape (N, K)
             normalized: whether the CAM should be normalized
+            targets: scalar output target shared by the batch, or one target per sample
             kwargs: keyword args of `_get_weights` method
 
         Returns:
@@ -230,7 +283,9 @@ class _CAM:
                 the k-th element of the input batch for class index equal to the k-th element of `class_idx`.
         """
         # Get map weight & unsqueeze it
-        weights = self._get_weights(class_idx, scores, **kwargs)
+        if targets is not None:
+            kwargs["targets"] = targets
+        weights = self._get_weights(cast(int | list[int], class_idx), scores, **kwargs)
 
         cams: list[Tensor] = []
         activations = cast(list[Tensor], self.hook_a)

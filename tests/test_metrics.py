@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from functools import partial
+from operator import itemgetter
 
 import pytest
 import torch
@@ -48,7 +49,7 @@ class _FixedExtractor:
         self._hooks_enabled = True
         self.class_idx = None
 
-    def __call__(self, class_idx, scores=None, _normalized=True, **_kwargs):
+    def __call__(self, class_idx=None, scores=None, _normalized=True, **_kwargs):
         self.class_idx = class_idx
         cam = self.cam.to(scores)
         if cam.shape[0] == 1 and scores.shape[0] > 1:
@@ -115,6 +116,16 @@ def test_classification_metric_exact_value():
     assert metric.summary() == pytest.approx({"avg_drop": 0.6 / (1 + 1e-7), "conf_increase": 0})
 
 
+def test_classification_metric_accepts_output_targets():
+    model = _SumClassifier()
+    extractor = _FixedExtractor(model, torch.tensor([[[1.0, 0.0], [0.0, 0.0]]]))
+    metric = metrics.ClassificationMetric(extractor)
+
+    metric.update(_exact_input(), targets=itemgetter(0))
+
+    assert metric.summary() == pytest.approx({"avg_drop": 0.6 / (1 + 1e-7), "conf_increase": 0})
+
+
 def test_deletion_insertion_complete_curves_and_auc():
     metric = _fixed_metric(steps=2)
     input_tensor = _exact_input()
@@ -134,6 +145,14 @@ def test_deletion_insertion_complete_curves_and_auc():
     assert torch.trapezoid(insertion, fractions).item() == pytest.approx(0.6)
 
     metric.update(input_tensor, class_idx=0)
+    assert metric.summary() == pytest.approx({"deletion_auc": 0.4, "insertion_auc": 0.6})
+
+
+def test_deletion_insertion_accepts_output_targets():
+    metric = _fixed_metric(steps=2)
+
+    metric.update(_exact_input(), targets=itemgetter(0))
+
     assert metric.summary() == pytest.approx({"deletion_auc": 0.4, "insertion_auc": 0.6})
 
 
