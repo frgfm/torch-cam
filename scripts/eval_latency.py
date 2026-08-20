@@ -100,7 +100,11 @@ def main(args):
     torch.manual_seed(0)
 
     weights = get_model_weights(args.arch).DEFAULT if args.weights == "default" else None
-    model = get_model(args.arch, weights=weights).eval().to(device=device)
+    if device.type == "mps":
+        with device:
+            model = get_model(args.arch, weights=weights).eval()
+    else:
+        model = get_model(args.arch, weights=weights).eval().to(device=device)
     model.requires_grad_(False)
 
     input_tensor = torch.rand((1, 3, args.size, args.size), device=device, requires_grad=True)

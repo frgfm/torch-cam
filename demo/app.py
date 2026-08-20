@@ -130,7 +130,7 @@ def preserve_model_state(model):
             parameter.requires_grad_(requires_grad)
 
 
-def build_extractor(model, method_name, target_layers, finer_gamma=0.6, finer_references=3):
+def build_extractor(model, method_name, target_layers, finer_gamma=0.6, finer_references=3, score_batch_size=32):
     if method_name == "CAM":
         # ponytail: supported torchvision models register the class-output Linear last; use explicit heads if that changes.
         fc_layer = next(
@@ -144,6 +144,8 @@ def build_extractor(model, method_name, target_layers, finer_gamma=0.6, finer_re
             gamma=finer_gamma,
             num_references=finer_references,
         )
+    if method_name in SLOW_METHODS:
+        return getattr(methods, method_name)(model, target_layer=target_layers, batch_size=score_batch_size)
     if method_name == "RefineCAM":
         return methods.RefineCAM(model, target_layer=target_layers)
     if method_name == "LeGrad":
@@ -160,6 +162,7 @@ def extract_cam(
     class_idx=None,
     finer_gamma=0.6,
     finer_references=3,
+    score_batch_size=32,
 ):
     unknown_layers = [layer for layer in target_layers if layer not in dict(model.named_modules())]
     if unknown_layers:
@@ -175,6 +178,7 @@ def extract_cam(
             target_layers,
             finer_gamma,
             finer_references,
+            score_batch_size,
         ) as extractor:
             scores = model(input_tensor.unsqueeze(0).to(device))
             target_idx = int(scores.argmax(dim=1).item()) if class_idx is None else class_idx
@@ -223,6 +227,7 @@ def compute_result(
     explicit_class_idx,
     finer_gamma,
     finer_references,
+    score_batch_size,
 ):
     target_layers = parse_target_layers(target_layer_value, model_name, method_name)
     input_tensor, model_input = preprocess_image(selected_image, weights)
@@ -245,6 +250,7 @@ def compute_result(
             explicit_class_idx,
             finer_gamma,
             int(finer_references),
+            int(score_batch_size),
         )
     raw_image = colorize_cam(cam)
     overlay_image = overlay_mask(
@@ -347,6 +353,7 @@ def main():
 
         finer_gamma = 0.6
         finer_references = 3
+        score_batch_size = 32
         preset = "+".join(target_layer_preset(model_name, method_name))
         with st.expander("Method settings"):
             target_layer_value = st.text_input(
@@ -363,6 +370,14 @@ def main():
                     max_value=len(categories) - 1,
                     value=3,
                     step=1,
+                )
+            if method_name in SLOW_METHODS:
+                score_batch_size = st.number_input(
+                    "Masked-input batch size",
+                    min_value=1,
+                    value=32,
+                    step=1,
+                    help="Lower values use less memory but may change extraction latency.",
                 )
 
         if method_name in SLOW_METHODS:
@@ -384,6 +399,7 @@ def main():
                 explicit_class_idx,
                 finer_gamma,
                 finer_references,
+                score_batch_size,
             )
         except ConnectionError as exc:
             LOGGER.exception("Unable to load pretrained model")
