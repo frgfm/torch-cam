@@ -14,7 +14,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from .core import _CAM
+from .core import _CAM, OutputTarget, _target_scores
 
 __all__ = ["FinerCAM", "GradCAM", "GradCAMpp", "LayerCAM", "LeGrad", "RefineCAM", "SmoothGradCAMpp", "XGradCAM"]
 
@@ -40,46 +40,46 @@ class _GradCAM(_CAM):
         self._relu = True
         # Model output is used by the extractor
         self._score_used = True
+        self._targets_supported = True
         for idx, name in enumerate(self.target_names):
             # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
             self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
-        self._grad_hook_handles: list[torch.utils.hooks.RemovableHandle | None] = [None] * len(self.target_names)
 
-    def _store_grad(self, grad: Tensor, idx: int = 0) -> None:
-        if self._hooks_enabled:
-            if self._reshape_transform is not None:
-                grad = self._reshape_transform(grad)
-            self.hook_g[idx] = grad.detach()
+    def reset_hooks(self) -> None:
+        super().reset_hooks()
+        self._hook_outputs: list[Tensor | None] = [None] * len(self.target_names)
 
     def _hook_g(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
-        """Gradient hook."""
+        """Store the target-layer output used to compute gradients."""
         if self._hooks_enabled:
-            handle = self._grad_hook_handles[idx]
-            if handle is not None:
-                handle.remove()
-            self._grad_hook_handles[idx] = output.register_hook(partial(self._store_grad, idx=idx))
-
-    def remove_hooks(self) -> None:
-        for handle in self._grad_hook_handles:
-            if handle is not None:
-                handle.remove()
-        self._grad_hook_handles = [None] * len(self.target_names)
-        super().remove_hooks()
+            self._hook_outputs[idx] = output
 
     def _backprop(
         self,
-        scores: Tensor,
-        class_idx: int | list[int],
+        scores: Any,
+        class_idx: int | list[int] | None,
         retain_graph: bool = False,
+        targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> None:
-        """Backpropagate the loss for a specific output class."""
-        # Backpropagate to get the gradients on the hooked layer
-        if isinstance(class_idx, int):
+        """Backpropagate the loss for a specific output class.
+
+        Raises:
+            RuntimeError: if the target score is disconnected from a target layer
+        """
+        if targets is not None:
+            loss = _target_scores(scores, targets).sum()
+        elif isinstance(class_idx, int):
             loss = scores[:, class_idx].sum()
         else:
             loss = scores.gather(1, torch.tensor(class_idx, device=scores.device).view(-1, 1)).sum()
-        self.model.zero_grad()
-        loss.backward(retain_graph=retain_graph)
+        outputs = cast(list[Tensor], self._hook_outputs)
+        try:
+            gradients = torch.autograd.grad(loss, outputs, retain_graph=retain_graph)
+        except RuntimeError as exc:
+            raise RuntimeError("target score is not connected to every target layer") from exc
+        for idx, gradient in enumerate(gradients):
+            transformed = self._reshape_transform(gradient) if self._reshape_transform is not None else gradient
+            self.hook_g[idx] = transformed.detach()
 
 
 class GradCAM(_GradCAM):
@@ -326,7 +326,6 @@ class SmoothGradCAMpp(_GradCAM):
             noisy_input.requires_grad_(True)
             # Forward & Backward
             out = self.model(noisy_input)
-            self.model.zero_grad()
             self._backprop(out, class_idx, **kwargs)
 
             # Sum partial derivatives
@@ -745,8 +744,13 @@ class LeGrad(_CAM):
         self.hook_a[idx] = scores
         self._token_counts[idx] = output.shape[1]
 
-    def _precheck(self, class_idx: int | list[int], scores: Tensor | None = None) -> None:
-        super()._precheck(class_idx, scores)
+    def _precheck(
+        self,
+        class_idx: int | list[int] | None,
+        scores: Any = None,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+    ) -> None:
+        super()._precheck(class_idx, scores, targets)
         if any(not isinstance(attention, Tensor) for attention in self.hook_attn):
             raise AssertionError("Inputs need to be forwarded through every LeGrad target block")
 
@@ -793,10 +797,12 @@ class LeGrad(_CAM):
 
     def compute_cams(
         self,
-        class_idx: int | list[int],
-        scores: Tensor | None = None,
+        class_idx: int | list[int] | None = None,
+        scores: Any = None,
         normalized: bool = True,
         retain_graph: bool = False,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
         **kwargs: Any,
     ) -> list[Tensor]:
         """Compute and average layerwise positive attention-gradient maps.
@@ -804,7 +810,9 @@ class LeGrad(_CAM):
         Raises:
             ValueError: if attention and token shapes are incompatible
         """  # noqa: DOC201
-        relevances = self._get_weights(class_idx, scores, retain_graph=retain_graph, **kwargs)
+        if targets is not None:
+            raise ValueError("LeGrad does not support arbitrary output targets")
+        relevances = self._get_weights(cast(int | list[int], class_idx), scores, retain_graph=retain_graph, **kwargs)
         maps: list[Tensor] = []
         for idx, relevance in enumerate(relevances):
             token_count = self._token_counts[idx]
@@ -862,26 +870,30 @@ class RefineCAM(_CAMWrapper):
 
     def __call__(
         self,
-        class_idx: int | list[int],
-        scores: Tensor | None = None,
+        class_idx: int | list[int] | None = None,
+        scores: Any = None,
         normalized: bool = True,
         target_shape: tuple[int, ...] | None = None,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
         **kwargs: Any,
     ) -> list[Tensor]:
         """Compute and refine the per-layer CAMs for an output class."""  # noqa: DOC201
-        cams = self.base_cam(class_idx, scores, normalized=True, **kwargs)
+        cams = self.base_cam(class_idx, scores, normalized=True, targets=targets, **kwargs)
         return [self.fuse_cams(cams, target_shape, normalized)]
 
     def compute_cams(
         self,
-        class_idx: int | list[int],
-        scores: Tensor | None = None,
+        class_idx: int | list[int] | None = None,
+        scores: Any = None,
         normalized: bool = True,
         target_shape: tuple[int, ...] | None = None,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
         **kwargs: Any,
     ) -> list[Tensor]:
         """Compute and refine CAMs without the base extractor precheck."""  # noqa: DOC201
-        cams = self.base_cam.compute_cams(class_idx, scores, normalized=True, **kwargs)
+        cams = self.base_cam.compute_cams(class_idx, scores, normalized=True, targets=targets, **kwargs)
         return [self.fuse_cams(cams, target_shape, normalized)]
 
     @staticmethod
@@ -1075,7 +1087,13 @@ class FinerCAM(_CAMWrapper):
         normalized: bool = True,
         **kwargs: Any,
     ) -> list[Tensor]:
-        """Compute Finer-CAMs for the target and comparison classes."""  # noqa: DOC201
+        """Compute Finer-CAMs for the target and comparison classes.
+
+        Raises:
+            ValueError: if arbitrary output targets are provided
+        """  # noqa: DOC201
+        if kwargs.get("targets") is not None:
+            raise ValueError("FinerCAM does not support arbitrary output targets")
         contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
         # The contrastive objective is the sole score column, at class index 0.
         return self.base_cam([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
@@ -1088,7 +1106,13 @@ class FinerCAM(_CAMWrapper):
         normalized: bool = True,
         **kwargs: Any,
     ) -> list[Tensor]:
-        """Compute Finer-CAMs without the base extractor precheck."""  # noqa: DOC201
+        """Compute Finer-CAMs without the base extractor precheck.
+
+        Raises:
+            ValueError: if arbitrary output targets are provided
+        """  # noqa: DOC201
+        if kwargs.get("targets") is not None:
+            raise ValueError("FinerCAM does not support arbitrary output targets")
         contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
         return self.base_cam.compute_cams([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
 

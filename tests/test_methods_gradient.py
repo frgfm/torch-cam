@@ -1,5 +1,6 @@
 from copy import deepcopy
 from functools import partial
+from operator import itemgetter
 
 import pytest
 import torch
@@ -27,6 +28,16 @@ def _tiny_model(num_classes=3):
         nn.Flatten(1),
         nn.Linear(4, num_classes),
     ).eval()
+
+
+class _StructuredModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.features = nn.Conv2d(1, 2, 1)
+
+    def forward(self, input_tensor):
+        scores = self.features(input_tensor).flatten(2).mean(-1)
+        return [{"primary": row[0], "secondary": row[1]} for row in scores]
 
 
 def _contrastive_scores(scores, class_idx, comparison_idx, gamma):
@@ -115,6 +126,74 @@ def test_smoothgradcampp_repr():
     # Hook the corresponding layer in the model
     with gradient.SmoothGradCAMpp(model, "features.18.0") as extractor:
         assert repr(extractor) == "SmoothGradCAMpp(target_layer=['features.18.0'], num_samples=4, std=0.3)"
+
+
+def test_gradcam_supports_per_sample_output_targets_without_touching_parameter_grads():
+    model = _StructuredModel().eval()
+    input_tensor = torch.rand(2, 1, 4, 4)
+
+    with gradient.GradCAM(model, "features") as extractor:
+        output = model(input_tensor)
+        for parameter in model.parameters():
+            parameter.grad = torch.ones_like(parameter)
+        cams = extractor(
+            scores=output,
+            targets=[itemgetter("primary"), itemgetter("secondary")],
+        )
+
+    _verify_cam(cams[0], (2, 4, 4))
+    assert all(torch.equal(parameter.grad, torch.ones_like(parameter)) for parameter in model.parameters())
+
+
+def test_smoothgradcampp_supports_output_targets():
+    model = _StructuredModel().eval()
+
+    with gradient.SmoothGradCAMpp(model, "features", num_samples=2) as extractor:
+        model(torch.rand(2, 1, 4, 4))
+        cams = extractor(targets=itemgetter("primary"))
+
+    _verify_cam(cams[0], (2, 4, 4))
+
+
+def test_gradcam_reports_disconnected_output_target():
+    model = _StructuredModel().eval()
+
+    with gradient.GradCAM(model, "features") as extractor:
+        output = model(torch.rand(1, 1, 4, 4))
+
+        def detached_target(sample):
+            return sample["primary"].detach()
+
+        with pytest.raises(RuntimeError, match="not connected to every target layer"):
+            extractor(scores=output, targets=detached_target)
+
+
+def test_output_target_must_return_a_scalar_tensor():
+    model = _tiny_model()
+
+    with gradient.GradCAM(model, "2") as extractor:
+        scores = model(torch.rand(1, 3, 4, 4))
+        with pytest.raises(ValueError, match="scalar tensor"):
+            extractor(scores=scores, targets=itemgetter(slice(2)))
+
+
+def test_refinecam_supports_output_targets():
+    model = _tiny_model()
+
+    with gradient.RefineCAM(model, ["0", "2"], base_method=gradient.LayerCAM) as extractor:
+        scores = model(torch.rand(2, 3, 4, 4))
+        cams = extractor(scores=scores, targets=itemgetter(1))
+
+    _verify_cam(cams[0], (2, 4, 4))
+
+
+def test_finercam_rejects_output_targets():
+    model = _tiny_model()
+
+    with gradient.FinerCAM(model, "2") as extractor:
+        scores = model(torch.rand(1, 3, 4, 4))
+        with pytest.raises(ValueError, match="does not support"):
+            extractor(0, scores, targets=itemgetter(0))
 
 
 def test_layercam_fuse_cams():
@@ -497,7 +576,7 @@ def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):
             scores = model(mock_img_tensor)
             extractor(scores[0].argmax().item(), scores, retain_graph=True)
         assert len(extractor.hook_handles) == initial_handles
-        assert len(extractor._grad_hook_handles) == len(extractor.target_names)
+        assert len(extractor._hook_outputs) == len(extractor.target_names)
 
 
 def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypatch):

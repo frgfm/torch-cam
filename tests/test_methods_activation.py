@@ -1,9 +1,21 @@
+from operator import itemgetter
+
 import pytest
 import torch
 from torch import nn
 from torchvision.models import get_model
 
 from torchcam.methods import activation
+
+
+class _StructuredModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.features = nn.Conv2d(1, 2, 1)
+
+    def forward(self, input_tensor):
+        scores = self.features(input_tensor).flatten(2).mean(-1)
+        return [{"primary": row[0], "secondary": row[1]} for row in scores]
 
 
 def test_base_cam_constructor():
@@ -153,6 +165,23 @@ def test_scorecam_restores_state_on_error(cam_name, monkeypatch):
 
         assert extractor._hooks_enabled
         assert model.training
+
+
+@pytest.mark.parametrize("cam_cls", [activation.ScoreCAM, activation.SSCAM, activation.ISCAM])
+def test_score_cams_support_per_sample_output_targets(cam_cls):
+    model = _StructuredModel().eval()
+    kwargs = {"batch_size": 2}
+    if cam_cls is not activation.ScoreCAM:
+        kwargs["num_samples"] = 2
+
+    with cam_cls(model, "features", **kwargs) as extractor:
+        output = model(torch.rand(2, 1, 4, 4))
+        cams = extractor(
+            scores=output,
+            targets=[itemgetter("primary"), itemgetter("secondary")],
+        )
+
+    _verify_cam(cams[0], (2, 4, 4))
 
 
 @pytest.mark.parametrize(

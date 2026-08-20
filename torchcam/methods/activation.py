@@ -5,13 +5,13 @@
 
 import logging
 import math
-from typing import Any
+from typing import Any, cast
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from .core import _CAM
+from .core import _CAM, OutputTarget, _resolve_targets, _target_scores
 
 __all__ = ["CAM", "ISCAM", "SSCAM", "ScoreCAM"]
 
@@ -164,6 +164,7 @@ class ScoreCAM(_CAM):
         self.bs = batch_size
         # Ensure ReLU is applied to CAM before normalization
         self._relu = True
+        self._targets_supported = True
 
     def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
@@ -189,8 +190,29 @@ class ScoreCAM(_CAM):
         chunk = buffer[: slice_.stop - slice_.start]
         return torch.mul(masks[slice_], model_input, out=chunk)
 
+    @staticmethod
+    def _select_scores(
+        output: Any,
+        sample_indices: Tensor,
+        class_idx: int | list[int] | None,
+        targets: list[OutputTarget] | None,
+    ) -> Tensor:
+        if targets is not None:
+            selected_targets = [targets[idx] for idx in sample_indices.tolist()]
+            return _target_scores(output, selected_targets)
+
+        if isinstance(class_idx, int):
+            return cast(Tensor, output)[:, class_idx]
+        indices = torch.tensor(class_idx, device=cast(Tensor, output).device)[sample_indices]
+        return cast(Tensor, output).gather(1, indices.view(-1, 1)).squeeze(1)
+
     @torch.no_grad()
-    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
+    def _get_score_weights(
+        self,
+        activations: list[Tensor],
+        class_idx: int | list[int] | None,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+    ) -> list[Tensor]:
         prepared_inputs = [self._prepare_masked_inputs(act) for act in activations]
 
         # Initialize weights
@@ -201,6 +223,9 @@ class ScoreCAM(_CAM):
 
         # (N, M)
         logits = self.model(self._input)
+        target_fns = _resolve_targets(targets, activations[0].shape[0]) if targets is not None else None
+        batch_indices = torch.arange(activations[0].shape[0])
+        baseline_scores = self._select_scores(logits, batch_indices, class_idx, target_fns)
 
         for (masks, sample_indices, buffer), weight in zip(prepared_inputs, weights, strict=True):
             # Process by chunk (GPU RAM limitation)
@@ -208,13 +233,14 @@ class ScoreCAM(_CAM):
                 slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
                 # Get the softmax probabilities of the target class
                 # (*, M)
-                baseline = logits if logits.shape[0] == 1 else logits[sample_indices[slice_]]
-                cic = self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)) - baseline
-                if isinstance(class_idx, int):
-                    weight[slice_] = cic[:, class_idx]
-                else:
-                    chunk_target = torch.tensor(class_idx, device=cic.device)[sample_indices[slice_]]
-                    weight[slice_] = cic.gather(1, chunk_target.view(-1, 1)).squeeze(1)
+                chunk_indices = sample_indices[slice_]
+                chunk_scores = self._select_scores(
+                    self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)),
+                    chunk_indices,
+                    class_idx,
+                    target_fns,
+                )
+                weight[slice_] = chunk_scores - baseline_scores[chunk_indices]
 
         # Reshape the weights (N, C)
         return [
@@ -225,8 +251,9 @@ class ScoreCAM(_CAM):
     @torch.no_grad()
     def _get_weights(
         self,
-        class_idx: int | list[int],
+        class_idx: int | list[int] | None,
         *_: Any,
+        targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         self.hook_a: list[Tensor]  # type: ignore[assignment]
@@ -250,7 +277,7 @@ class ScoreCAM(_CAM):
         ]
 
         with self._hooks_off(), self._eval_mode():
-            return self._get_score_weights(upsampled_a, class_idx)
+            return self._get_score_weights(upsampled_a, class_idx, targets)
 
     def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs})"
@@ -323,7 +350,12 @@ class SSCAM(ScoreCAM):
         self._distrib = torch.distributions.normal.Normal(0, self.std)
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
+    def _get_score_weights(
+        self,
+        activations: list[Tensor],
+        class_idx: int | list[int] | None,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+    ) -> list[Tensor]:
         # Initialize weights
         # (N * C)
         weights = [
@@ -332,6 +364,9 @@ class SSCAM(ScoreCAM):
 
         # (N, M)
         logits = self.model(self._input)
+        target_fns = _resolve_targets(targets, activations[0].shape[0]) if targets is not None else None
+        batch_indices = torch.arange(activations[0].shape[0])
+        baseline_scores = self._select_scores(logits, batch_indices, class_idx, target_fns)
 
         for activation, weight in zip(activations, weights, strict=True):
             # Add noise
@@ -343,13 +378,14 @@ class SSCAM(ScoreCAM):
                 for idx_ in range(math.ceil(weight.numel() / self.bs)):
                     slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
                     # Get the softmax probabilities of the target class
-                    baseline = logits if logits.shape[0] == 1 else logits[sample_indices[slice_]]
-                    cic = self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)) - baseline
-                    if isinstance(class_idx, int):
-                        weight[slice_] += cic[:, class_idx]
-                    else:
-                        chunk_target = torch.tensor(class_idx, device=cic.device)[sample_indices[slice_]]
-                        weight[slice_] += cic.gather(1, chunk_target.view(-1, 1)).squeeze(1)
+                    chunk_indices = sample_indices[slice_]
+                    chunk_scores = self._select_scores(
+                        self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)),
+                        chunk_indices,
+                        class_idx,
+                        target_fns,
+                    )
+                    weight[slice_] += chunk_scores - baseline_scores[chunk_indices]
 
         # Reshape the weights (N, C)
         return [
@@ -423,7 +459,12 @@ class ISCAM(ScoreCAM):
         self.num_samples = num_samples
 
     @torch.no_grad()
-    def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
+    def _get_score_weights(
+        self,
+        activations: list[Tensor],
+        class_idx: int | list[int] | None,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+    ) -> list[Tensor]:
         prepared_inputs = [self._prepare_masked_inputs(act) for act in activations]
 
         # Initialize weights
@@ -433,6 +474,9 @@ class ISCAM(ScoreCAM):
 
         # (N, M)
         logits = self.model(self._input)
+        target_fns = _resolve_targets(targets, activations[0].shape[0]) if targets is not None else None
+        batch_indices = torch.arange(activations[0].shape[0])
+        baseline_scores = self._select_scores(logits, batch_indices, class_idx, target_fns)
 
         for (masks, sample_indices, buffer), weight in zip(prepared_inputs, weights, strict=True):
             coeff = 0.0
@@ -444,13 +488,14 @@ class ISCAM(ScoreCAM):
                 for idx_ in range(math.ceil(weight.numel() / self.bs)):
                     slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
                     # Get the softmax probabilities of the target class
-                    baseline = logits if logits.shape[0] == 1 else logits[sample_indices[slice_]]
-                    cic = self.model(coeff * self._masked_input_chunk(masks, sample_indices, buffer, slice_)) - baseline
-                    if isinstance(class_idx, int):
-                        weight[slice_] += cic[:, class_idx]
-                    else:
-                        chunk_target = torch.tensor(class_idx, device=cic.device)[sample_indices[slice_]]
-                        weight[slice_] += cic.gather(1, chunk_target.view(-1, 1)).squeeze(1)
+                    chunk_indices = sample_indices[slice_]
+                    chunk_scores = self._select_scores(
+                        self.model(coeff * self._masked_input_chunk(masks, sample_indices, buffer, slice_)),
+                        chunk_indices,
+                        class_idx,
+                        target_fns,
+                    )
+                    weight[slice_] += chunk_scores - baseline_scores[chunk_indices]
 
         # Reshape the weights (N, C)
         return [

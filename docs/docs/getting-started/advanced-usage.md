@@ -6,23 +6,24 @@ than a usage question? Jump to [Troubleshooting](troubleshooting.md).
 
 ## Model and task compatibility
 
-TorchCAM needs a spatial feature tensor and a scalar class target to explain. The integration path depends on
+TorchCAM needs a spatial feature tensor and a scalar output target to explain. The integration path depends on
 what your model accepts and returns:
 
 | Model or task | Support | What TorchCAM needs |
 | --- | --- | --- |
 | CNN classifier | Native | Class logits shaped `(N, num_classes)` and a spatial target layer. |
 | Batched, 3D, or video classifier | Native | One class index per sample and the correct `input_shape`. |
-| Multi-input model or tuple/dict output | Adapter required | Wrap the model so the hooked path returns one logits tensor. |
+| Multi-input model | Adapter required | Wrap the inputs into one tensor argument while preserving the hooked path. |
+| Tensor or per-sample list output | Native with `targets` | Reduce each sample output to one scalar tensor. |
 | torchvision VisionTransformer | Native with `LeGrad` | Target supported encoder blocks; other CAM methods need `reshape_transform`. |
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
-| Detection, segmentation, generative, or non-scalar output | Not supported out of the box | Adapt the model and define the scalar class target to explain. |
+| Detection, segmentation, embedding, or other output | Native with `targets` | Define a scalar target; gradient methods require it to remain differentiable. |
 
 ## Use your own model
 
-TorchCAM works with an `nn.Module` whose forward returns class scores (logits) of shape
-`(N, num_classes)` — it is not limited to torchvision. You only need to tell the extractor which layer to read
-the activations from.
+TorchCAM's class-index API works with an `nn.Module` whose forward returns logits of shape `(N, num_classes)` — it
+is not limited to torchvision. The `targets` API below also supports other batched outputs. In both cases, tell the
+extractor which layer to read the activations from.
 
 List the candidate layers by name:
 
@@ -123,17 +124,20 @@ with FinerCAM(model, "layer4", base_method=LayerCAM) as cam_extractor:
 returns one tensor per selected layer. Its intended behavior is improved discrimination between fine-grained
 classes; it is not a universal guarantee of better localization. Score-based CAM methods are not approximated.
 
-## Understanding `class_idx` and the call signature
+## Understanding targets and the call signature
 
 ```python
-cam_extractor(class_idx, scores=None, normalized=True)
+cam_extractor(class_idx=None, scores=None, normalized=True, *, targets=None)
 ```
 
 - **`class_idx`** (`int` or `list[int]`) — the index, in the output logits, of the class you want to explain.
   To explain the top prediction use the argmax (`out.squeeze(0).argmax().item()`), but you can pass **any** valid
   index to see where the model looks for that class. For a batch, pass one index per sample (see below).
-- **`scores`** — the raw model output of shape `(N, num_classes)`. Required by the gradient-based methods (used
-  for backprop) and by the Score-CAM family; ignored by `LeGrad`, `SmoothGradCAMpp`, and `CAM`.
+- **`scores`** — the raw model output. `class_idx` expects a tensor shaped `(N, num_classes)`; `targets` accepts a
+  batched tensor or one list item per sample. Required by gradient methods; ignored by `LeGrad`,
+  `SmoothGradCAMpp`, and `CAM`. The Score-CAM family re-runs the stored input, so `scores` can be omitted.
+- **`targets`** — one callable shared by the batch or one callable per sample. Each callable receives one sample's
+  model output and must return a scalar tensor. Pass exactly one of `class_idx` or `targets`.
 - **`normalized`** — when `True` (default) each map is min-max normalized to `[0, 1]`, which is what you want for
   visualization/overlay. Pass `normalized=False` to get the raw weighted maps, e.g. when comparing magnitudes
   across layers before fusing them yourself.
@@ -144,6 +148,32 @@ cam_extractor(class_idx, scores=None, normalized=True)
 Gradient-based extractors also accept `retain_graph=True` (forwarded to the gradient computation), needed when you call
 the extractor several times after a single forward — see
 [Troubleshooting](troubleshooting.md#runtimeerror-trying-to-backward-through-the-graph-a-second-time).
+
+`targets` opens the same extractor API to dense predictions and embeddings without a task-specific adapter. For a
+segmentation tensor shaped `(N, classes, H, W)`, explain class 5 inside a region mask:
+
+```python
+with LayerCAM(model, target_layer="backbone.layer4") as cam_extractor:
+    output = model(input_batch)
+    cams = cam_extractor(scores=output, targets=lambda sample: sample[5][region_mask].mean())
+```
+
+For an embedding tensor shaped `(N, embedding_dim)`, the target can be its similarity to another embedding:
+
+```python
+import torch.nn.functional as F
+
+target = lambda embedding: F.cosine_similarity(embedding, text_embedding, dim=0)
+with LayerCAM(model, target_layer="visual.layer4") as cam_extractor:
+    image_embeddings = model(input_batch)
+    cams = cam_extractor(scores=image_embeddings, targets=target)
+```
+
+Tensor outputs are split along their batch dimension. A model may instead return a list with one item per sample,
+such as detection dictionaries; in that case each target receives the corresponding item. `GradCAM`,
+`GradCAMpp`, `SmoothGradCAMpp`, `XGradCAM`, `LayerCAM`, `ScoreCAM`, `SSCAM`, and `ISCAM` support this contract, as
+does `RefineCAM` when its base method supports it. `CAM`, `FinerCAM`, and `LeGrad` retain their specialized
+class-based objectives.
 
 ## Batched inputs
 
@@ -160,11 +190,11 @@ with GradCAM(model) as cam_extractor:
     cams = cam_extractor(class_ids, out)         # cams[0] has shape (3, H, W)
 ```
 
-## Models with multiple inputs or non-tensor outputs
+## Models with multiple inputs or batched dictionary outputs
 
-The extractor expects the **model output to be the class logits**, and the hooked layer to output a single
-tensor. If your model returns a tuple/dict (e.g. `(logits, aux)`) or takes several inputs (e.g. a siamese
-network), wrap it so the forward used for the CAM returns a single logits tensor:
+The hooked layer must output a tensor. `targets` handles a batched tensor or a list containing one output per sample.
+Tuple outputs such as `(logits, aux)`, one dictionary containing batched tensors, and models taking several inputs
+(e.g. a siamese network) need a thin wrapper around that boundary:
 
 ```python
 import torch.nn as nn
@@ -343,3 +373,5 @@ for concrete numbers, and the [methods reference](../reference/methods.md) for t
 CAM methods are **post-hoc**: run them on a trained model in `eval()` mode to interpret its predictions — they
 are not a training objective. To quantify how faithful a method is on your own data, use the
 [`ClassificationMetric`](../reference/metrics.md).
+Metrics re-run masked or perturbed inputs in batches, so the model must support batched inference and return the
+same output structure for those forwards.

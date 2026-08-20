@@ -9,15 +9,19 @@ from typing import Any, Protocol, cast
 
 import torch
 
+from .methods.core import OutputTarget, _resolve_targets, _target_scores
+
 
 class _CAMExtractor(Protocol):
     model: torch.nn.Module
 
     def __call__(
         self,
-        class_idx: int | list[int],
-        scores: torch.Tensor | None = None,
+        class_idx: int | list[int] | None = None,
+        scores: Any = None,
         normalized: bool = True,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
         **kwargs: Any,
     ) -> list[torch.Tensor]: ...
 
@@ -39,11 +43,11 @@ def _model_eval(model: torch.nn.Module) -> Iterator[None]:
 
 def _get_scores(
     cam_extractor: _CAMExtractor,
-    logits_fn: Callable[[torch.Tensor], torch.Tensor] | None,
+    logits_fn: Callable[[Any], Any] | None,
     input_tensor: torch.Tensor,
-) -> torch.Tensor:
+) -> Any:
     logits = cam_extractor.model(input_tensor)
-    return cast(torch.Tensor, logits if logits_fn is None else logits_fn(logits))
+    return logits if logits_fn is None else logits_fn(logits)
 
 
 def _resolve_class_idx(scores: torch.Tensor, class_idx: int | list[int] | None) -> tuple[int | list[int], torch.Tensor]:
@@ -68,12 +72,36 @@ def _resolve_class_idx(scores: torch.Tensor, class_idx: int | list[int] | None) 
 
 def _get_cam(
     cam_extractor: _CAMExtractor,
-    scores: torch.Tensor,
+    scores: Any,
     class_idx: int | list[int] | None,
-) -> tuple[torch.Tensor, torch.Tensor]:
+    targets: OutputTarget | list[OutputTarget] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor | None]:
+    if targets is not None:
+        cams = cam_extractor(scores=scores, targets=targets)
+        return cam_extractor.fuse_cams(cams), None
     extractor_idx, target_indices = _resolve_class_idx(scores, class_idx)
     cams = cam_extractor(extractor_idx, scores)
     return cam_extractor.fuse_cams(cams), target_indices
+
+
+def _select_scores(
+    scores: Any,
+    target_indices: torch.Tensor | None,
+    targets: list[OutputTarget] | None,
+) -> torch.Tensor:
+    if targets is not None:
+        return _target_scores(scores, targets)
+    return cast(torch.Tensor, scores).gather(1, cast(torch.Tensor, target_indices).unsqueeze(1)).squeeze(1)
+
+
+def _filter_selection(
+    target_indices: torch.Tensor | None,
+    targets: list[OutputTarget] | None,
+    valid: torch.Tensor,
+) -> tuple[torch.Tensor | None, list[OutputTarget] | None]:
+    if targets is not None:
+        return None, [target for target, keep in zip(targets, valid, strict=True) if keep]
+    return cast(torch.Tensor, target_indices)[valid], None
 
 
 def _resize_cam(cam: torch.Tensor, spatial_shape: tuple[int, ...]) -> torch.Tensor:
@@ -138,7 +166,7 @@ class ClassificationMetric:
     def __init__(
         self,
         cam_extractor: _CAMExtractor,
-        logits_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
+        logits_fn: Callable[[Any], Any] | None = None,
     ) -> None:
         self.cam_extractor = cam_extractor
         self.logits_fn = logits_fn
@@ -148,32 +176,41 @@ class ClassificationMetric:
         self,
         input_tensor: torch.Tensor,
         class_idx: int | list[int] | None = None,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> None:
         """Update the state of the metric with new predictions.
 
         Args:
             input_tensor: preprocessed input tensor for the model
             class_idx: class index to focus on (default: index of the top predicted class for each sample)
+            targets: scalar output target shared by the batch, or one target per sample
+
+        Raises:
+            ValueError: if both class indices and output targets are provided
         """
+        if targets is not None and class_idx is not None:
+            raise ValueError("provide either class_idx or targets, not both")
         with _model_eval(self.cam_extractor.model):
             scores = _get_scores(self.cam_extractor, self.logits_fn, input_tensor)
-            cam, target_indices = _get_cam(self.cam_extractor, scores, class_idx)
+            target_fns = _resolve_targets(targets, input_tensor.shape[0]) if targets is not None else None
+            cam, target_indices = _get_cam(self.cam_extractor, scores, class_idx, target_fns)
             discard = torch.isnan(cam).reshape(input_tensor.shape[0], -1).any(dim=-1)
-            nan_count = discard.sum().item()
+            nan_count = int(discard.sum().item())
             if discard.all():
                 self.nan_count += nan_count
                 return
 
             cam = _resize_cam(cam[~discard], tuple(input_tensor.shape[2:]))
-            scores = scores[~discard].gather(1, target_indices[~discard].unsqueeze(1)).squeeze(1)
-            target_indices = target_indices[~discard]
             valid_input = input_tensor[~discard]
+            selected_scores = _select_scores(scores, target_indices, target_fns)[~discard]
+            valid_indices, valid_targets = _filter_selection(target_indices, target_fns, ~discard)
 
             with self.cam_extractor._hooks_off(), torch.inference_mode():  # noqa: SLF001
                 masked_scores = _get_scores(self.cam_extractor, self.logits_fn, cam.unsqueeze(1) * valid_input)
-            masked_scores = masked_scores.gather(1, target_indices.unsqueeze(1)).squeeze(1)
-            drop = torch.relu(scores - masked_scores).div(scores + 1e-7)
-            increase = scores < masked_scores
+            masked_scores = _select_scores(masked_scores, valid_indices, valid_targets)
+            drop = torch.relu(selected_scores - masked_scores).div(selected_scores + 1e-7)
+            increase = selected_scores < masked_scores
 
         self.drop += drop.sum().item()
         self.increase += increase.sum().item()
@@ -238,7 +275,7 @@ class DeletionInsertionMetric:
     def __init__(
         self,
         cam_extractor: _CAMExtractor,
-        logits_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
+        logits_fn: Callable[[Any], Any] | None = None,
         *,
         steps: int = 20,
         baseline: torch.Tensor | Callable[[torch.Tensor], torch.Tensor] | None = None,
@@ -276,13 +313,14 @@ class DeletionInsertionMetric:
         except RuntimeError as exc:
             raise ValueError("baseline must be broadcastable to the input shape") from exc
 
-    def _compute_curves(
+    def _compute_curves(  # noqa: PLR0914
         self,
         input_tensor: torch.Tensor,
         baseline: torch.Tensor,
         ranks: torch.Tensor,
-        target_indices: torch.Tensor,
+        target_indices: torch.Tensor | None,
         original_scores: torch.Tensor,
+        targets: list[OutputTarget] | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         num_positions = ranks.shape[1]
         step_size = (num_positions + self.steps - 1) // self.steps
@@ -319,11 +357,14 @@ class DeletionInsertionMetric:
                     input_tensor.flatten(2)[sample_indices],
                     baseline.flatten(2)[sample_indices],
                 ).reshape((-1, *input_tensor.shape[1:]))
-                selected_scores = (
-                    _get_scores(self.cam_extractor, self.logits_fn, perturbed)
-                    .gather(1, target_indices[sample_indices].unsqueeze(1))
-                    .squeeze(1)
-                )
+                perturbed_scores = _get_scores(self.cam_extractor, self.logits_fn, perturbed)
+                if targets is None:
+                    indices = cast(torch.Tensor, target_indices)[sample_indices]
+                    selected_targets = None
+                else:
+                    indices = None
+                    selected_targets = [targets[idx] for idx in sample_indices.tolist()]
+                selected_scores = _select_scores(perturbed_scores, indices, selected_targets)
 
                 for score, job in zip(selected_scores, chunk, strict=True):
                     if job[1] == 0:
@@ -336,22 +377,31 @@ class DeletionInsertionMetric:
 
         return fractions, deletion, insertion
 
-    def update(
+    def update(  # noqa: PLR0914
         self,
         input_tensor: torch.Tensor,
         class_idx: int | list[int] | None = None,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> None:
         """Update the metric with a batch of inputs.
 
         Args:
             input_tensor: preprocessed model input
             class_idx: shared class index, one class index per sample, or ``None`` to use original top predictions
+            targets: scalar output target shared by the batch, or one target per sample
+
+        Raises:
+            ValueError: if both class indices and output targets are provided
         """
+        if targets is not None and class_idx is not None:
+            raise ValueError("provide either class_idx or targets, not both")
         with _model_eval(self.cam_extractor.model):
             scores = _get_scores(self.cam_extractor, self.logits_fn, input_tensor)
-            cam, target_indices = _get_cam(self.cam_extractor, scores, class_idx)
+            target_fns = _resolve_targets(targets, input_tensor.shape[0]) if targets is not None else None
+            cam, target_indices = _get_cam(self.cam_extractor, scores, class_idx, target_fns)
             discard = torch.isnan(cam).reshape(input_tensor.shape[0], -1).any(dim=-1)
-            nan_count = discard.sum().item()
+            nan_count = int(discard.sum().item())
             if discard.all():
                 self.nan_count += nan_count
                 return
@@ -360,16 +410,17 @@ class DeletionInsertionMetric:
                 baseline = self._get_baseline(input_tensor)[~discard]
             valid_input = input_tensor[~discard]
             cam = _resize_cam(cam[~discard], tuple(input_tensor.shape[2:]))
-            target_indices = target_indices[~discard]
-            original_scores = scores[~discard].gather(1, target_indices.unsqueeze(1)).squeeze(1).detach()
+            original_scores = _select_scores(scores, target_indices, target_fns)[~discard].detach()
+            valid_indices, valid_targets = _filter_selection(target_indices, target_fns, ~discard)
             order = torch.argsort(cam.flatten(1), dim=1, descending=True, stable=True)
             ranks = torch.argsort(order, dim=1)
             fractions, deletion, insertion = self._compute_curves(
                 valid_input,
                 baseline,
                 ranks,
-                target_indices,
+                valid_indices,
                 original_scores,
+                valid_targets,
             )
             deletion_auc = torch.trapezoid(deletion, fractions, dim=1)
             insertion_auc = torch.trapezoid(insertion, fractions, dim=1)
