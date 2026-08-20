@@ -1,32 +1,17 @@
-from io import BytesIO
-
 import pytest
-import requests
 import torch
-from PIL import Image
 from torch import nn
-from torchvision.transforms.functional import normalize, resize, to_tensor
+from torchvision.transforms.functional import normalize
 
 
 @pytest.fixture(scope="session")
 def mock_img_tensor():
-    try:
-        # Get a dog image
-        url = "https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg"
-        response = requests.get(url, timeout=5)
-
-        # Forward an image
-        pil_img = Image.open(BytesIO(response.content), mode="r").convert("RGB")
-        img_tensor = normalize(
-            to_tensor(resize(pil_img, (224, 224))),
-            [0.485, 0.456, 0.406],
-            [0.229, 0.224, 0.225],
-        ).unsqueeze(0)
-    except ConnectionError:
-        img_tensor = torch.rand((1, 3, 224, 224))
-
-    img_tensor.requires_grad_(True)
-    return img_tensor
+    generator = torch.Generator().manual_seed(0)
+    return normalize(
+        torch.rand((1, 3, 224, 224), generator=generator),
+        [0.485, 0.456, 0.406],
+        [0.229, 0.224, 0.225],
+    ).requires_grad_(True)
 
 
 @pytest.fixture(scope="session")
