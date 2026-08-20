@@ -1,5 +1,6 @@
 import pytest
 import torch
+from torch import nn
 from torchvision.models import get_model
 
 from torchcam.methods import activation
@@ -23,6 +24,25 @@ def _verify_cam(activation_map, output_size):
     assert isinstance(activation_map, torch.Tensor)
     assert activation_map.shape == output_size
     assert not torch.isnan(activation_map).any()
+
+
+def _scorecam_inputs():
+    torch.manual_seed(0)
+    model = nn.Sequential(
+        nn.Conv2d(3, 4, 3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(4, 5, 3, padding=1),
+        nn.ReLU(),
+        nn.AdaptiveAvgPool2d(1),
+        nn.Flatten(),
+        nn.Linear(5, 3),
+    ).double()
+    model.eval().requires_grad_(False)
+    return model, torch.rand((2, 3, 8, 8), dtype=torch.float64)
+
+
+def _scorecam_kwargs(cam_name, batch_size):
+    return {"batch_size": batch_size, **({} if cam_name == "ScoreCAM" else {"num_samples": 2})}
 
 
 @pytest.mark.parametrize(
@@ -82,22 +102,54 @@ def test_cam_conv1x1(mock_fullyconv_model):
         _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 32, 32))
 
 
-def test_scorecam_restores_state_on_error(mock_img_tensor, monkeypatch):
-    model = get_model("mobilenet_v2", weights=None).train()
-    for p in model.parameters():
-        p.requires_grad_(False)
+@pytest.mark.parametrize("cam_name", ["ScoreCAM", "SSCAM", "ISCAM"])
+@pytest.mark.parametrize("class_idx", [1, [1, 2]])
+def test_scorecam_chunk_parity(cam_name, class_idx):
+    results = []
+    for batch_size in (3, 64):
+        model, input_tensor = _scorecam_inputs()
+        with activation.__dict__[cam_name](
+            model,
+            ["1", "3"],
+            **_scorecam_kwargs(cam_name, batch_size),
+        ) as extractor:
+            scores = model(input_tensor)
+            torch.manual_seed(1)
+            results.append(extractor(class_idx, scores))
 
-    with activation.ScoreCAM(model, "features.16.conv.3", batch_size=8) as extractor:
+    assert [cam.shape for cam in results[0]] == [(2, 8, 8), (2, 8, 8)]
+    assert all(cam.dtype == torch.float64 and cam.device.type == "cpu" for cam in results[0])
+    for chunked, unchunked in zip(*results, strict=True):
+        torch.testing.assert_close(chunked, unchunked)
+
+
+@pytest.mark.parametrize("cam_name", ["ScoreCAM", "SSCAM", "ISCAM"])
+def test_scorecam_preserves_disabled_hooks(cam_name):
+    model, input_tensor = _scorecam_inputs()
+    with activation.__dict__[cam_name](model, ["1", "3"], **_scorecam_kwargs(cam_name, 3)) as extractor:
+        scores = model(input_tensor)
+        extractor.disable_hooks()
+        torch.manual_seed(1)
+        _ = extractor(1, scores)
+        assert not extractor._hooks_enabled
+
+
+@pytest.mark.parametrize("cam_name", ["ScoreCAM", "SSCAM", "ISCAM"])
+def test_scorecam_restores_state_on_error(cam_name, monkeypatch):
+    model, input_tensor = _scorecam_inputs()
+    model.train()
+
+    with activation.__dict__[cam_name](model, ["1", "3"], **_scorecam_kwargs(cam_name, 3)) as extractor:
         extractor.enable_hooks()
-        scores = model(mock_img_tensor)
+        scores = model(input_tensor)
         monkeypatch.setattr(
             extractor,
-            "_get_score_weights",
+            "_masked_input_chunk",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
         )
 
         with pytest.raises(RuntimeError):
-            extractor(scores[0].argmax().item(), scores)
+            extractor(1, scores)
 
         assert extractor._hooks_enabled
         assert model.training
@@ -125,6 +177,8 @@ def test_video_cams(
     # Speed up testing by reducing the number of samples
     if isinstance(num_samples, int):
         kwargs["num_samples"] = num_samples
+    if cam_name != "CAM":
+        kwargs["batch_size"] = 3
 
     # Hook the corresponding layer in the model
     with activation.__dict__[cam_name](model, target_layer, **kwargs) as extractor, torch.no_grad():

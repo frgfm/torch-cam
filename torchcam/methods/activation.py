@@ -170,37 +170,57 @@ class ScoreCAM(_CAM):
         if self._hooks_enabled:
             self._input = input_[0].detach().clone()
 
+    def _prepare_masked_inputs(self, activation: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        """Prepare activation masks and their sample indices.
+
+        Returns:
+            mask source, flattened sample indices and reusable input buffer
+        """
+        batch, channels = activation.shape[:2]
+        sample_indices = torch.arange(batch).repeat_interleave(channels)
+        return (
+            activation.flatten(0, 1).unsqueeze(1),
+            sample_indices,
+            self._input.new_empty((min(self.bs, batch * channels), *self._input.shape[1:])),
+        )
+
+    def _masked_input_chunk(self, masks: Tensor, sample_indices: Tensor, buffer: Tensor, slice_: slice) -> Tensor:
+        model_input = self._input if self._input.shape[0] == 1 else self._input[sample_indices[slice_]]
+        chunk = buffer[: slice_.stop - slice_.start]
+        return torch.mul(masks[slice_], model_input, out=chunk)
+
     @torch.no_grad()
     def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
-        b, c = activations[0].shape[:2]
-        # (N * C, I, H, W)
-        scored_inputs = [
-            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:]) for act in activations
-        ]
+        prepared_inputs = [self._prepare_masked_inputs(act) for act in activations]
 
         # Initialize weights
         # (N * C)
-        weights = [torch.zeros(b * c, dtype=t.dtype).to(device=t.device) for t in activations]
+        weights = [
+            torch.zeros(act.shape[0] * act.shape[1], dtype=act.dtype).to(device=act.device) for act in activations
+        ]
 
         # (N, M)
         logits = self.model(self._input)
-        idcs = torch.arange(b).repeat_interleave(c)
 
-        for idx, scored_input in enumerate(scored_inputs):
+        for (masks, sample_indices, buffer), weight in zip(prepared_inputs, weights, strict=True):
             # Process by chunk (GPU RAM limitation)
-            for idx_ in range(math.ceil(weights[idx].numel() / self.bs)):
-                slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weights[idx].numel()))
+            for idx_ in range(math.ceil(weight.numel() / self.bs)):
+                slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
                 # Get the softmax probabilities of the target class
                 # (*, M)
-                cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
+                baseline = logits if logits.shape[0] == 1 else logits[sample_indices[slice_]]
+                cic = self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)) - baseline
                 if isinstance(class_idx, int):
-                    weights[idx][slice_] = cic[:, class_idx]
+                    weight[slice_] = cic[:, class_idx]
                 else:
-                    target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
-                    weights[idx][slice_] = cic.gather(1, target.view(-1, 1)).squeeze(1)
+                    chunk_target = torch.tensor(class_idx, device=cic.device)[sample_indices[slice_]]
+                    weight[slice_] = cic.gather(1, chunk_target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
-        return [torch.softmax(w.view(b, c), -1) for w in weights]
+        return [
+            torch.softmax(weight.view(*activation.shape[:2]), -1)
+            for weight, activation in zip(weights, activations, strict=True)
+        ]
 
     @torch.no_grad()
     def _get_weights(
@@ -304,38 +324,38 @@ class SSCAM(ScoreCAM):
 
     @torch.no_grad()
     def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
-        b, c = activations[0].shape[:2]
-
         # Initialize weights
         # (N * C)
-        weights = [torch.zeros(b * c, dtype=t.dtype).to(device=t.device) for t in activations]
+        weights = [
+            torch.zeros(act.shape[0] * act.shape[1], dtype=act.dtype).to(device=act.device) for act in activations
+        ]
 
         # (N, M)
         logits = self.model(self._input)
-        idcs = torch.arange(b).repeat_interleave(c)
 
-        for idx, act in enumerate(activations):
+        for activation, weight in zip(activations, weights, strict=True):
             # Add noise
             for _ in range(self.num_samples):
-                noise = self._distrib.sample(act.size()).to(device=act.device)
-                # (N, C, I, H, W)
-                scored_input = (act + noise).unsqueeze(2) * self._input.unsqueeze(1)
-                # (N * C, I, H, W)
-                scored_input = scored_input.view(b * c, *scored_input.shape[2:])
+                noise = self._distrib.sample(activation.size()).to(device=activation.device)
+                masks, sample_indices, buffer = self._prepare_masked_inputs(activation + noise)
 
                 # Process by chunk (GPU RAM limitation)
-                for idx_ in range(math.ceil(weights[idx].numel() / self.bs)):
-                    slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weights[idx].numel()))
+                for idx_ in range(math.ceil(weight.numel() / self.bs)):
+                    slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
                     # Get the softmax probabilities of the target class
-                    cic = self.model(scored_input[slice_]) - logits[idcs[slice_]]
+                    baseline = logits if logits.shape[0] == 1 else logits[sample_indices[slice_]]
+                    cic = self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)) - baseline
                     if isinstance(class_idx, int):
-                        weights[idx][slice_] += cic[:, class_idx]
+                        weight[slice_] += cic[:, class_idx]
                     else:
-                        target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
-                        weights[idx][slice_] += cic.gather(1, target.view(-1, 1)).squeeze(1)
+                        chunk_target = torch.tensor(class_idx, device=cic.device)[sample_indices[slice_]]
+                        weight[slice_] += cic.gather(1, chunk_target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
-        return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]
+        return [
+            torch.softmax(weight.div_(self.num_samples).view(*activation.shape[:2]), -1)
+            for weight, activation in zip(weights, activations, strict=True)
+        ]
 
     def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs}, num_samples={self.num_samples}, std={self.std})"
@@ -404,35 +424,36 @@ class ISCAM(ScoreCAM):
 
     @torch.no_grad()
     def _get_score_weights(self, activations: list[Tensor], class_idx: int | list[int]) -> list[Tensor]:
-        b, c = activations[0].shape[:2]
-        # (N * C, I, H, W)
-        scored_inputs = [
-            (act.unsqueeze(2) * self._input.unsqueeze(1)).view(b * c, *self._input.shape[1:]) for act in activations
-        ]
+        prepared_inputs = [self._prepare_masked_inputs(act) for act in activations]
 
         # Initialize weights
-        weights = [torch.zeros(b * c, dtype=t.dtype).to(device=t.device) for t in activations]
+        weights = [
+            torch.zeros(act.shape[0] * act.shape[1], dtype=act.dtype).to(device=act.device) for act in activations
+        ]
 
         # (N, M)
         logits = self.model(self._input)
-        idcs = torch.arange(b).repeat_interleave(c)
 
-        for idx, scored_input in enumerate(scored_inputs):
+        for (masks, sample_indices, buffer), weight in zip(prepared_inputs, weights, strict=True):
             coeff = 0.0
             # Process by chunk (GPU RAM limitation)
             for sidx in range(self.num_samples):
                 coeff += (sidx + 1) / self.num_samples
 
                 # Process by chunk (GPU RAM limitation)
-                for idx_ in range(math.ceil(weights[idx].numel() / self.bs)):
-                    slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weights[idx].numel()))
+                for idx_ in range(math.ceil(weight.numel() / self.bs)):
+                    slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
                     # Get the softmax probabilities of the target class
-                    cic = self.model(coeff * scored_input[slice_]) - logits[idcs[slice_]]
+                    baseline = logits if logits.shape[0] == 1 else logits[sample_indices[slice_]]
+                    cic = self.model(coeff * self._masked_input_chunk(masks, sample_indices, buffer, slice_)) - baseline
                     if isinstance(class_idx, int):
-                        weights[idx][slice_] += cic[:, class_idx]
+                        weight[slice_] += cic[:, class_idx]
                     else:
-                        target = torch.tensor(class_idx, device=cic.device)[idcs[slice_]]
-                        weights[idx][slice_] += cic.gather(1, target.view(-1, 1)).squeeze(1)
+                        chunk_target = torch.tensor(class_idx, device=cic.device)[sample_indices[slice_]]
+                        weight[slice_] += cic.gather(1, chunk_target.view(-1, 1)).squeeze(1)
 
         # Reshape the weights (N, C)
-        return [torch.softmax(weight.div_(self.num_samples).view(b, c), -1) for weight in weights]
+        return [
+            torch.softmax(weight.div_(self.num_samples).view(*activation.shape[:2]), -1)
+            for weight, activation in zip(weights, activations, strict=True)
+        ]
