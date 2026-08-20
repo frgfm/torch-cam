@@ -35,7 +35,7 @@ def _verify_cam(activation_map, output_size):
     # Simple verifications
     assert isinstance(activation_map, torch.Tensor)
     assert activation_map.shape == output_size
-    assert not torch.isnan(activation_map).any()
+    assert torch.isfinite(activation_map).all()
 
 
 def _scorecam_inputs():
@@ -58,53 +58,38 @@ def _scorecam_kwargs(cam_name, batch_size):
 
 
 @pytest.mark.parametrize(
-    (
-        "cam_name",
-        "target_layer",
-        "fc_layer",
-        "num_samples",
-        "output_size",
-        "batch_size",
-    ),
+    ("fc_layer", "batch_size"),
     [
-        ("CAM", None, None, None, (7, 7), 1),
-        ("CAM", None, None, None, (7, 7), 2),
-        ("CAM", None, "classifier.1", None, (7, 7), 1),
-        ("CAM", None, lambda m: m.classifier[1], None, (7, 7), 1),
-        ("ScoreCAM", "features.16.conv.3", None, None, (7, 7), 1),
-        ("ScoreCAM", lambda m: m.features[16].conv[3], None, None, (7, 7), 1),
-        ("SSCAM", "features.16.conv.3", None, 4, (7, 7), 1),
-        ("ISCAM", "features.16.conv.3", None, 4, (7, 7), 1),
+        (None, 1),
+        (None, 2),
+        ("classifier.1", 1),
+        (lambda m: m.classifier[1], 1),
     ],
 )
-def test_img_cams(
-    cam_name,
-    target_layer,
-    fc_layer,
-    num_samples,
-    output_size,
-    batch_size,
-    mock_img_tensor,
-):
+def test_img_cams(fc_layer, batch_size, mock_img_tensor):
     model = get_model("mobilenet_v2", weights=None).eval()
     for p in model.parameters():
         p.requires_grad_(False)
     kwargs = {}
-    # Speed up testing by reducing the number of samples
-    if isinstance(num_samples, int):
-        kwargs["num_samples"] = num_samples
-
     if fc_layer is not None:
         kwargs["fc_layer"] = fc_layer(model) if callable(fc_layer) else fc_layer
 
-    target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
-    with activation.__dict__[cam_name](model, target_layer, **kwargs) as extractor, torch.no_grad():
+    with activation.CAM(model, **kwargs) as extractor, torch.no_grad():
         scores = model(mock_img_tensor.repeat((batch_size,) + (1,) * (mock_img_tensor.ndim - 1)))
         # Use the hooked data to compute activation map
-        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (batch_size, *output_size))
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (batch_size, 7, 7))
         # Multiple class indices
-        _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, *output_size))
+        _verify_cam(extractor(list(range(batch_size)), scores)[0], (batch_size, 7, 7))
+
+
+def test_scorecam_torchvision_integration():
+    model = get_model("mobilenet_v2", weights=None).eval().requires_grad_(False)
+    input_tensor = torch.ones((1, 3, 16, 16))
+
+    with activation.ScoreCAM(model, model.features[1].conv[2]) as extractor, torch.no_grad():
+        scores = model(input_tensor)
+        _verify_cam(extractor(scores[0].argmax().item(), scores)[0], (1, 8, 8))
 
 
 def test_cam_conv1x1(mock_fullyconv_model):
@@ -130,7 +115,9 @@ def test_scorecam_chunk_parity(cam_name, class_idx):
             results.append(extractor(class_idx, scores))
 
     assert [cam.shape for cam in results[0]] == [(2, 8, 8), (2, 8, 8)]
-    assert all(cam.dtype == torch.float64 and cam.device.type == "cpu" for cam in results[0])
+    assert all(
+        cam.dtype == torch.float64 and cam.device.type == "cpu" and torch.isfinite(cam).all() for cam in results[0]
+    )
     for chunked, unchunked in zip(*results, strict=True):
         torch.testing.assert_close(chunked, unchunked)
 
