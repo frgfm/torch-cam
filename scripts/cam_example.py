@@ -11,9 +11,9 @@ import argparse
 import math
 from functools import partial
 from io import BytesIO
+from urllib.request import Request, urlopen
 
 import matplotlib.pyplot as plt
-import requests
 import torch
 from PIL import Image
 from torchvision.models import get_model, get_model_weights
@@ -46,6 +46,17 @@ def resolve_transformer_config(model, target_layer):
     return target_layer, reshape_transform
 
 
+def _load_image(img_path):
+    if img_path.startswith(("http://", "https://")):
+        request = Request(  # noqa: S310
+            img_path,
+            headers={"User-Agent": "TorchCAM (+https://github.com/frgfm/torch-cam)"},
+        )
+        with urlopen(request, timeout=5) as response:  # noqa: S310  # nosec B310
+            img_path = BytesIO(response.read())
+    return Image.open(img_path, mode="r").convert("RGB")
+
+
 def main(args):  # noqa: PLR0912
     if args.device is None:
         args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -60,8 +71,7 @@ def main(args):  # noqa: PLR0912
         p.requires_grad_(False)
 
     # Image
-    img_path = BytesIO(requests.get(args.img, timeout=5).content) if args.img.startswith("http") else args.img
-    pil_img = Image.open(img_path, mode="r").convert("RGB")
+    pil_img = _load_image(args.img)
     preprocess = weights.transforms()
 
     # Preprocess image
