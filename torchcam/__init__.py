@@ -2,6 +2,8 @@ from importlib import import_module as _import_module
 from importlib.metadata import version
 from types import ModuleType as _ModuleType
 
+__all__ = ("explain", "methods", "metrics", "utils", "version")  # noqa: F822
+
 __version__ = version("torchcam")
 
 
