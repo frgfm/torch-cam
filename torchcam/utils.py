@@ -4,9 +4,9 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import numpy as np
+from matplotlib import colormaps
 from matplotlib.colors import Colormap
-from matplotlib.pyplot import get_cmap
-from PIL.Image import Image, Resampling, fromarray
+from PIL.Image import Image, Resampling, blend, fromarray
 
 
 def overlay_mask(img: Image, mask: Image, colormap: Colormap | str = "jet", alpha: float = 0.7) -> Image:
@@ -44,10 +44,12 @@ def overlay_mask(img: Image, mask: Image, colormap: Colormap | str = "jet", alph
     if len(img.getbands()) not in {1, 3}:
         raise ValueError("img argument needs to be a grayscale or RGB image")
 
-    cmap = get_cmap(colormap)
+    cmap = colormaps.get_cmap(colormap)
     # Resize mask and apply colormap
     overlay = mask.resize(img.size, resample=Resampling.BICUBIC)
-    overlay = (255 * cmap(np.asarray(overlay) ** 2)[:, :, :3]).astype(np.uint8)
+    overlay = cmap(np.asarray(overlay) ** 2, bytes=True)[:, :, :3]
+    if img.mode in {"L", "RGB"} and overlay.ndim == 3 and np.isfinite(alpha):
+        return blend(fromarray(overlay), img.convert("RGB"), alpha)
     # Overlay the image with the mask
     bg_img = np.asarray(img) if len(img.getbands()) == 3 else np.asarray(img)[..., np.newaxis].repeat(3, axis=-1)
     return fromarray((alpha * bg_img + (1 - alpha) * overlay).astype(np.uint8))
