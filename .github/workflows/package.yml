@@ -46,6 +46,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
+          enable-cache: false
       - name: Build the package
         run: make build
       - name: Install the engine
@@ -69,6 +70,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
+          enable-cache: false
       - name: Run quality checks
         env:
           UV_TORCH_BACKEND: cpu
@@ -107,6 +109,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
+          enable-cache: false
       - name: Run tests
         env:
           UV_TORCH_BACKEND: cpu
