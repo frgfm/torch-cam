@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.event_name == 'push' && 'pages' || github.run_id }}
+  cancel-in-progress: false
+
 env:
   PYTHON_VERSION: "3.11"
   UV_VERSION: "0.12.5"
@@ -50,9 +54,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    concurrency:
-      group: pages
-      cancel-in-progress: false
     steps:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
