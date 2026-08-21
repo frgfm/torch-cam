@@ -31,14 +31,17 @@ updates:
       interval: "daily"
       time: "08:00"
     allow:
-      # Safe updates
+      - dependency-name: "mkdocs*"
+      - dependency-name: "griffe*"
       - dependency-name: "ruff"
       - dependency-name: "ty"
       - dependency-name: "prek"
-      - dependency-name: "pytest"
-      - dependency-name: "pytest-cov"
-      - dependency-name: "pytest-pretty"
+      - dependency-name: "pytest*"
     groups:
+      docs:
+        patterns:
+          - "mkdocs*"
+          - "griffe*"
       quality:
         patterns:
           - "ruff"
