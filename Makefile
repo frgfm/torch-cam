@@ -100,9 +100,6 @@ serve-docs: ${DOCS_DIR}
 build-docs: ${DOCS_DIR}
 	DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib uv run mkdocs build -f ${DOCS_DIR}/mkdocs.yml
 
-push-docs: ${DOCS_DIR}
-	DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib uv run mkdocs gh-deploy -f ${DOCS_DIR}/mkdocs.yml --force
-
 
 ########################################################
 # Demo

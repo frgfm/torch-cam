@@ -41,7 +41,7 @@
 </p>
 <p align="center">
   <a href="https://frgfm.github.io/torch-cam">
-    <img src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/page-build.yml?branch=main&label=Documentation&logo=read-the-docs&logoColor=white&style=flat-square" alt="Documentation Status">
+    <img src="https://img.shields.io/github/actions/workflow/status/frgfm/torch-cam/docs.yml?branch=main&label=Documentation&logo=read-the-docs&logoColor=white&style=flat-square" alt="Documentation Status">
   </a>
 </p>
 
