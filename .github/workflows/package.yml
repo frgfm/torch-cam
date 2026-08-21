@@ -46,6 +46,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
+      - name: Build the package
+        run: make build
       - name: Install the engine
         env:
           UV_TORCH_BACKEND: cpu
@@ -67,19 +69,15 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
-      - uses: actions/cache@v6
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
-      - name: Run ruff
+      - name: Run quality checks
         env:
           UV_TORCH_BACKEND: cpu
         run: |
+          make deps-check
           make install-quality
           ruff --version
-          make lint-check
-      - name: Run ty
-        run: make typing-check
+          UV_NO_SYNC=1 make lint-check
+          UV_NO_SYNC=1 make typing-check
 
   headers:
     runs-on: ubuntu-latest
@@ -96,21 +94,6 @@ jobs:
           folders: 'torchcam,scripts,demo,docs,.github'
           ignore-files: 'version.py,__init__.py'
 
-  deps-sync:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@v10.0.1
-        with:
-          version: ${{ env.UV_VERSION }}
-      - name: Run dependency sync checker
-        run: make deps-check
-
   test:
     if: github.event_name != 'release'
     runs-on: ubuntu-latest
@@ -124,16 +107,12 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
-      - uses: actions/cache@v6
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}-test
       - name: Run tests
         env:
           UV_TORCH_BACKEND: cpu
         run: |
           make install-test
-          make test
+          UV_NO_SYNC=1 make test
       - uses: actions/upload-artifact@v7
         with:
           path: ./coverage.xml
@@ -155,28 +134,6 @@ jobs:
           flags: unittests
           files: ./coverage.xml
           fail_ci_if_error: true
-
-  build:
-    if: github.event_name == 'pull_request'
-    needs: install
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ['3.11', '3.12', '3.13', '3.14']
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ matrix.python }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@v10.0.1
-        with:
-          version: ${{ env.UV_VERSION }}
-      - name: Build the package
-        env:
-          UV_TORCH_BACKEND: cpu
-        run: make build
 
   publish:
     if: github.event_name == 'release'
