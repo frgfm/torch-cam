@@ -9,7 +9,6 @@ copyright: Copyright &copy; 2020-2025, François-Guillaume Fernandez
 repo_name: frgfm/torch-cam
 repo_url: https://github.com/frgfm/torch-cam
 edit_uri: blob/main/docs
-remote_branch: gh-pages
 
 # Configuration
 theme:

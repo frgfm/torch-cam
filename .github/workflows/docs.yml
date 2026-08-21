@@ -6,13 +6,15 @@ on:
   pull_request:
     branches: main
 
+permissions:
+  contents: read
+
 env:
   PYTHON_VERSION: "3.11"
   UV_VERSION: "0.12.5"
 
 jobs:
   build:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -32,38 +34,28 @@ jobs:
           make build-docs
       - name: Documentation sanity check
         run: test -e docs/site/index.html || exit
+      - name: Upload documentation artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/site
 
   deploy:
     if: github.event_name == 'push'
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@v10.0.1
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
-      - name: Build documentation
-        env:
-          UV_TORCH_BACKEND: cpu
-        run: |
-          make install-docs
-          make build-docs
-      - name: Documentation sanity check
-        run: test -e docs/site/index.html || exit
-      - name: Install SSH Client 🔑
-        uses: webfactory/ssh-agent@v0.10.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_DEPLOY_KEY }}
-      - name: Deploy to Github Pages
-        uses: JamesIves/github-pages-deploy-action@v4.9.0
-        with:
-          branch: gh-pages
-          folder: 'docs/site'
-          commit-message: '[skip ci] Documentation updates'
-          clean: true
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v6
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
