@@ -5,7 +5,7 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 ## v0.5.0 (Unreleased)
 
 RefineCAM, FinerCAM, LeGrad, Vision Transformer reshape transforms, callable output targets, deletion/insertion metrics,
-`torchcam.explain`, and demo improvements.
+`torchcam.explain`, and demo improvements. NumPy 2 is supported; NumPy 1.26.4+ and Pillow 9.3+ are now required.
 
 ## v0.4.1 (2025-10-27)
 
