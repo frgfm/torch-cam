@@ -2,6 +2,11 @@
 
 Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-cam/releases).
 
+## v0.5.0 (Unreleased)
+
+RefineCAM, FinerCAM, LeGrad, Vision Transformer reshape transforms, callable output targets, deletion/insertion metrics,
+`torchcam.explain`, and demo improvements.
+
 ## v0.4.1 (2025-10-27)
 
 Release note: [v0.4.1](https://github.com/frgfm/torch-cam/releases/tag/v0.4.1)
