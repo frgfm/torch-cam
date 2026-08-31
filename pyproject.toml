@@ -5,7 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "torchcam"
 version = "0.5.0.dev0"
-description = "Class activation maps for your PyTorch CNN models"
+description = "Class activation maps for your PyTorch CNN and transformer-based models"
 authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
 ]
