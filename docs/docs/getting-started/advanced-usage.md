@@ -223,10 +223,6 @@ print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
 
 ## Vision Transformers and other non-CNN models
 
-!!! warning "Development API"
-    `reshape_transform` is available on `main` and will ship in TorchCAM 0.4.2. Until then, use the
-    [Git installation](installation.md) rather than the latest PyPI release.
-
 TorchCAM's methods operate on **spatial feature maps** of shape `(N, C, H, W)` (or `(N, C, D, H, W)` in 3D).
 Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so CAM methods
 do not apply directly and automatic `target_layer` resolution cannot infer the token layout.

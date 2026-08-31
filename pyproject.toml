@@ -76,7 +76,7 @@ scripts = [
 documentation = "https://frgfm.github.io/torch-cam"
 repository = "https://github.com/frgfm/torch-cam"
 tracker = "https://github.com/frgfm/torch-cam/issues"
-changelog = "https://frgfm.github.io/torch-cam/latest/changelog.html"
+changelog = "https://frgfm.github.io/torch-cam/notes/changelog/"
 
 [tool.uv.build-backend]
 module-name = "torchcam"
