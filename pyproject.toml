@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.12.0,<0.13.0"]
+requires = ["uv_build>=0.12.15,<0.13.0"]
 build-backend = "uv_build"
 
 [project]
@@ -50,9 +50,9 @@ test = [
     "pytest-pretty==1.3.0",
 ]
 quality = [
-    "ruff==0.16.5",
-    "ty==0.0.75",
-    "prek==0.5.0",
+    "ruff==0.16.8",
+    "ty==0.0.81",
+    "prek==0.5.3",
 ]
 docs = [
     # cf. https://github.com/mkdocs/catalog
