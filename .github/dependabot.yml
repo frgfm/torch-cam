@@ -36,6 +36,7 @@ updates:
       - dependency-name: "ruff"
       - dependency-name: "ty"
       - dependency-name: "prek"
+      - dependency-name: "uv-build"
       - dependency-name: "pytest*"
     groups:
       docs:
@@ -47,6 +48,7 @@ updates:
           - "ruff"
           - "ty"
           - "prek"
+          - "uv-build"
       tests:
         patterns:
           - "pytest"
