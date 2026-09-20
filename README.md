@@ -286,12 +286,6 @@ python scripts/eval_latency.py SmoothGradCAMpp
 Looking for more illustrations of TorchCAM features?
 You might want to check the [Jupyter notebooks](notebooks) designed to give you a broader overview.
 
-### Community tutorials
-
-[TommyZihao (同济子豪兄)](https://github.com/TommyZihao) shares a Chinese-language [CAM video tutorial](https://www.bilibili.com/video/BV1JG4y1s74x) covering TorchCAM and pytorch-grad-cam, with [TorchCAM notebooks](https://github.com/TommyZihao/Train_Custom_Dataset/tree/main/图像分类/6-可解释性分析、显著性分析/1.torch-cam工具包：CAM热力图) for images, videos, and webcams.
-
-These examples date from 2022. Use the current [installation instructions](#setup) and [documentation](https://frgfm.github.io/torch-cam/) when adapting their setup and code.
-
 ## Citation
 
 If you wish to cite this project, feel free to use this [BibTeX](http://www.bibtex.org/) reference:
