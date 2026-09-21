@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.12.15,<0.13.0"]
+requires = ["uv_build>=0.12.16,<0.13.0"]
 build-backend = "uv_build"
 
 [project]
@@ -51,7 +51,7 @@ test = [
 ]
 quality = [
     "ruff==0.16.8",
-    "ty==0.0.81",
+    "ty==0.0.82",
     "prek==0.5.3",
 ]
 docs = [
