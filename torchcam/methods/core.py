@@ -108,8 +108,9 @@ class _CAM:
             raise TypeError("invalid argument type for `target_layer`")
 
         if missing := [name for name in target_names if name not in self.submodule_dict]:
-            hints = {name: get_close_matches(name, self.submodule_dict) for name in missing}
-            raise ValueError(f"unknown `target_layer` names, closest matches: {hints}; see `model.named_modules()`")
+            hints = {name: matches for name in missing if (matches := get_close_matches(name, self.submodule_dict))}
+            found = f", closest matches: {hints}" if hints else ""
+            raise ValueError(f"unknown `target_layer` names: {missing}{found}; see `model.named_modules()`")
         self.target_names = target_names
         self.model = model
         self._reshape_transform = reshape_transform

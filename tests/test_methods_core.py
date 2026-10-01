@@ -9,8 +9,9 @@ from torchcam.methods import core
 def test_cam_constructor(mock_img_model):
     model = mock_img_model.eval()
     # Check that wrong target_layer raises an error
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match=r"\['3'\]") as exc_info:
         core._CAM(model, "3")
+    assert "closest" not in str(exc_info.value)
     with pytest.raises(ValueError, match=r"'0\.30': \['0\.3'"):
         core._CAM(model, "0.30")
     with pytest.raises(ValueError, match="named_modules"):

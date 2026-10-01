@@ -228,10 +228,12 @@ print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
 target-layer resolution:
 
 ```python
+from urllib.request import urlretrieve
 import timm
 from PIL import Image
 from torchcam.explain import explain
 
+urlretrieve("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
 image = Image.open("dog.jpg").convert("RGB")
 model = timm.create_model("resnet50.a1_in1k", pretrained=True).eval()
 transform = timm.data.create_transform(**timm.data.resolve_data_config({}, model=model))
@@ -247,7 +249,8 @@ from transformers import AutoImageProcessor, AutoModelForImageClassification
 processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
 model = LogitsOnly(AutoModelForImageClassification.from_pretrained("microsoft/resnet-50")).eval()
 input_tensor = processor(images=image, return_tensors="pt")["pixel_values"]
-result = explain(model, input_tensor, class_names=list(model.model.config.id2label.values()))
+labels = model.model.config.id2label
+result = explain(model, input_tensor, class_names=[labels[index] for index in range(len(labels))])
 ```
 
 Transformer-based timm and Hugging Face classifiers (ViT, DeiT, Swin) also need an explicit `target_layer` and a
