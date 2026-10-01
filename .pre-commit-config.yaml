@@ -33,6 +33,12 @@ repos:
         args: ["./pyproject.toml"]
   - repo: local
     hooks:
+      - id: lmh
+        name: Lint My Headers
+        entry: make headers-check
+        pass_filenames: false
+        require_serial: true
+        language: system
       - id: ruff-lint
         name: ruff-lint
         entry: make ruff-lint-fix

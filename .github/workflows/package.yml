@@ -83,18 +83,14 @@ jobs:
 
   headers:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Check the headers
-        uses: frgfm/validate-python-headers@main
-        with:
-          license: 'Apache-2.0'
-          owner: 'François-Guillaume Fernandez'
-          starting-year: 2020
-          folders: 'torchcam,scripts,demo,docs,.github'
-          ignore-files: 'version.py,__init__.py'
+        uses: frgfm/lint-my-headers@b2cbf9115943aa4b1407c3c944cc7c51250e7673 # v0.6.0
 
   test:
     if: github.event_name != 'release'
