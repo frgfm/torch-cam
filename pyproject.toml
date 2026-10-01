@@ -5,14 +5,14 @@ build-backend = "uv_build"
 [project]
 name = "torchcam"
 version = "0.5.0.dev0"
-description = "Class activation maps for your PyTorch CNN and transformer-based models"
+description = "Class activation maps (Grad-CAM, Score-CAM, LeGrad and more) for PyTorch CNNs and Vision Transformers"
 authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.11,<4"
 license = {file = "LICENSE"}
-keywords = ["pytorch", "deep learning", "class activation map", "cnn", "gradcam"]
+keywords = ["pytorch", "deep learning", "class activation map", "cnn", "vision-transformer", "gradcam", "grad-cam", "saliency-map", "interpretability", "explainability", "xai"]
 classifiers = [
     # https://pypi.org/classifiers/
     "Development Status :: 4 - Beta",

@@ -11,6 +11,7 @@ from torchvision.models.vision_transformer import VisionTransformer
 
 from torchcam.explain import explain
 from torchcam.methods import LeGrad
+from torchcam.utils import overlay_mask
 
 explain_module = importlib.import_module("torchcam.explain")
 
@@ -243,6 +244,7 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
             assert heatmap.mode == "L"
         with Image.open(bundle / f"class-{class_idx}-layer-0-overlay.png") as overlay:
             assert overlay.size == image.size
+            assert np.array_equal(overlay, overlay_mask(image, Image.fromarray(stored), alpha=0.5))
 
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["schema_version"] == 1

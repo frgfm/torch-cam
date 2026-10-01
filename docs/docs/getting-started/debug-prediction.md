@@ -62,7 +62,7 @@ For another supported ViT, pass its `score_projection`, `prefix_tokens`, or `gri
 
 ## Ask a coding agent
 
-Agents that support portable [Agent Skills](https://agentskills.io/specification) can progressively load the repository's [`torchcam-debug-prediction` skill](https://github.com/frgfm/torch-cam/tree/main/.agents/skills/torchcam-debug-prediction). See [OpenAI's Skills documentation](https://developers.openai.com/codex/skills) for one supported client. [`llms.txt`](https://llmstxt.org/) helps agents discover the guide and API; it is not the execution contract.
+Agents that support portable [Agent Skills](https://agentskills.io/specification) can progressively load the repository's [`torchcam-debug-prediction` skill](https://github.com/frgfm/torch-cam/tree/main/.agents/skills/torchcam-debug-prediction). See [OpenAI's Skills documentation](https://developers.openai.com/codex/skills) for one supported client. Install it in the coding agents detected on your machine with `npx skills add frgfm/torch-cam`. [`llms.txt`](https://llmstxt.org/) helps agents discover the guide and API; it is not the execution contract.
 
 Copy this prompt into an agent running inside the repository that owns the model:
 

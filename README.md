@@ -47,7 +47,7 @@
 
 Simple way to leverage the class-specific activation of convolutional and transformer layers in PyTorch.
 
-Debugging one surprising classifier result? Use the [predicted-versus-expected agent workflow](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/), give a compatible agent the [portable skill](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/SKILL.md), or start from [`llms.txt`](https://frgfm.github.io/torch-cam/llms.txt).
+Debugging one surprising classifier result? Use the [predicted-versus-expected agent workflow](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/), install the [portable skill](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/SKILL.md) in your coding agent with `npx skills add frgfm/torch-cam`, or start from [`llms.txt`](https://frgfm.github.io/torch-cam/llms.txt).
 
 <p align="center">
     <a alt="cam_examples">
@@ -58,7 +58,34 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 </p>
 
 
+## Why TorchCAM
+
+- **12 CAM methods, one API**: from CAM and Grad-CAM to Finer-CAM, LeGrad and RefineCAM.
+- **CNNs and Vision Transformers**: automatic target-layer resolution for CNNs, LeGrad and reshape transforms for ViTs.
+- **Lean**: fully typed, with only 4 runtime dependencies (PyTorch, NumPy, Pillow, Matplotlib).
+- **Measurable**: built-in faithfulness metrics (average drop, increase in confidence, deletion/insertion).
+- **Agent-ready**: `explain()` saves a manifest-backed evidence bundle that humans and coding agents can verify.
+
 ## Quick Tour
+
+### Explain a prediction
+
+```python
+from urllib.request import urlretrieve
+from PIL import Image
+from torchvision.models import ResNet18_Weights, resnet18
+from torchcam.explain import explain
+
+urlretrieve("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
+image = Image.open("dog.jpg").convert("RGB")
+weights = ResNet18_Weights.DEFAULT
+model = resnet18(weights=weights).eval()
+
+result = explain(model, weights.transforms()(image).unsqueeze(0), class_names=weights.meta["categories"])
+result.save("torchcam-explanation", image)  # CAMs, heatmaps, overlays and manifest.json
+```
+
+Pass `expected_class_idx` to compare the prediction with the class you expected. See [Debug one prediction](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/) for the full contract.
 
 ### Setting your CAM
 
@@ -91,7 +118,7 @@ from torchcam.methods import LayerCAM
 weights = get_model_weights("resnet18").DEFAULT
 model = get_model("resnet18", weights=weights).eval()
 preprocess = weights.transforms()
-img = decode_image("path/to/your/image.jpg")
+img = decode_image("dog.jpg")
 
 input_tensor = preprocess(img)
 

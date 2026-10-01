@@ -12,6 +12,7 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
 This project is meant for:
 
 * ⚡ **exploration**: easily assess the influence of spatial features on classification outputs
+* 🐛 **debugging**: compare predicted and expected classes, and save evidence that humans and AI agents can verify
 * 👩‍🔬 **research**: quickly implement your own ideas for new CAM methods
 
 ## Installation
@@ -28,7 +29,24 @@ Having issues with gradients, hooks, or layer selection? See the [troubleshootin
 
 ## Quick start
 
-Get an image and a model:
+Explain a prediction and save the evidence:
+
+```python
+from urllib.request import urlretrieve
+from PIL import Image
+from torchvision.models import ResNet18_Weights, resnet18
+from torchcam.explain import explain
+
+urlretrieve("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
+image = Image.open("dog.jpg").convert("RGB")
+weights = ResNet18_Weights.DEFAULT
+model = resnet18(weights=weights).eval()
+
+result = explain(model, weights.transforms()(image).unsqueeze(0), class_names=weights.meta["categories"])
+result.save("torchcam-explanation", image)  # CAMs, heatmaps, overlays and manifest.json
+```
+
+See [Debug one prediction](getting-started/debug-prediction.md) to compare against an expected class. For full control, use a CAM extractor directly. Get an image and a model:
 
 ```python
 from torchvision.io import decode_image
@@ -38,9 +56,7 @@ weights = get_model_weights("resnet18").DEFAULT
 model = get_model("resnet18", weights=weights).eval()
 preprocess = weights.transforms()
 
-img_path = "path/to/your/image.jpg"
-
-img = decode_image(img_path)
+img = decode_image("dog.jpg")
 input_tensor = preprocess(img)
 ```
 
