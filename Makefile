@@ -8,7 +8,7 @@ DOCS_DIR = ./docs
 
 
 
-.PHONY: help install install-quality ruff-lint ruff-lint-fix ruff-format ruff-format-fix lint-check lint-format precommit typing-check deps-check headers-check quality style init-gh-labels init-gh-settings install-mintlify start-mintlify
+.PHONY: help install install-quality ruff-lint ruff-lint-fix ruff-format ruff-format-fix lint-check lint-format precommit typing-check deps-check headers-check headers-fix quality style init-gh-labels init-gh-settings install-mintlify start-mintlify
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -58,6 +58,9 @@ deps-check: .github/verify_deps_sync.py ## Check dependency synchronization
 
 headers-check: ${PYPROJECT_FILE} ## Check Python copyright and license headers
 	uv run --extra quality lmh check
+
+headers-fix: ${PYPROJECT_FILE} ## Refresh recognized stale copyright years
+	uv run --extra quality lmh fix
 
 # this target runs checks on all files
 quality: lint-check typing-check deps-check headers-check ## Run all quality checks
