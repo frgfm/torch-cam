@@ -50,6 +50,7 @@ test = [
     "pytest-pretty==1.3.0",
 ]
 quality = [
+    "lint-my-headers==0.6.0",
     "ruff==0.16.9",
     "ty==0.0.84",
     "prek==0.5.3",
@@ -91,6 +92,14 @@ explicit = true
 [tool.pytest.ini_options]
 testpaths = ["tests/"]
 addopts = "--cov=torchcam"
+
+[tool.lint-my-headers]
+owner = "François-Guillaume Fernandez"
+starting-year = 2020
+license = "Apache-2.0"
+paths = ["torchcam", "scripts", "demo", "docs", ".github"]
+ignore-files = ["version.py", "__init__.py"]
+ignore-folders = [".github"]
 
 [tool.ruff]
 line-length = 120
