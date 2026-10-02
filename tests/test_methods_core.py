@@ -145,9 +145,17 @@ def test_output_target_validation(mock_img_model):
         ((8, 8, 8, 8), 3),
     ],
 )
-def test_cam_normalize(input_shape, spatial_dims):
+@pytest.mark.parametrize("noncontiguous", [False, True])
+def test_cam_normalize(input_shape, spatial_dims, noncontiguous):
     input_tensor = torch.rand(input_shape)
+    if noncontiguous:
+        input_tensor = input_tensor.transpose(-1, -2)
+    expected = input_tensor.clone()
+    dims = expected.ndim - 1 if spatial_dims is None else spatial_dims
+    expected.sub_(expected.flatten(start_dim=-dims).min(-1).values[(...,) + (None,) * dims])
+    expected.div_(expected.flatten(start_dim=-dims).max(-1).values[(...,) + (None,) * dims] + 1e-8)
     normalized_tensor = core._CAM._normalize(input_tensor, spatial_dims)
+    torch.testing.assert_close(normalized_tensor, expected)
     # Shape check
     assert normalized_tensor.shape == input_shape
     # Value check
@@ -205,3 +213,25 @@ def test_fuse_cams():
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (1, 16, 16)
+
+
+@pytest.mark.parametrize("requires_grad", [False, True])
+@pytest.mark.parametrize("nonfinite", [False, True])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+def test_fuse_cams_preserves_first_max(requires_grad, nonfinite, dtype):
+    value = torch.nan if nonfinite else 2.0
+    cams = [
+        torch.tensor(values).view(1, 2, 2).requires_grad_(requires_grad)
+        for values in ([1.0, value, 3.0, 0.0], [1.0, value, 4.0, value], [0.0, 2.0, 4.0, value])
+    ]
+    cams[1] = cams[1].to(dtype).detach().requires_grad_(requires_grad)
+    resized = [
+        torch.nn.functional.interpolate(cam.unsqueeze(1), (4, 4), mode="bilinear", align_corners=False) for cam in cams
+    ]
+    expected = torch.stack(resized).max(0).values.squeeze(1)
+    fused = core._CAM.fuse_cams(cams, (4, 4))
+    torch.testing.assert_close(fused, expected, equal_nan=True)
+    if requires_grad:
+        actual_grads = torch.autograd.grad(fused.sum(), cams)
+        expected_grads = torch.autograd.grad(expected.sum(), cams)
+        torch.testing.assert_close(actual_grads, expected_grads, equal_nan=True)
