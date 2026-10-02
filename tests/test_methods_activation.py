@@ -43,7 +43,7 @@ def _scorecam_inputs():
     model = nn.Sequential(
         nn.Conv2d(3, 4, 3, padding=1),
         nn.ReLU(),
-        nn.Conv2d(4, 5, 3, padding=1),
+        nn.Conv2d(4, 5, 3, stride=2, padding=1),
         nn.ReLU(),
         nn.AdaptiveAvgPool2d(1),
         nn.Flatten(),
@@ -101,7 +101,7 @@ def test_cam_conv1x1(mock_fullyconv_model):
 
 @pytest.mark.parametrize("cam_name", ["ScoreCAM", "SSCAM", "ISCAM"])
 @pytest.mark.parametrize("class_idx", [1, [1, 2]])
-def test_scorecam_chunk_parity(cam_name, class_idx):
+def test_scorecam_chunk_parity(cam_name, class_idx, monkeypatch):
     results = []
     for batch_size in (3, 64):
         model, input_tensor = _scorecam_inputs()
@@ -110,16 +110,41 @@ def test_scorecam_chunk_parity(cam_name, class_idx):
             ["1", "3"],
             **_scorecam_kwargs(cam_name, batch_size),
         ) as extractor:
+            if batch_size == 64 and cam_name == "ScoreCAM":
+                get_weights = extractor._get_score_weights
+                monkeypatch.setattr(
+                    extractor,
+                    "_get_score_weights",
+                    lambda acts, *args, get_weights=get_weights, extractor=extractor: get_weights(
+                        [extractor._upsample(act) for act in acts], *args
+                    ),
+                )
             scores = model(input_tensor)
             torch.manual_seed(1)
             results.append(extractor(class_idx, scores))
 
-    assert [cam.shape for cam in results[0]] == [(2, 8, 8), (2, 8, 8)]
+    assert [cam.shape for cam in results[0]] == [(2, 8, 8), (2, 4, 4)]
     assert all(
         cam.dtype == torch.float64 and cam.device.type == "cpu" and torch.isfinite(cam).all() for cam in results[0]
     )
     for chunked, unchunked in zip(*results, strict=True):
         torch.testing.assert_close(chunked, unchunked)
+
+
+def test_scorecam_bounds_mask_expansion(monkeypatch):
+    model, input_tensor = _scorecam_inputs()
+    interpolate = activation.F.interpolate
+    expanded_batches = []
+
+    def record_interpolation(input_, *args, **kwargs):
+        expanded_batches.append(input_.shape[0] * input_.shape[1])
+        return interpolate(input_, *args, **kwargs)
+
+    monkeypatch.setattr(activation.F, "interpolate", record_interpolation)
+    with activation.ScoreCAM(model, "3", batch_size=3) as extractor:
+        extractor([1, 2], model(input_tensor))
+    assert expanded_batches
+    assert max(expanded_batches) <= 3
 
 
 @pytest.mark.parametrize("cam_name", ["ScoreCAM", "SSCAM", "ISCAM"])

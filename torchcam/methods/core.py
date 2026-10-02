@@ -197,9 +197,10 @@ class _CAM:
     def _normalize(cams: Tensor, spatial_dims: int | None = None, eps: float = 1e-8) -> Tensor:
         """CAM normalization."""  # noqa: DOC201
         spatial_dims = cams.ndim - 1 if spatial_dims is None else spatial_dims
-        cams.sub_(cams.flatten(start_dim=-spatial_dims).min(-1).values[(...,) + (None,) * spatial_dims])
+        dims = tuple(range(cams.ndim - spatial_dims, cams.ndim))
+        cams.sub_(cams.amin(dim=dims, keepdim=True))
         # Avoid division by zero
-        cams.div_(cams.flatten(start_dim=-spatial_dims).max(-1).values[(...,) + (None,) * spatial_dims] + eps)
+        cams.div_(cams.amax(dim=dims, keepdim=True) + eps)
 
         return cams
 
@@ -353,9 +354,9 @@ class _CAM:
 
     @staticmethod
     def _fuse_cams(cams: list[Tensor], target_shape: tuple[int, int]) -> Tensor:
-        # Interpolate all CAMs
+        # Interpolate one CAM at a time to bound peak memory.
         interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
-        scaled_cams = [
+        scaled_cams = (
             F.interpolate(
                 cam.unsqueeze(1),
                 target_shape,
@@ -363,7 +364,13 @@ class _CAM:
                 align_corners=False,
             )
             for cam in cams
-        ]
+        )
 
-        # Fuse them
-        return torch.stack(scaled_cams).max(dim=0).values.squeeze(1)
+        fused = next(scaled_cams)
+        for cam in scaled_cams:
+            if fused.requires_grad or cam.requires_grad:
+                # Preserve max's first-winner gradients, including ties and NaNs.
+                fused = torch.where(fused.isnan() | (fused >= cam), fused, cam)
+            else:
+                fused = torch.maximum(fused, cam)
+        return fused.squeeze(1)

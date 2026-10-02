@@ -145,7 +145,7 @@ class ScoreCAM(_CAM):
     Args:
         model: input model
         target_layer: either the target layer itself or its name, or a list of those
-        batch_size: batch size used to forward masked inputs
+        batch_size: batch size used to upsample masks and forward masked inputs
         input_shape: shape of the expected input tensor excluding the batch dimension
     """
 
@@ -188,7 +188,15 @@ class ScoreCAM(_CAM):
     def _masked_input_chunk(self, masks: Tensor, sample_indices: Tensor, buffer: Tensor, slice_: slice) -> Tensor:
         model_input = self._input if self._input.shape[0] == 1 else self._input[sample_indices[slice_]]
         chunk = buffer[: slice_.stop - slice_.start]
-        return torch.mul(masks[slice_], model_input, out=chunk)
+        masks = masks[slice_]
+        if masks.shape[2:] != self._input.shape[2:]:
+            masks = self._upsample(masks)
+        return torch.mul(masks, model_input, out=chunk)
+
+    def _upsample(self, activation: Tensor) -> Tensor:
+        spatial_dims = self._input.ndim - 2
+        interpolation_mode = "bilinear" if spatial_dims == 2 else "trilinear" if spatial_dims == 3 else "nearest"
+        return F.interpolate(activation, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
 
     @staticmethod
     def _select_scores(
@@ -213,13 +221,9 @@ class ScoreCAM(_CAM):
         class_idx: int | list[int] | None,
         targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> list[Tensor]:
-        prepared_inputs = [self._prepare_masked_inputs(act) for act in activations]
-
         # Initialize weights
         # (N * C)
-        weights = [
-            torch.zeros(act.shape[0] * act.shape[1], dtype=act.dtype).to(device=act.device) for act in activations
-        ]
+        weights = [act.new_zeros(act.shape[0] * act.shape[1]) for act in activations]
 
         # (N, M)
         logits = self.model(self._input)
@@ -227,7 +231,8 @@ class ScoreCAM(_CAM):
         batch_indices = torch.arange(activations[0].shape[0])
         baseline_scores = self._select_scores(logits, batch_indices, class_idx, target_fns)
 
-        for (masks, sample_indices, buffer), weight in zip(prepared_inputs, weights, strict=True):
+        for activation, weight in zip(activations, weights, strict=True):
+            masks, sample_indices, buffer = self._prepare_masked_inputs(activation)
             # Process by chunk (GPU RAM limitation)
             for idx_ in range(math.ceil(weight.numel() / self.bs)):
                 slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
@@ -260,24 +265,10 @@ class ScoreCAM(_CAM):
 
         # Normalize the activation
         # (N, C, H', W')
-        upsampled_a = [self._normalize(act.clone(), act.ndim - 2) for act in self.hook_a]
-
-        # Upsample it to input_size
-        # (N, C, H, W)
-        spatial_dims = self._input.ndim - 2
-        interpolation_mode = "bilinear" if spatial_dims == 2 else "trilinear" if spatial_dims == 3 else "nearest"
-        upsampled_a = [
-            F.interpolate(
-                up_a,
-                self._input.shape[2:],
-                mode=interpolation_mode,
-                align_corners=False,
-            )
-            for up_a in upsampled_a
-        ]
+        activations = [self._normalize(act.clone(), act.ndim - 2) for act in self.hook_a]
 
         with self._hooks_off(), self._eval_mode():
-            return self._get_score_weights(upsampled_a, class_idx, targets)
+            return self._get_score_weights(activations, class_idx, targets)
 
     def __repr__(self) -> str:  # noqa: D105
         return f"{self.__class__.__name__}(batch_size={self.bs})"
@@ -356,11 +347,11 @@ class SSCAM(ScoreCAM):
         class_idx: int | list[int] | None,
         targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> list[Tensor]:
+        # Noise must still be sampled at input resolution, in the same order.
+        activations = [self._upsample(act) for act in activations]
         # Initialize weights
         # (N * C)
-        weights = [
-            torch.zeros(act.shape[0] * act.shape[1], dtype=act.dtype).to(device=act.device) for act in activations
-        ]
+        weights = [act.new_zeros(act.shape[0] * act.shape[1]) for act in activations]
 
         # (N, M)
         logits = self.model(self._input)
@@ -465,12 +456,12 @@ class ISCAM(ScoreCAM):
         class_idx: int | list[int] | None,
         targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> list[Tensor]:
+        # Preserve integration/model-call order without repeatedly interpolating masks.
+        activations = [self._upsample(act) for act in activations]
         prepared_inputs = [self._prepare_masked_inputs(act) for act in activations]
 
         # Initialize weights
-        weights = [
-            torch.zeros(act.shape[0] * act.shape[1], dtype=act.dtype).to(device=act.device) for act in activations
-        ]
+        weights = [act.new_zeros(act.shape[0] * act.shape[1]) for act in activations]
 
         # (N, M)
         logits = self.model(self._input)
