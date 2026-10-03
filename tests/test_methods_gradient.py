@@ -66,8 +66,7 @@ def _contrastive_scores(scores, class_idx, comparison_idx, gamma):
 )
 def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tensor):
     model = get_model("mobilenet_v2", weights=None).eval()
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
 
     target_layer = target_layer(model) if callable(target_layer) else target_layer
     # Hook the corresponding layer in the model
@@ -91,8 +90,7 @@ def test_img_cams(cam_name, target_layer, output_size, batch_size, mock_img_tens
         nn.Flatten(1),
         nn.Linear(8, 10),
     )
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
 
     # Hook before the inplace ops
     with gradient.__dict__[cam_name](model, "2") as extractor:
@@ -567,8 +565,7 @@ def test_refinecam_shared_wrapper_regression():
 
 def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):
     model = get_model("mobilenet_v2", weights=None).eval()
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
 
     with gradient.GradCAM(model, "features.18.0") as extractor:
         initial_handles = len(extractor.hook_handles)
@@ -581,8 +578,7 @@ def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):
 
 def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypatch):
     model = get_model("mobilenet_v2", weights=None).eval()
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
 
     with gradient.SmoothGradCAMpp(model, "features.18.0", num_samples=1) as extractor:
         scores = model(mock_img_tensor)

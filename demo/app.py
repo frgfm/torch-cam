@@ -130,27 +130,13 @@ def preserve_model_state(model):
             parameter.requires_grad_(requires_grad)
 
 
-def build_extractor(model, method_name, target_layers, finer_gamma=0.6, finer_references=3, score_batch_size=32):
+def build_extractor(model, method_name, target_layers, **method_kwargs):
     if method_name == "CAM":
         # ponytail: supported torchvision models register the class-output Linear last; use explicit heads if that changes.
-        fc_layer = next(
+        method_kwargs["fc_layer"] = next(
             name for name, module in reversed(tuple(model.named_modules())) if isinstance(module, torch.nn.Linear)
         )
-        return methods.CAM(model, target_layer=target_layers, fc_layer=fc_layer)
-    if method_name == "FinerCAM":
-        return methods.FinerCAM(
-            model,
-            target_layer=target_layers,
-            gamma=finer_gamma,
-            num_references=finer_references,
-        )
-    if method_name in SLOW_METHODS:
-        return getattr(methods, method_name)(model, target_layer=target_layers, batch_size=score_batch_size)
-    if method_name == "RefineCAM":
-        return methods.RefineCAM(model, target_layer=target_layers)
-    if method_name == "LeGrad":
-        return methods.LeGrad(model, target_layer=target_layers)
-    return getattr(methods, method_name)(model, target_layer=target_layers)
+    return getattr(methods, method_name)(model, target_layer=target_layers, **method_kwargs)
 
 
 def extract_cam(
@@ -160,9 +146,7 @@ def extract_cam(
     method_name,
     target_layers,
     class_idx=None,
-    finer_gamma=0.6,
-    finer_references=3,
-    score_batch_size=32,
+    **method_kwargs,
 ):
     unknown_layers = [layer for layer in target_layers if layer not in dict(model.named_modules())]
     if unknown_layers:
@@ -172,14 +156,7 @@ def extract_cam(
     # ponytail: shared cached models serialize hook mutation; use per-session models if throughput becomes a constraint.
     with lock, preserve_model_state(model):
         started_at = perf_counter()
-        with build_extractor(
-            model,
-            method_name,
-            target_layers,
-            finer_gamma,
-            finer_references,
-            score_batch_size,
-        ) as extractor:
+        with build_extractor(model, method_name, target_layers, **method_kwargs) as extractor:
             scores = model(input_tensor.unsqueeze(0).to(device))
             target_idx = int(scores.argmax(dim=1).item()) if class_idx is None else class_idx
             if not 0 <= target_idx < scores.shape[1]:
@@ -225,9 +202,7 @@ def compute_result(
     weights,
     categories,
     explicit_class_idx,
-    finer_gamma,
-    finer_references,
-    score_batch_size,
+    method_kwargs,
 ):
     target_layers = parse_target_layers(target_layer_value, model_name, method_name)
     input_tensor, model_input = preprocess_image(selected_image, weights)
@@ -248,9 +223,7 @@ def compute_result(
             method_name,
             target_layers,
             explicit_class_idx,
-            finer_gamma,
-            int(finer_references),
-            int(score_batch_size),
+            **method_kwargs,
         )
     raw_image = colorize_cam(cam)
     overlay_image = overlay_mask(
@@ -351,9 +324,7 @@ def main():
                 format_func=categories.__getitem__,
             )
 
-        finer_gamma = 0.6
-        finer_references = 3
-        score_batch_size = 32
+        method_kwargs = {}
         preset = "+".join(target_layer_preset(model_name, method_name))
         with st.expander("Method settings"):
             target_layer_value = st.text_input(
@@ -363,8 +334,8 @@ def main():
                 help="Separate multiple module names with '+'.",
             )
             if method_name == "FinerCAM":
-                finer_gamma = st.number_input("Comparison strength", min_value=0.0, value=0.6, step=0.1)
-                finer_references = st.number_input(
+                method_kwargs["gamma"] = st.number_input("Comparison strength", min_value=0.0, value=0.6, step=0.1)
+                method_kwargs["num_references"] = st.number_input(
                     "Automatic comparison classes",
                     min_value=1,
                     max_value=len(categories) - 1,
@@ -372,7 +343,7 @@ def main():
                     step=1,
                 )
             if method_name in SLOW_METHODS:
-                score_batch_size = st.number_input(
+                method_kwargs["batch_size"] = st.number_input(
                     "Masked-input batch size",
                     min_value=1,
                     value=32,
@@ -397,9 +368,7 @@ def main():
                 weights,
                 categories,
                 explicit_class_idx,
-                finer_gamma,
-                finer_references,
-                score_batch_size,
+                method_kwargs,
             )
         except ConnectionError as exc:
             LOGGER.exception("Unable to load pretrained model")
