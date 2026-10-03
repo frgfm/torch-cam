@@ -4,6 +4,8 @@ Apart from qualitative visual comparison, it is important to have a refined eval
 
 Both metrics compute CAMs from the model's raw output. A `logits_fn` such as softmax changes only the scores used to measure the explanation. It does not change the score differentiated by a gradient-based CAM. Class indices and callable `targets` select the same outputs before and after this score transform, so `logits_fn` must preserve that output layout.
 
+The score transform receives separate tensor copies with no autograd graph. This also applies to tensor leaves in dictionaries, lists, and tuples, including named tuples. Thus, an in-place score transform does not change the raw outputs used to build the CAM. Use `output_fn` to convert custom output objects into these supported containers before score transformation.
+
 Use `output_fn` when the model output needs an adapter. The adapter runs before both CAM extraction and metric scoring, including extra model calls inside methods such as ScoreCAM and SmoothGradCAMpp. It does not change the model output outside the metric update. For example, a model that returns a dictionary of batched logits can use:
 
 ```python

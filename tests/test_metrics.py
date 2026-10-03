@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from functools import partial
 from operator import itemgetter, neg
+from typing import NamedTuple
 
 import pytest
 import torch
@@ -169,6 +170,19 @@ class _RecordingGradCAM(GradCAM):
         return cams
 
 
+class _NestedPrediction(NamedTuple):
+    logits: torch.Tensor
+    auxiliary: tuple[torch.Tensor, ...]
+
+
+class _NestedClassifier(_TwoChannelClassifier):
+    def forward(self, input_tensor):
+        return [
+            {"prediction": _NestedPrediction(sample, (sample[:1],)), "label": "example"}
+            for sample in super().forward(input_tensor)
+        ]
+
+
 def _reference_probability_metrics(metric_cls, inputs, cam, indices):
     model = _TwoChannelClassifier()
 
@@ -233,6 +247,44 @@ def test_metrics_use_raw_outputs_for_cams(metric_cls, selection, output_kind):
         torch.testing.assert_close(extractor.last_cams[0], expected_cams[0])
 
     # Independent probability scoring on the same raw-logit explanation.
+    assert metric.summary() == pytest.approx(
+        _reference_probability_metrics(metric_cls, inputs, expected_cams[0], indices)
+    )
+
+
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+@pytest.mark.parametrize("output_kind", ["tensor", "list", "nested"])
+def test_metrics_isolate_inplace_score_transforms(metric_cls, output_kind):
+    model = _NestedClassifier() if output_kind == "nested" else _TwoChannelClassifier(output_kind)
+    first = torch.tensor([[[[1.0, 0.9, 0.5]], [[0.0, 1.0, 0.0]]]])
+    inputs = torch.cat((first, first.flip(1))).requires_grad_(True)
+    indices = [0, 1]
+
+    def get_logits(sample):
+        if output_kind == "nested":
+            assert isinstance(sample["prediction"], _NestedPrediction)
+            assert isinstance(sample["prediction"].auxiliary, tuple)
+            assert sample["label"] == "example"
+            return sample["prediction"].logits
+        return sample["logits"] if output_kind == "list" else sample
+
+    def logits_fn(output):
+        for sample in output:
+            logits = get_logits(sample)
+            assert not logits.requires_grad
+            if output_kind == "nested":
+                assert not sample["prediction"].auxiliary[0].requires_grad
+            logits.copy_(logits.softmax(-1))
+        return output
+
+    targets = [lambda sample, index=index: get_logits(sample)[index] for index in indices]
+    with _RecordingGradCAM(model, "identity") as extractor:
+        expected_cams = extractor(scores=model(inputs), targets=targets)
+        metric_kwargs = {"steps": 3, "batch_size": 2} if metric_cls is metrics.DeletionInsertionMetric else {}
+        metric = metric_cls(extractor, logits_fn, **metric_kwargs)
+        metric.update(inputs, targets=targets)
+
+        torch.testing.assert_close(extractor.last_cams[0], expected_cams[0])
     assert metric.summary() == pytest.approx(
         _reference_probability_metrics(metric_cls, inputs, expected_cams[0], indices)
     )

@@ -5,6 +5,7 @@
 
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
+from copy import copy
 from typing import Any, Protocol, cast
 
 import torch
@@ -43,13 +44,31 @@ def _adapt_model_output(model: torch.nn.Module, output_fn: Callable[[Any], Any] 
         handle.remove()
 
 
+def _copy_score_input(output: Any) -> Any:
+    """Copy tensor leaves without carrying the CAM's autograd graph into metric scoring."""  # noqa: DOC201
+    if isinstance(output, torch.Tensor):
+        return output.detach().clone()
+    if isinstance(output, dict):
+        result = copy(output)
+        result.update((key, _copy_score_input(value)) for key, value in output.items())
+        return result
+    if isinstance(output, list):
+        result = copy(output)
+        result[:] = [_copy_score_input(value) for value in output]
+        return result
+    if isinstance(output, tuple):
+        values = tuple(_copy_score_input(value) for value in output)
+        return type(output)(*values) if hasattr(output, "_fields") else type(output)(values)
+    return output
+
+
 def _get_outputs(
     cam_extractor: _CAMExtractor,
     logits_fn: Callable[[Any], Any] | None,
     input_tensor: torch.Tensor,
 ) -> tuple[Any, Any]:
     output = cam_extractor.model(input_tensor)
-    return output, output if logits_fn is None else logits_fn(output)
+    return output, output if logits_fn is None else logits_fn(_copy_score_input(output))
 
 
 def _resolve_class_idx(scores: torch.Tensor, class_idx: int | list[int] | None) -> tuple[int | list[int], torch.Tensor]:
