@@ -20,8 +20,7 @@ class _StructuredModel(nn.Module):
 
 def test_base_cam_constructor():
     model = get_model("mobilenet_v2", weights=None).eval()
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
     # Check that multiple target layers is disabled for base CAM
     with pytest.raises(ValueError):
         activation.CAM(model, ["classifier.1", "classifier.2"])
@@ -68,8 +67,7 @@ def _scorecam_kwargs(cam_name, batch_size):
 )
 def test_img_cams(fc_layer, batch_size, mock_img_tensor):
     model = get_model("mobilenet_v2", weights=None).eval()
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
     kwargs = {}
     if fc_layer is not None:
         kwargs["fc_layer"] = fc_layer(model) if callable(fc_layer) else fc_layer
