@@ -5,6 +5,7 @@ on:
     branches: main
     paths:
       - '.github/workflows/package.yml'
+      - '.github/check_numpy_compatibility.py'
       - 'torchcam/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -13,6 +14,7 @@ on:
     branches: main
     paths:
       - '.github/workflows/package.yml'
+      - '.github/check_numpy_compatibility.py'
       - 'torchcam/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -56,6 +58,34 @@ jobs:
       - name: Check that we can import the engine
         run: |
           python -c "import torchcam; print(torchcam.__version__)"
+
+  numpy-compatibility:
+    if: github.event_name != 'release'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        numpy: ['numpy==1.26.4', 'numpy>=2,<3']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+          enable-cache: false
+      - name: Build the wheel
+        run: uv build --wheel
+      - name: Install with the minimum PyTorch and selected NumPy
+        shell: bash
+        env:
+          UV_TORCH_BACKEND: cpu
+          NUMPY_REQUIREMENT: ${{ matrix.numpy }}
+        run: uv pip install dist/*.whl "torch==2.4.1" "$NUMPY_REQUIREMENT"
+      - name: Check NumPy interoperability and explanation exports
+        run: python .github/check_numpy_compatibility.py
 
   code-quality:
     if: github.event_name == 'pull_request'

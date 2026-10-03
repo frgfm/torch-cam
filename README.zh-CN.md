@@ -135,7 +135,7 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 
 ## 安装
 
-安装 TorchCAM 需要 Python 3.11 或更高版本，以及 [uv](https://docs.astral.sh/uv/) 或 [pip](https://pip.pypa.io/en/stable/installation/)。TorchCAM 支持 PyTorch 2.x（`torch>=2.0`）及其对应版本的 torchvision。
+安装 TorchCAM 需要 Python 3.11 或更高版本，以及 [uv](https://docs.astral.sh/uv/) 或 [pip](https://pip.pypa.io/en/stable/installation/)。即将发布的 0.5 版本要求 PyTorch 2.4.1 或更高版本（`torch>=2.4.1,<3`），支持 NumPy 1.26.4 和 NumPy 2（`numpy>=1.26.4,<3`）。请使用对应版本的 torchvision。
 
 ### 稳定版本
 

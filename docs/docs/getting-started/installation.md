@@ -8,6 +8,11 @@ want to use:
 | **PyPI (stable)** | `pip install torchcam` | Latest tagged [release](https://github.com/frgfm/torch-cam/releases/latest). |
 | **Git (`main`)** | `pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"` | Unreleased changes matching this site. |
 
+The upcoming 0.5 release requires PyTorch 2.4.1 or higher within the 2.x series and supports both NumPy 1.26.4
+and NumPy 2 (`numpy>=1.26.4,<3`). Earlier PyTorch wheels can fail with `RuntimeError: Numpy is not available`
+when NumPy 2 is installed; the minimum includes the [Windows fix in PyTorch 2.4.1](https://github.com/pytorch/pytorch/issues/131668#issuecomment-2307447045).
+If you install torchvision for the demo or examples, use the release matching your PyTorch version.
+
 Check the installed version when an example and your environment behave differently:
 
 ```python
