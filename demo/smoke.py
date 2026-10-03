@@ -4,9 +4,16 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import gc
+import struct
+import zlib
+from io import BytesIO
+from pathlib import Path
 from threading import Lock
+from unittest.mock import patch
 
 import torch
+from PIL import Image, PngImagePlugin, UnidentifiedImageError, features
+from streamlit.testing.v1 import AppTest
 from torchvision.models import get_model
 
 import app
@@ -24,7 +31,97 @@ def hook_count(model):
     )
 
 
+def image_upload(image, image_format, **kwargs):
+    source = BytesIO()
+    source.name = "upload.png"
+    image.save(source, format=image_format, **kwargs)
+    return source
+
+
+def check_image_decoding():
+    for image_format, mode in (("JPEG", "L"), ("PNG", "RGBA")):
+        image = Image.new(mode, (8, 4))
+        source = image_upload(image, image_format)
+        decoded = app.read_image(source)
+        source.close()
+        check(decoded.mode == "RGB", f"{image_format} was not converted to RGB")
+        check(decoded.size == image.size, f"{image_format} dimensions changed")
+        decoded.load()
+
+    image = Image.new("RGB", (8, 4))
+    exif = Image.Exif()
+    exif[274] = 6  # Rotate 90 degrees clockwise.
+    oriented = app.read_image(image_upload(image, "JPEG", exif=exif))
+    check(oriented.size == (4, 8), "EXIF orientation was not applied")
+
+    # Filename filtering alone accepts these formats when renamed to .png.
+    unsupported_formats = ["GIF", "BMP"]
+    if features.check_codec("jpg_2000"):
+        unsupported_formats.append("JPEG2000")
+    for image_format in unsupported_formats:
+        try:
+            app.read_image(image_upload(image, image_format))
+        except UnidentifiedImageError:
+            pass
+        else:
+            raise AssertionError(f"Disguised {image_format} upload was accepted")
+
+    try:
+        app.read_image(BytesIO(b"\x89PNG\r\n\x1a\ntruncated"))
+    except OSError:
+        pass
+    else:
+        raise AssertionError("Truncated PNG upload was accepted")
+
+    pixel_limit = Image.MAX_IMAGE_PIXELS
+    try:
+        Image.MAX_IMAGE_PIXELS = 24  # The 32-pixel image should trigger the warning, not the error.
+        try:
+            app.read_image(image_upload(image, "PNG"))
+        except Image.DecompressionBombWarning:
+            pass
+        else:
+            raise AssertionError("Oversized PNG upload was accepted")
+    finally:
+        Image.MAX_IMAGE_PIXELS = pixel_limit
+
+
+def check_malformed_png_metadata():
+    data = image_upload(Image.new("RGB", (1, 1)), "PNG").getvalue()
+    end = data.index(b"IEND") - 4
+    metadata_chunks = (
+        (b"zTXt", b"key\0\1bad"),
+        (b"gAMA", b""),
+        (b"iCCP", b""),
+        (b"eXIf", b"garbage"),
+        (b"zTXt", b"key\0\0" + zlib.compress(b"a" * 33)),
+    )
+    with patch.object(PngImagePlugin, "MAX_TEXT_CHUNK", 32):
+        for kind, payload in metadata_chunks:
+            chunk = struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload))
+            upload = data[:end] + chunk + data[end:]
+            # Each file passes identification, then fails during loading or EXIF parsing.
+            with Image.open(BytesIO(upload), formats=("JPEG", "PNG")) as image:
+                check(image.format == "PNG", "Malformed fixture was not identified as PNG")
+            try:
+                app.read_image(BytesIO(upload))
+            except OSError as exc:
+                check(exc.__cause__ is not None, "Pillow parse error was not normalized")
+            else:
+                raise AssertionError(f"Malformed {kind!r} metadata was accepted")
+
+            with patch("streamlit.file_uploader", return_value=BytesIO(upload)):
+                ui = AppTest.from_file(Path(__file__).with_name("app.py")).run()
+            check(len(ui.exception) == 0, "Malformed image crashed the demo")
+            check(
+                any("This image cannot be opened safely" in error.value for error in ui.error),
+                "Malformed image did not show the safe-image error",
+            )
+
+
 def main():
+    check_image_decoding()
+    check_malformed_png_metadata()
     check(app.compatible_methods("vit_b_16") == ("LeGrad",), "ViT compatibility changed")
     check("LeGrad" not in app.compatible_methods("resnet18"), "LeGrad must stay ViT-only")
     check("FinerCAM" in app.compatible_methods("resnet18"), "FinerCAM is missing")

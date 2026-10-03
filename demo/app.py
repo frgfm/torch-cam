@@ -4,6 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
+import struct
 import warnings
 from contextlib import contextmanager
 from io import BytesIO
@@ -93,9 +94,12 @@ def read_image(source):
     source.seek(0)
     with warnings.catch_warnings():
         warnings.simplefilter("error", Image.DecompressionBombWarning)
-        with Image.open(source) as image:
-            image.load()
-            return ImageOps.exif_transpose(image).convert("RGB")
+        try:
+            with Image.open(source, formats=("JPEG", "PNG")) as image:
+                image.load()
+                return ImageOps.exif_transpose(image).convert("RGB")
+        except (ValueError, SyntaxError, IndexError, TypeError, struct.error) as exc:
+            raise OSError("Invalid JPEG or PNG image data") from exc
 
 
 def preprocess_image(image, weights):
