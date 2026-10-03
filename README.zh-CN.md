@@ -228,27 +228,31 @@ python scripts/cam_example.py --arch resnet18 --class-idx 232 --rows 2
 CAM 方法旨在通过指出对模型输出影响最大的因素来提高模型的可解释性。理想情况下，CAM 应标出所有会影响分类分数的视觉线索。
 这里使用两个指标：
 
-- [置信度提升（Increase in Confidence）](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric)（越高越好）：将输入与 CAM 相乘（保留 CAM 值高处的原始像素，将 CAM 值低处置零）后再次进行前向传播，统计数据集中分类概率提高的次数。
-- [平均下降（Average Drop）](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric)（越低越好）：将输入与 CAM 相乘（保留 CAM 值高处的原始像素，将 CAM 值低处置零）后再次进行前向传播，衡量分类概率下降的幅度。
+- [置信度提升（Increase in Confidence）](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric)（越高越好）：使用 CAM 对输入施加掩码后，原始预测类别的概率提高的样本比例。
+- [平均下降（Average Drop）](https://frgfm.github.io/torch-cam/reference/metrics/#torchcam.metrics.ClassificationMetric)（越低越好）：施加掩码后，该类别概率相对下降幅度的均值；概率提高时下降幅度记为零。
+
+下表保留的是使用早期指标及 CAM 实现得到的 **2025 年 10 月历史结果**，尚未使用当前实现重新验证。ResNet-18 的 LayerCAM 行已根据记录的 CSV 和[原始评测笔记本](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb)修正。
 
 | CAM 方法 | 架构 | 平均下降（↓） | 置信度提升（↑） |
 | -------- | ---- | ------------- | ---------------- |
 | [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | resnet18 | 0.2686 | 0.2250 |
 | [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | resnet18 | 0.5271 | 0.1962 |
 | [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | resnet18 | 0.2088 | 0.2499 |
-| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18 | 0.1712 | 0.2819 |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18 | 0.1805 | 0.2894 |
 | [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | mobilenet_v3_large | 0.2678 | 0.3483 |
 | [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 0.3182 | 0.2535 |
 | [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 0.2681 | 0.2678 |
 | [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | mobilenet_v3_large | 0.2526 | 0.2882 |
 
-该评测在 [Imagenette](https://github.com/fastai/imagenette) 验证集上进行。Imagenette 是 ImageNet 的一个子集，输入尺寸为 (224, 224)。
+记录的评测方案使用 [imagenette2-320](https://github.com/fastai/imagenette) 验证集，先执行 `Resize(256)`，再执行 `CenterCrop(224)`；ResNet-18 和 MobileNet V3 Large 的目标层分别为 `layer4` 和 `features`，评测类别为输入的原始预测类别。掩码操作将经过 ImageNet 标准化的输入与 CAM 相乘，因此零掩码对应 ImageNet 的平均 RGB 颜色，而非黑色。原始评测未记录随机种子；随机 CAM 方法及 CAM 或指标数值计算的变更都需要重新运行评测。
 
-可以在自己的硬件上运行以下命令，评测任意 CAM 方法：
+可以在自己的硬件上运行以下命令，显式指定随机种子和权重版本，进行新的评测：
 
 ```bash
-python scripts/eval_perf.py ~/Downloads/imagenette LayerCAM --arch mobilenet_v3_large
+python scripts/eval_perf.py ~/Downloads/imagenette2-320 LayerCAM --arch mobilenet_v3_large --seed 0 --weights IMAGENET1K_V2
 ```
+
+可选的 `--deletion-insertion` 评测对两条曲线均使用标准化空间中的零值基线，默认分 20 步扰动输入。它与分类指标分别生成 CAM，会消耗额外的随机采样，因此即使种子相同，也可能改变后续分类指标使用的随机 CAM；比较随机方法时应使用相同的参数选项。该方案与原始 RISE 使用模糊图像作为插入基线的方案不同，不同方案的得分不能直接比较。
 
 *可以运行 `python scripts/eval_perf.py --help` 查看脚本的所有参数。*
 
@@ -256,28 +260,28 @@ python scripts/eval_perf.py ~/Downloads/imagenette LayerCAM --arch mobilenet_v3_
 
 想生成漂亮的激活图，却不知道它的延迟是否满足需求？
 
-下表给出了所有 CAM 方法的额外延迟（不包括前向传播）：
+下表保留的是[原始基准测试提交](https://github.com/frgfm/torch-cam/commit/8237aef5756daeb85a49f87293cafef35277c295)中的 **2021 年 10 月 CPU 历史延迟数据**（不包括首次前向传播），尚未使用当前实现重新验证。由于原始计时器未同步 CUDA 操作，GPU 列已移除；当前的 `scripts/eval_latency.py` 会在计时前后同步 CUDA。
 
-| CAM 方法 | 架构 | GPU 平均值（标准差） | CPU 平均值（标准差） |
-| -------- | ---- | -------------------- | -------------------- |
-| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | resnet18           | 0.11ms (0.02ms)    | 0.14ms (0.03ms)      |
-| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | resnet18           | 3.71ms (1.11ms)    | 40.66ms (1.82ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | resnet18           | 5.21ms (1.22ms)    | 41.61ms (3.24ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | resnet18           | 33.67ms (2.51ms)   | 239.27ms (7.85ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | resnet18           | 304.74ms (11.54ms) | 6796.89ms (415.14ms) |
-| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | resnet18           | 3.78ms (0.96ms)    | 40.63ms (2.03ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18           | 3.65ms (1.04ms)    | 40.91ms (1.79ms)     |
-| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | mobilenet_v3_large | 不适用*            | 不适用*              |
-| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | mobilenet_v3_large | 8.61ms (1.04ms)    | 26.64ms (3.46ms)     |
-| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 8.83ms (1.29ms)    | 25.50ms (3.10ms)     |
-| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 77.38ms (3.83ms)   | 156.25ms (4.89ms)    |
-| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 35.19ms (2.11ms)   | 679.16ms (55.04ms)   |
-| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | mobilenet_v3_large | 8.41ms (0.98ms)    | 24.21ms (2.94ms)     |
-| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | mobilenet_v3_large | 8.02ms (0.95ms)    | 25.14ms (3.17ms)     |
+| CAM 方法 | 架构 | CPU 平均值（标准差） |
+| -------- | ---- | -------------------- |
+| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | resnet18           | 0.14ms (0.03ms)      |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | resnet18           | 40.66ms (1.82ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | resnet18           | 41.61ms (3.24ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | resnet18           | 239.27ms (7.85ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | resnet18           | 6796.89ms (415.14ms) |
+| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | resnet18           | 40.63ms (2.03ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | resnet18           | 40.91ms (1.79ms)     |
+| [CAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.CAM) | mobilenet_v3_large | 不适用*              |
+| [GradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAM) | mobilenet_v3_large | 26.64ms (3.46ms)     |
+| [GradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.GradCAMpp) | mobilenet_v3_large | 25.50ms (3.10ms)     |
+| [SmoothGradCAMpp](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.SmoothGradCAMpp) | mobilenet_v3_large | 156.25ms (4.89ms)    |
+| [ScoreCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.ScoreCAM) | mobilenet_v3_large | 679.16ms (55.04ms)   |
+| [XGradCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.XGradCAM) | mobilenet_v3_large | 24.21ms (2.94ms)     |
+| [LayerCAM](https://frgfm.github.io/torch-cam/reference/methods/#torchcam.methods.LayerCAM) | mobilenet_v3_large | 25.14ms (3.17ms)     |
 
 **基础 CAM 方法无法用于包含多个全连接层的架构。*
 
-该基准测试使用 (224, 224) 输入，在一台笔记本电脑上迭代 100 次完成，以更贴近普通用户能够获得的性能。硬件配置为 [Intel(R) Core(TM) i7-10750H](https://ark.intel.com/content/www/us/en/ark/products/201837/intel-core-i710750h-processor-12m-cache-up-to-5-00-ghz.html) CPU 和 [NVIDIA GeForce RTX 2070 with Max-Q Design](https://www.nvidia.com/fr-fr/geforce/graphics-cards/rtx-2070/) GPU。
+这些 CPU 数据使用 (224, 224) 输入，在搭载 [Intel(R) Core(TM) i7-10750H](https://ark.intel.com/content/www/us/en/ark/products/201837/intel-core-i710750h-processor-12m-cache-up-to-5-00-ghz.html) 的笔记本电脑上迭代 100 次测得。
 
 可以在自己的硬件上运行以下命令，对任意 CAM 方法进行延迟测试：
 
