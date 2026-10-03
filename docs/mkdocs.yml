@@ -1,9 +1,9 @@
 # Project information
 site_name: TorchCAM
 site_url: https://frgfm.github.io/torch-cam
-site_description: Class activation maps for your PyTorch classifiers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM).
+site_description: Class activation maps for your PyTorch CNNs and Vision Transformers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM, Finer-CAM, LeGrad, RefineCAM).
 site_author: François-Guillaume Fernandez
-copyright: Copyright &copy; 2020-2025, François-Guillaume Fernandez
+copyright: Copyright &copy; 2020-2026, François-Guillaume Fernandez
 
 # Repository
 repo_name: frgfm/torch-cam

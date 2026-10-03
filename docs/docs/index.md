@@ -12,6 +12,7 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
 This project is meant for:
 
 * ⚡ **exploration**: easily assess the influence of spatial features on classification outputs
+* 🐛 **debugging**: compare predicted and expected classes, and save evidence that humans and AI agents can verify
 * 👩‍🔬 **research**: quickly implement your own ideas for new CAM methods
 
 ## Installation
@@ -28,9 +29,10 @@ Having issues with gradients, hooks, or layer selection? See the [troubleshootin
 
 ## Quick start
 
-Get an image and a model:
+To explain one prediction and save the evidence, see [Debug one prediction](getting-started/debug-prediction.md). For full control, use a CAM extractor directly. Get an image and a model:
 
 ```python
+from urllib.request import urlretrieve
 from torchvision.io import decode_image
 from torchvision.models import get_model, get_model_weights
 
@@ -38,9 +40,8 @@ weights = get_model_weights("resnet18").DEFAULT
 model = get_model("resnet18", weights=weights).eval()
 preprocess = weights.transforms()
 
-img_path = "path/to/your/image.jpg"
-
-img = decode_image(img_path)
+urlretrieve("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
+img = decode_image("dog.jpg")
 input_tensor = preprocess(img)
 ```
 

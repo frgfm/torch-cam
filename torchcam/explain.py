@@ -88,7 +88,7 @@ class PredictionExplanation:
                     np.save(npy_path, array, allow_pickle=False)
                     heatmap = fromarray((255 * np.clip(array, 0, 1)).round().astype(np.uint8))
                     heatmap.save(heatmap_path)
-                    overlay_mask(image, heatmap, alpha=alpha).save(overlay_path)
+                    overlay_mask(image, fromarray(array), alpha=alpha).save(overlay_path)
                     artifacts.append({
                         "target_layers": list(target_layers),
                         "map": npy_path.name,
