@@ -4,11 +4,16 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import gc
+import struct
+import zlib
 from io import BytesIO
+from pathlib import Path
 from threading import Lock
+from unittest.mock import patch
 
 import torch
-from PIL import Image, UnidentifiedImageError, features
+from PIL import Image, PngImagePlugin, UnidentifiedImageError, features
+from streamlit.testing.v1 import AppTest
 from torchvision.models import get_model
 
 import app
@@ -81,8 +86,42 @@ def check_image_decoding():
         Image.MAX_IMAGE_PIXELS = pixel_limit
 
 
+def check_malformed_png_metadata():
+    data = image_upload(Image.new("RGB", (1, 1)), "PNG").getvalue()
+    end = data.index(b"IEND") - 4
+    metadata_chunks = (
+        (b"zTXt", b"key\0\1bad"),
+        (b"gAMA", b""),
+        (b"iCCP", b""),
+        (b"eXIf", b"garbage"),
+        (b"zTXt", b"key\0\0" + zlib.compress(b"a" * 33)),
+    )
+    with patch.object(PngImagePlugin, "MAX_TEXT_CHUNK", 32):
+        for kind, payload in metadata_chunks:
+            chunk = struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload))
+            upload = data[:end] + chunk + data[end:]
+            # Each file passes identification, then fails during loading or EXIF parsing.
+            with Image.open(BytesIO(upload), formats=("JPEG", "PNG")) as image:
+                check(image.format == "PNG", "Malformed fixture was not identified as PNG")
+            try:
+                app.read_image(BytesIO(upload))
+            except OSError as exc:
+                check(exc.__cause__ is not None, "Pillow parse error was not normalized")
+            else:
+                raise AssertionError(f"Malformed {kind!r} metadata was accepted")
+
+            with patch("streamlit.file_uploader", return_value=BytesIO(upload)):
+                ui = AppTest.from_file(Path(__file__).with_name("app.py")).run()
+            check(len(ui.exception) == 0, "Malformed image crashed the demo")
+            check(
+                any("This image cannot be opened safely" in error.value for error in ui.error),
+                "Malformed image did not show the safe-image error",
+            )
+
+
 def main():
     check_image_decoding()
+    check_malformed_png_metadata()
     check(app.compatible_methods("vit_b_16") == ("LeGrad",), "ViT compatibility changed")
     check("LeGrad" not in app.compatible_methods("resnet18"), "LeGrad must stay ViT-only")
     check("FinerCAM" in app.compatible_methods("resnet18"), "FinerCAM is missing")
