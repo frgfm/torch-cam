@@ -5,7 +5,6 @@ on:
     branches: main
     paths:
       - '.github/workflows/package.yml'
-      - '.github/check_numpy_compatibility.py'
       - 'torchcam/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -14,7 +13,6 @@ on:
     branches: main
     paths:
       - '.github/workflows/package.yml'
-      - '.github/check_numpy_compatibility.py'
       - 'torchcam/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -81,9 +79,18 @@ jobs:
         env:
           UV_TORCH_BACKEND: cpu
           NUMPY_REQUIREMENT: ${{ matrix.numpy }}
-        run: uv pip install dist/*.whl "torch==2.4.1" "matplotlib==3.8.4" "$NUMPY_REQUIREMENT"
-      - name: Check NumPy interoperability and explanation exports
-        run: python .github/check_numpy_compatibility.py
+        run: |
+          for wheel in dist/*.whl; do
+            uv pip install "${wheel}[test]" "torch==2.4.1" "torchvision==0.19.1" "matplotlib==3.8.4" "Pillow==9.3.0" "$NUMPY_REQUIREMENT"
+          done
+      - name: Test minimum supported dependencies
+        shell: bash
+        run: |
+          # Tests import scripts.*; keep the source torchcam package off sys.path.
+          cp -R scripts "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP"
+          python -c "import sys; from pathlib import Path; import torchcam; assert Path(torchcam.__file__).is_relative_to(sys.prefix), torchcam.__file__"
+          python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib --no-cov
 
   code-quality:
     if: github.event_name != 'push'
@@ -140,7 +147,11 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           package_version="$(uv version --short)"
-          test "$RELEASE_TAG" = "v$package_version"
+          tag_version="$(uv version --dry-run --short -- "${RELEASE_TAG#v}")"
+          if test "$tag_version" != "$package_version"; then
+            echo "::error::Release tag $RELEASE_TAG does not match package version $package_version"
+            exit 1
+          fi
           echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
       - name: Build and test distribution
         env:
@@ -148,10 +159,12 @@ jobs:
         run: |
           make build
           for wheel in dist/*.whl; do uv pip install "${wheel}[test]"; done
+          # Tests import scripts.*; keep the source torchcam package off sys.path.
           cp -R scripts "$RUNNER_TEMP/"
           cd "$RUNNER_TEMP"
-          python -c "from pathlib import Path; import torchcam; assert Path(torchcam.__file__).with_name('py.typed').is_file(); print(torchcam.__version__, torchcam.__file__)"
+          python -c "import sys; from pathlib import Path; import torchcam; path = Path(torchcam.__file__); assert path.is_relative_to(sys.prefix), path; assert path.with_name('py.typed').is_file(); print(torchcam.__version__, path)"
           python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib --cov-report "xml:$GITHUB_WORKSPACE/coverage.xml"
+          uv publish --dry-run --trusted-publishing never --token dry-run "$GITHUB_WORKSPACE"/dist/*
       - uses: actions/upload-artifact@v7
         with:
           path: ./coverage.xml
@@ -187,22 +200,17 @@ jobs:
     permissions:
       # For PyPI's trusted publishing.
       id-token: write
-    outputs:
-      package_version: ${{ needs.test.outputs.package_version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
       - uses: actions/download-artifact@v8
         with:
           name: release-distributions
           path: dist/
       - name: Publish to PyPI
-        run: make publish
+        run: uv publish --trusted-publishing always
 
   verify-publish:
     runs-on: ${{ matrix.os }}
@@ -210,7 +218,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.11', '3.12', '3.13', '3.14']
-    needs: publish
+    needs: [test, publish]
     steps:
       - uses: actions/setup-python@v7
         with:
@@ -218,9 +226,10 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
       - name: Install package
         env:
           UV_TORCH_BACKEND: cpu
         run: |
-          uv pip install --system torchcam==${{ needs.publish.outputs.package_version }}
+          uv pip install --system torchcam==${{ needs.test.outputs.package_version }}
           python -c "import torchcam; print(torchcam.__version__)"

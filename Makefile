@@ -68,14 +68,8 @@ style: precommit ## Format code and run pre-commit hooks
 # Builds
 ########################################################
 
-set-version: ${PYPROJECT_FILE} ## Set the version in the pyproject.toml file
-	uv version --frozen --no-build ${BUILD_VERSION}
-
 build: ${PYPROJECT_FILE} ## Build the package
 	uv build ${PY_DIR}
-
-publish: ${PY_DIR} ## Publish the package to PyPI
-	uv publish --trusted-publishing always
 
 ########################################################
 # Tests
