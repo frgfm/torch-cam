@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchcam import metrics
-from torchcam.methods import GradCAM, core
+from torchcam.methods import GradCAM, GradCAMpp, SmoothGradCAMpp, core
 
 
 class _PartlyNaNGradient(torch.autograd.Function):
@@ -30,10 +30,11 @@ class _NonfiniteGradientModel(torch.nn.Module):
 
 
 @pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
-def test_invalid_channel_gradients_are_not_hidden_from_metrics(metric_cls):
+@pytest.mark.parametrize("method", [GradCAM, GradCAMpp, SmoothGradCAMpp])
+def test_invalid_channel_gradients_are_not_hidden_from_metrics(metric_cls, method):
     model = _NonfiniteGradientModel()
     input_tensor = (torch.arange(16, dtype=torch.float32).reshape(2, 2, 2, 2) / 16).requires_grad_()
-    with GradCAM(model, "features") as extractor:
+    with method(model, "features") as extractor:
         cams = extractor(0, model(input_tensor))[0]
         assert cams[0].isnan().all()
         assert cams[1].isfinite().all()

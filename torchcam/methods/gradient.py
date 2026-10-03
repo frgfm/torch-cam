@@ -158,6 +158,8 @@ class GradCAMpp(_GradCAM):
     $$
 
     The coefficient is zero when the squared gradient is zero. A small $\varepsilon$ stabilizes the denominator.
+    For float16 and bfloat16 inputs, gradient powers and activation sums use float32 to avoid underflow and overflow.
+    Float64 inputs retain their precision.
 
     Example:
         ```python
@@ -187,13 +189,15 @@ class GradCAMpp(_GradCAM):
         self._backprop(scores, class_idx, **kwargs)
         self.hook_a: list[Tensor]  # type: ignore[assignment]
         self.hook_g: list[Tensor]  # type: ignore[assignment]
+        # Keep powers, spatial sums, and epsilon representable for reduced-precision inputs.
+        gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in self.hook_g]
         # Alpha coefficient for each pixel
-        grad_2 = [grad.pow(2) for grad in self.hook_g]
-        grad_3 = [g2 * grad for g2, grad in zip(grad_2, self.hook_g, strict=True)]
+        grad_2 = [grad.pow(2) for grad in gradients]
+        grad_3 = [g2 * grad for g2, grad in zip(grad_2, gradients, strict=True)]
         # Watch out for NaNs produced by underflow
         spatial_dims = self.hook_a[0].ndim - 2
         denom = [
-            2 * g2 + g3 * act.flatten(2).sum(-1)[(...,) + (None,) * spatial_dims]
+            2 * g2 + g3 * act.flatten(2).sum(-1, dtype=g2.dtype)[(...,) + (None,) * spatial_dims]
             for g2, g3, act in zip(grad_2, grad_3, self.hook_a, strict=True)
         ]
         nan_mask = [g2 > 0 for g2 in grad_2]
@@ -203,7 +207,7 @@ class GradCAMpp(_GradCAM):
             alpha[idx][mask] /= d[mask] + eps
 
         # Apply pixel coefficient in each weight
-        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, self.hook_g, strict=True)]
+        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, gradients, strict=True)]
 
 
 class SmoothGradCAMpp(_GradCAM):
@@ -245,6 +249,8 @@ class SmoothGradCAMpp(_GradCAM):
     floating-point rounding. Zero squared-gradient moments give zero coefficients.
 
     The corrected alpha numerator uses the mean squared gradient, rather than the mean first derivative in the paper.
+    For float16 and bfloat16 inputs, gradient moments and activation sums use float32 to avoid underflow and overflow.
+    Float64 inputs retain their precision.
 
     Example:
         ```python
@@ -321,9 +327,10 @@ class SmoothGradCAMpp(_GradCAM):
         self.hook_g: list[Tensor]  # type: ignore[assignment]
         init_fmap = [act.clone() for act in self.hook_a]
         # Initialize our gradient estimates
-        grad_1 = [torch.zeros_like(act) for act in self.hook_a]
-        grad_2 = [torch.zeros_like(act) for act in self.hook_a]
-        grad_3 = [torch.zeros_like(act) for act in self.hook_a]
+        # Accumulate all moments in at least float32; half-precision epsilon rounds to zero.
+        grad_1 = [torch.zeros_like(act, dtype=torch.promote_types(act.dtype, torch.float32)) for act in self.hook_a]
+        grad_2 = [torch.zeros_like(grad) for grad in grad_1]
+        grad_3 = [torch.zeros_like(grad) for grad in grad_1]
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
@@ -334,9 +341,10 @@ class SmoothGradCAMpp(_GradCAM):
             self._backprop(out, class_idx, **kwargs)
 
             # Sum partial derivatives
-            grad_1 = [g1.add_(grad) for g1, grad in zip(grad_1, self.hook_g, strict=True)]
-            grad_2 = [g2.add_(grad.pow(2)) for g2, grad in zip(grad_2, self.hook_g, strict=True)]
-            grad_3 = [g3.add_(grad.pow(3)) for g3, grad in zip(grad_3, self.hook_g, strict=True)]
+            gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in self.hook_g]
+            grad_1 = [g1.add_(grad) for g1, grad in zip(grad_1, gradients, strict=True)]
+            grad_2 = [g2.add_(grad.pow(2)) for g2, grad in zip(grad_2, gradients, strict=True)]
+            grad_3 = [g3.add_(grad.pow(3)) for g3, grad in zip(grad_3, gradients, strict=True)]
 
         # Average the gradient estimates
         grad_1 = [g1.div_(self.num_samples) for g1 in grad_1]
@@ -346,7 +354,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Alpha coefficient for each pixel
         spatial_dims = self.hook_a[0].ndim - 2
         alpha = [
-            g2 / (2 * g2 + g3 * act.flatten(2).sum(-1)[(...,) + (None,) * spatial_dims] + eps)
+            g2 / (2 * g2 + g3 * act.flatten(2).sum(-1, dtype=g2.dtype)[(...,) + (None,) * spatial_dims] + eps)
             for g2, g3, act in zip(grad_2, grad_3, init_fmap, strict=True)
         ]
 
