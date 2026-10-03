@@ -3,8 +3,9 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Callable
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
+from copy import copy
 from typing import Any, Protocol, cast
 
 import torch
@@ -31,17 +32,49 @@ class _CAMExtractor(Protocol):
     def _hooks_off(self) -> AbstractContextManager[None]: ...
 
 
-def _get_scores(
+@contextmanager
+def _adapt_model_output(model: torch.nn.Module, output_fn: Callable[[Any], Any] | None) -> Iterator[None]:
+    if output_fn is None:
+        yield
+        return
+    handle = model.register_forward_hook(lambda _module, _args, output: output_fn(output))
+    try:
+        yield
+    finally:
+        handle.remove()
+
+
+def _copy_score_input(output: Any) -> Any:
+    """Copy tensor leaves without carrying the CAM's autograd graph into metric scoring."""  # noqa: DOC201
+    if isinstance(output, torch.Tensor):
+        return output.detach().clone()
+    if isinstance(output, dict):
+        result = copy(output)
+        result.update((key, _copy_score_input(value)) for key, value in output.items())
+        return result
+    if isinstance(output, list):
+        result = copy(output)
+        result[:] = [_copy_score_input(value) for value in output]
+        return result
+    if isinstance(output, tuple):
+        values = tuple(_copy_score_input(value) for value in output)
+        return type(output)(*values) if hasattr(output, "_fields") else type(output)(values)
+    return output
+
+
+def _get_outputs(
     cam_extractor: _CAMExtractor,
     logits_fn: Callable[[Any], Any] | None,
     input_tensor: torch.Tensor,
-) -> Any:
-    logits = cam_extractor.model(input_tensor)
-    return logits if logits_fn is None else logits_fn(logits)
+) -> tuple[Any, Any]:
+    output = cam_extractor.model(input_tensor)
+    return output, output if logits_fn is None else logits_fn(_copy_score_input(output))
 
 
 def _resolve_class_idx(scores: torch.Tensor, class_idx: int | list[int] | None) -> tuple[int | list[int], torch.Tensor]:
     batch_size, num_classes = scores.shape
+    if isinstance(class_idx, bool):
+        raise TypeError("class_idx must be an integer, a list of integers, or None")
     if class_idx is None:
         target_indices = scores.argmax(dim=-1)
         return target_indices.detach().cpu().tolist(), target_indices
@@ -60,18 +93,30 @@ def _resolve_class_idx(scores: torch.Tensor, class_idx: int | list[int] | None) 
     return class_idx, torch.tensor(class_idx, device=scores.device)
 
 
-def _get_cam(
+def _get_cam_and_scores(
     cam_extractor: _CAMExtractor,
+    output: Any,
     scores: Any,
     class_idx: int | list[int] | None,
-    targets: OutputTarget | list[OutputTarget] | None = None,
-) -> tuple[torch.Tensor, torch.Tensor | None]:
-    if targets is not None:
-        cams = cam_extractor(scores=scores, targets=targets)
-        return cam_extractor.fuse_cams(cams), None
-    extractor_idx, target_indices = _resolve_class_idx(scores, class_idx)
-    cams = cam_extractor(extractor_idx, scores)
-    return cam_extractor.fuse_cams(cams), target_indices
+    targets: list[OutputTarget] | None,
+    *,
+    nonnegative: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor]:
+    extractor_idx, target_indices = _resolve_class_idx(scores, class_idx) if targets is None else (None, None)
+    selected_scores = _validate_scores(_select_scores(scores, target_indices, targets), nonnegative=nonnegative)
+    cams = cam_extractor(extractor_idx, output) if targets is None else cam_extractor(scores=output, targets=targets)
+    return cam_extractor.fuse_cams(cams), target_indices, selected_scores
+
+
+def _validate_scores(scores: torch.Tensor, *, nonnegative: bool = False) -> torch.Tensor:
+    if not torch.isfinite(scores).all():
+        raise ValueError("selected metric scores must be finite")
+    if nonnegative and (scores < 0).any():
+        raise ValueError(
+            "classification confidence scores must be nonnegative; use logits_fn to convert to probabilities"
+        )
+    scores = scores.detach()
+    return scores.float() if scores.dtype in {torch.float16, torch.bfloat16} else scores
 
 
 def _select_scores(
@@ -151,15 +196,23 @@ class ClassificationMetric:
         metric.update(input_tensor)
         metric.summary()
         ```
+
+    Args:
+        cam_extractor: CAM extractor used to produce explanation masks
+        logits_fn: optional score transform, such as softmax, used only for metric scoring
+        output_fn: optional model-output adapter applied before CAM extraction and metric scoring
     """
 
     def __init__(
         self,
         cam_extractor: _CAMExtractor,
         logits_fn: Callable[[Any], Any] | None = None,
+        *,
+        output_fn: Callable[[Any], Any] | None = None,
     ) -> None:
         self.cam_extractor = cam_extractor
         self.logits_fn = logits_fn
+        self.output_fn = output_fn
         self.reset()
 
     def update(
@@ -177,14 +230,16 @@ class ClassificationMetric:
             targets: scalar output target shared by the batch, or one target per sample
 
         Raises:
-            ValueError: if both class indices and output targets are provided
+            ValueError: if both class indices and output targets are provided, or selected scores are nonfinite or negative
         """
         if targets is not None and class_idx is not None:
             raise ValueError("provide either class_idx or targets, not both")
-        with _model_eval(self.cam_extractor.model):
-            scores = _get_scores(self.cam_extractor, self.logits_fn, input_tensor)
+        with _model_eval(self.cam_extractor.model), _adapt_model_output(self.cam_extractor.model, self.output_fn):
+            output, scores = _get_outputs(self.cam_extractor, self.logits_fn, input_tensor)
             target_fns = _resolve_targets(targets, input_tensor.shape[0]) if targets is not None else None
-            cam, target_indices = _get_cam(self.cam_extractor, scores, class_idx, target_fns)
+            cam, target_indices, selected_scores = _get_cam_and_scores(
+                self.cam_extractor, output, scores, class_idx, target_fns, nonnegative=True
+            )
             discard = torch.isnan(cam).reshape(input_tensor.shape[0], -1).any(dim=-1)
             nan_count = int(discard.sum().item())
             if discard.all():
@@ -193,13 +248,17 @@ class ClassificationMetric:
 
             cam = _resize_cam(cam[~discard], tuple(input_tensor.shape[2:]))
             valid_input = input_tensor[~discard]
-            selected_scores = _select_scores(scores, target_indices, target_fns)[~discard]
+            selected_scores = selected_scores[~discard]
             valid_indices, valid_targets = _filter_selection(target_indices, target_fns, ~discard)
 
             with self.cam_extractor._hooks_off(), torch.inference_mode():  # noqa: SLF001
-                masked_scores = _get_scores(self.cam_extractor, self.logits_fn, cam.unsqueeze(1) * valid_input)
-            masked_scores = _select_scores(masked_scores, valid_indices, valid_targets)
-            drop = torch.relu(selected_scores - masked_scores).div(selected_scores + 1e-7)
+                _, masked_scores = _get_outputs(self.cam_extractor, self.logits_fn, cam.unsqueeze(1) * valid_input)
+            masked_scores = _validate_scores(
+                _select_scores(masked_scores, valid_indices, valid_targets), nonnegative=True
+            )
+            drop = torch.relu(selected_scores - masked_scores).div(
+                torch.where(selected_scores > 0, selected_scores, torch.ones_like(selected_scores))
+            )
             increase = selected_scores < masked_scores
 
         self.drop += drop.sum().item()
@@ -252,7 +311,8 @@ class DeletionInsertionMetric:
 
     Args:
         cam_extractor: CAM extractor used to rank spatial positions
-        logits_fn: optional function applied to the model output before selecting class scores
+        logits_fn: optional score transform, such as softmax, used only for metric scoring
+        output_fn: optional model-output adapter applied before CAM extraction and metric scoring
         steps: maximum number of perturbation intervals
         baseline: baseline tensor, callable producing one, or ``None`` to use zeros
         batch_size: maximum number of perturbed inputs scored per model forward
@@ -267,6 +327,7 @@ class DeletionInsertionMetric:
         cam_extractor: _CAMExtractor,
         logits_fn: Callable[[Any], Any] | None = None,
         *,
+        output_fn: Callable[[Any], Any] | None = None,
         steps: int = 20,
         baseline: torch.Tensor | Callable[[torch.Tensor], torch.Tensor] | None = None,
         batch_size: int = 32,
@@ -284,6 +345,7 @@ class DeletionInsertionMetric:
 
         self.cam_extractor = cam_extractor
         self.logits_fn = logits_fn
+        self.output_fn = output_fn
         self.steps = steps
         self.baseline = baseline
         self.batch_size = batch_size
@@ -347,14 +409,14 @@ class DeletionInsertionMetric:
                     input_tensor.flatten(2)[sample_indices],
                     baseline.flatten(2)[sample_indices],
                 ).reshape((-1, *input_tensor.shape[1:]))
-                perturbed_scores = _get_scores(self.cam_extractor, self.logits_fn, perturbed)
+                _, perturbed_scores = _get_outputs(self.cam_extractor, self.logits_fn, perturbed)
                 if targets is None:
                     indices = cast(torch.Tensor, target_indices)[sample_indices]
                     selected_targets = None
                 else:
                     indices = None
                     selected_targets = [targets[idx] for idx in sample_indices.tolist()]
-                selected_scores = _select_scores(perturbed_scores, indices, selected_targets)
+                selected_scores = _validate_scores(_select_scores(perturbed_scores, indices, selected_targets))
 
                 for score, job in zip(selected_scores, chunk, strict=True):
                     if job[1] == 0:
@@ -382,14 +444,16 @@ class DeletionInsertionMetric:
             targets: scalar output target shared by the batch, or one target per sample
 
         Raises:
-            ValueError: if both class indices and output targets are provided
+            ValueError: if both class indices and output targets are provided, or selected scores are nonfinite
         """
         if targets is not None and class_idx is not None:
             raise ValueError("provide either class_idx or targets, not both")
-        with _model_eval(self.cam_extractor.model):
-            scores = _get_scores(self.cam_extractor, self.logits_fn, input_tensor)
+        with _model_eval(self.cam_extractor.model), _adapt_model_output(self.cam_extractor.model, self.output_fn):
+            output, scores = _get_outputs(self.cam_extractor, self.logits_fn, input_tensor)
             target_fns = _resolve_targets(targets, input_tensor.shape[0]) if targets is not None else None
-            cam, target_indices = _get_cam(self.cam_extractor, scores, class_idx, target_fns)
+            cam, target_indices, original_scores = _get_cam_and_scores(
+                self.cam_extractor, output, scores, class_idx, target_fns
+            )
             discard = torch.isnan(cam).reshape(input_tensor.shape[0], -1).any(dim=-1)
             nan_count = int(discard.sum().item())
             if discard.all():
@@ -400,7 +464,7 @@ class DeletionInsertionMetric:
                 baseline = self._get_baseline(input_tensor)[~discard]
             valid_input = input_tensor[~discard]
             cam = _resize_cam(cam[~discard], tuple(input_tensor.shape[2:]))
-            original_scores = _select_scores(scores, target_indices, target_fns)[~discard].detach()
+            original_scores = original_scores[~discard]
             valid_indices, valid_targets = _filter_selection(target_indices, target_fns, ~discard)
             order = torch.argsort(cam.flatten(1), dim=1, descending=True, stable=True)
             ranks = torch.argsort(order, dim=1)
