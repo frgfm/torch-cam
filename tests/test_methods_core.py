@@ -3,7 +3,48 @@ from operator import itemgetter
 import pytest
 import torch
 
-from torchcam.methods import core
+from torchcam import metrics
+from torchcam.methods import GradCAM, GradCAMpp, SmoothGradCAMpp, core
+
+
+class _PartlyNaNGradient(torch.autograd.Function):
+    @staticmethod
+    def forward(_ctx, input_tensor):
+        return input_tensor.clone()
+
+    @staticmethod
+    def backward(_ctx, gradient):
+        gradient = gradient.clone()
+        gradient[0, 0] = float("nan")
+        return gradient
+
+
+class _NonfiniteGradientModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.features = torch.nn.Identity()
+
+    def forward(self, input_tensor):
+        score = _PartlyNaNGradient.apply(self.features(input_tensor)).flatten(1).sum(1)
+        return torch.stack((score, -score), dim=1)
+
+
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+@pytest.mark.parametrize("method", [GradCAM, GradCAMpp, SmoothGradCAMpp])
+def test_invalid_channel_gradients_are_not_hidden_from_metrics(metric_cls, method):
+    model = _NonfiniteGradientModel()
+    input_tensor = (torch.arange(16, dtype=torch.float32).reshape(2, 2, 2, 2) / 16).requires_grad_()
+    with method(model, "features") as extractor:
+        cams = extractor(0, model(input_tensor))[0]
+        assert cams[0].isnan().all()
+        assert cams[1].isfinite().all()
+
+        metric = metric_cls(extractor)
+        metric.update(input_tensor, class_idx=0)
+
+    assert metric.total == 1
+    assert metric.nan_count == 1
+    assert all(torch.isfinite(torch.tensor(value)) for value in metric.summary().values())
 
 
 def test_cam_constructor(mock_img_model):

@@ -149,16 +149,17 @@ class GradCAMpp(_GradCAM):
     where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
     position $(x, y)$,
     $Y^{(c)}$ is the model output score for class $c$ before softmax,
-    and $\alpha_k^{(c)}(i, j)$ being defined as:
+    and $g_k^{(c)}(i,j) = \frac{\partial Y^{(c)}}{\partial A_k(i,j)}$. This implementation uses the
+    square and cube of the first derivative for the higher-order terms:
 
     $$
-    \alpha_k^{(c)}(i, j) = \frac{1}{\sum\limits_{i, j} \frac{\partial Y^{(c)}}{\partial A_k(i, j)}}
-    = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot
-    \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot
-    \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}
+    \alpha_k^{(c)}(i, j) = \frac{g_k^{(c)}(i,j)^2}{
+    2 g_k^{(c)}(i,j)^2 + g_k^{(c)}(i,j)^3 \sum\limits_{a,b} A_k(a,b) + \varepsilon}
     $$
 
-    if $\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1$ else $0$.
+    The coefficient is zero when the squared gradient is zero. A small $\varepsilon$ stabilizes the denominator.
+    For float16 and bfloat16 inputs, gradient powers and activation sums use float32 to avoid underflow and overflow.
+    Float64 inputs retain their precision.
 
     Example:
         ```python
@@ -188,22 +189,25 @@ class GradCAMpp(_GradCAM):
         self._backprop(scores, class_idx, **kwargs)
         self.hook_a: list[Tensor]  # type: ignore[assignment]
         self.hook_g: list[Tensor]  # type: ignore[assignment]
+        # Keep powers, spatial sums, and epsilon representable for reduced-precision inputs.
+        gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in self.hook_g]
         # Alpha coefficient for each pixel
-        grad_2 = [grad.pow(2) for grad in self.hook_g]
-        grad_3 = [g2 * grad for g2, grad in zip(grad_2, self.hook_g, strict=True)]
+        grad_2 = [grad.pow(2) for grad in gradients]
+        grad_3 = [g2 * grad for g2, grad in zip(grad_2, gradients, strict=True)]
         # Watch out for NaNs produced by underflow
         spatial_dims = self.hook_a[0].ndim - 2
         denom = [
-            2 * g2 + (g3 * act).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims]
+            2 * g2 + g3 * act.flatten(2).sum(-1, dtype=g2.dtype)[(...,) + (None,) * spatial_dims]
             for g2, g3, act in zip(grad_2, grad_3, self.hook_a, strict=True)
         ]
         nan_mask = [g2 > 0 for g2 in grad_2]
         alpha = grad_2
         for idx, d, mask in zip(range(len(grad_2)), denom, nan_mask, strict=True):
-            alpha[idx][mask].div_(d[mask] + eps)
+            # Indexed assignment writes back; calling div_ on the indexed copy does not.
+            alpha[idx][mask] /= d[mask] + eps
 
         # Apply pixel coefficient in each weight
-        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, self.hook_g, strict=True)]
+        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, gradients, strict=True)]
 
 
 class SmoothGradCAMpp(_GradCAM):
@@ -221,30 +225,32 @@ class SmoothGradCAMpp(_GradCAM):
 
     $$
     w_k^{(c)} = \sum\limits_{i=1}^H \sum\limits_{j=1}^W \alpha_k^{(c)}(i, j) \cdot
-    ReLU\Big(\frac{\partial Y^{(c)}}{\partial A_k(i, j)}\Big)
+    ReLU\Big(\overline{g^{(1)}}_k^{(c)}(i,j)\Big)
     $$
 
-    where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
-    position $(x, y)$,
-    $Y^{(c)}$ is the model output score for class $c$ before softmax,
-    and $\alpha_k^{(c)}(i, j)$ being defined as:
+    where $A_k(x,y)$ is the original input's activation in the target layer, and
+    $g_{k,m}^{(c)}(i,j)$ is the first derivative of the pre-softmax class score with respect to the activation
+    for noisy sample $m$. For $p \in \{1,2,3\}$, the same $n$ noisy samples estimate each gradient moment:
 
     $$
-    \alpha_k^{(c)}(i, j)
-    = \frac{\frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2}}{2 \cdot
-    \frac{\partial^2 Y^{(c)}}{(\partial A_k(i,j))^2} + \sum\limits_{a,b} A_k (a,b) \cdot
-    \frac{\partial^3 Y^{(c)}}{(\partial A_k(i,j))^3}}
-    = \frac{\frac{1}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j)}{
-    \frac{2}{n} \sum\limits_{m=1}^n D^{(c, 2)}_k(i, j) + \sum\limits_{a,b} A_k (a,b) \cdot
-    \frac{1}{n} \sum\limits_{m=1}^n D^{(c, 3)}_k(i, j)}
+    \overline{g^{(p)}}_k^{(c)}(i,j) = \frac{1}{n} \sum\limits_{m=1}^n g_{k,m}^{(c)}(i,j)^p
     $$
 
-    if $\frac{\partial Y^{(c)}}{\partial A_k(i, j)} = 1$ else $0$. Here $D^{(c, p)}_k(i, j)$
-    refers to the p-th partial derivative of the class score of class $c$ relatively to the activation in layer
-    $k$ at position $(i, j)$, and $n$ is the number of samples used to get the gradient estimate.
+    As in :class:`GradCAMpp`, powers of the first derivative approximate the higher-order terms:
 
-    Please note the difference in the numerator of $\alpha_k^{(c)}(i, j)$,
-    which is actually $\frac{1}{n} \sum\limits_{k=1}^n D^{(c, 1)}_k(i,j)$ in the paper.
+    $$
+    \alpha_k^{(c)}(i,j) = \frac{\overline{g^{(2)}}_k^{(c)}(i,j)}{
+    2\overline{g^{(2)}}_k^{(c)}(i,j) + \overline{g^{(3)}}_k^{(c)}(i,j)
+    \sum\limits_{a,b} A_k(a,b) + \varepsilon}
+    $$
+
+    The first-order gradients are averaged before applying ReLU. The resulting weights are combined with the
+    original input's activations, so permuting the same noisy samples does not change the estimator apart from
+    floating-point rounding. Zero squared-gradient moments give zero coefficients.
+
+    The corrected alpha numerator uses the mean squared gradient, rather than the mean first derivative in the paper.
+    For float16 and bfloat16 inputs, gradient moments and activation sums use float32 to avoid underflow and overflow.
+    Float64 inputs retain their precision.
 
     Example:
         ```python
@@ -288,7 +294,7 @@ class SmoothGradCAMpp(_GradCAM):
 
     def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
-        if self._ihook_enabled:
+        if self._hooks_enabled and self._ihook_enabled:
             self._input = input_[0].detach().clone()
 
     def _get_weights(
@@ -300,10 +306,14 @@ class SmoothGradCAMpp(_GradCAM):
     ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         previous_ihook_enabled = self._ihook_enabled
+        initial_activations = self.hook_a.copy()
+        initial_outputs = self._hook_outputs.copy()
         self._ihook_enabled = False
         try:
             return self._compute_smoothgrad_weights(class_idx, eps, **kwargs)
         finally:
+            self.hook_a = initial_activations
+            self._hook_outputs = initial_outputs
             self._ihook_enabled = previous_ihook_enabled
 
     def _compute_smoothgrad_weights(
@@ -317,8 +327,10 @@ class SmoothGradCAMpp(_GradCAM):
         self.hook_g: list[Tensor]  # type: ignore[assignment]
         init_fmap = [act.clone() for act in self.hook_a]
         # Initialize our gradient estimates
-        grad_2 = [torch.zeros_like(act) for act in self.hook_a]
-        grad_3 = [torch.zeros_like(act) for act in self.hook_a]
+        # Accumulate all moments in at least float32; half-precision epsilon rounds to zero.
+        grad_1 = [torch.zeros_like(act, dtype=torch.promote_types(act.dtype, torch.float32)) for act in self.hook_a]
+        grad_2 = [torch.zeros_like(grad) for grad in grad_1]
+        grad_3 = [torch.zeros_like(grad) for grad in grad_1]
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
@@ -329,22 +341,25 @@ class SmoothGradCAMpp(_GradCAM):
             self._backprop(out, class_idx, **kwargs)
 
             # Sum partial derivatives
-            grad_2 = [g2.add_(grad.pow(2)) for g2, grad in zip(grad_2, self.hook_g, strict=True)]
-            grad_3 = [g3.add_(grad.pow(3)) for g3, grad in zip(grad_3, self.hook_g, strict=True)]
+            gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in self.hook_g]
+            grad_1 = [g1.add_(grad) for g1, grad in zip(grad_1, gradients, strict=True)]
+            grad_2 = [g2.add_(grad.pow(2)) for g2, grad in zip(grad_2, gradients, strict=True)]
+            grad_3 = [g3.add_(grad.pow(3)) for g3, grad in zip(grad_3, gradients, strict=True)]
 
         # Average the gradient estimates
+        grad_1 = [g1.div_(self.num_samples) for g1 in grad_1]
         grad_2 = [g2.div_(self.num_samples) for g2 in grad_2]
         grad_3 = [g3.div_(self.num_samples) for g3 in grad_3]
 
         # Alpha coefficient for each pixel
         spatial_dims = self.hook_a[0].ndim - 2
         alpha = [
-            g2 / (2 * g2 + (g3 * act).flatten(2).sum(-1)[(...,) + (None,) * spatial_dims] + eps)
+            g2 / (2 * g2 + g3 * act.flatten(2).sum(-1, dtype=g2.dtype)[(...,) + (None,) * spatial_dims] + eps)
             for g2, g3, act in zip(grad_2, grad_3, init_fmap, strict=True)
         ]
 
         # Apply pixel coefficient in each weight
-        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, self.hook_g, strict=True)]
+        return [a.mul_(torch.relu(grad)).flatten(2).sum(-1) for a, grad in zip(alpha, grad_1, strict=True)]
 
     def _extra_repr(self) -> str:
         return f"target_layer={self.target_names}, num_samples={self.num_samples}, std={self.std}"
