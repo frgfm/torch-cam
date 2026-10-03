@@ -1,7 +1,8 @@
 import pytest
 import torch
 from PIL import Image
-from torchvision.models import MobileNet_V3_Large_Weights, ResNet18_Weights, ResNet50_Weights
+from torchvision.models import MobileNet_V3_Large_Weights, ResNet18_Weights, ResNet50_Weights, ViT_B_16_Weights
+from torchvision.models.vision_transformer import VisionTransformer
 
 from scripts import eval_perf
 
@@ -121,3 +122,54 @@ def test_seeded_benchmark_reports_resolved_protocol(tmp_path, monkeypatch, capsy
         "Valid 2 samples, Skipped 0 samples",
     ):
         assert detail in first_output
+
+
+@pytest.mark.parametrize(
+    "target", ["encoder.layers.encoder_layer_1", "encoder.layers.encoder_layer_0,encoder.layers.encoder_layer_1"]
+)
+def test_legrad_benchmark_with_explicit_transformer_blocks(tmp_path, monkeypatch, capsys, target):
+    image_dir = tmp_path / "val" / "class"
+    image_dir.mkdir(parents=True)
+    Image.new("RGB", (48, 32), color="white").save(image_dir / "first.png")
+    Image.new("RGB", (48, 32), color="red").save(image_dir / "second.png")
+
+    def make_model(arch, *, weights):
+        assert arch == "vit_b_16"
+        assert weights is ViT_B_16_Weights.IMAGENET1K_V1
+        model = VisionTransformer(
+            image_size=32,
+            patch_size=8,
+            num_layers=2,
+            num_heads=2,
+            hidden_dim=32,
+            mlp_dim=64,
+            num_classes=3,
+        )
+        torch.nn.init.normal_(model.heads.head.weight)
+        return model
+
+    monkeypatch.setattr(eval_perf, "get_model", make_model)
+    args = eval_perf._build_parser().parse_args([
+        str(tmp_path),
+        "LeGrad",
+        "--arch",
+        "vit_b_16",
+        "--target",
+        target,
+        "--size",
+        "32",
+        "--device",
+        "cpu",
+        "--workers",
+        "0",
+        "--deletion-insertion",
+        "--di-steps",
+        "2",
+    ])
+    eval_perf.main(args)
+    output = capsys.readouterr().out
+
+    assert f"target_layers={target}" in output
+    assert "Average Drop" in output
+    assert "Deletion AUC" in output
+    assert output.count("Valid 2 samples, Skipped 0 samples") == 2

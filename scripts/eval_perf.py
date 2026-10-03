@@ -12,6 +12,7 @@ import math
 import os
 import platform
 from functools import partial
+from inspect import signature
 from pathlib import Path
 
 import torch
@@ -114,9 +115,12 @@ def main(args):
     )
 
     # Hook the corresponding layer in the model
-    with methods.__dict__[args.method](
-        model, args.target.split(",") if args.target else None, input_shape=(3, args.size, args.size)
-    ) as cam_extractor:
+    extractor_cls = methods.__dict__[args.method]
+    # LeGrad requires explicit blocks and does not accept an input shape.
+    extractor_kwargs = (
+        {"input_shape": (3, args.size, args.size)} if "input_shape" in signature(extractor_cls).parameters else {}
+    )
+    with extractor_cls(model, args.target.split(",") if args.target else None, **extractor_kwargs) as cam_extractor:
         _report_protocol(args, weights, cam_extractor, ds)
         metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
         deletion_insertion_metric = (
