@@ -14,8 +14,17 @@ env:
 
 
 jobs:
-  cam-example:
+  scripts:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: cam-example
+            command: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock --method LayerCAM
+          - name: eval-latency
+            command: python scripts/eval_latency.py --arch resnet18 LayerCAM
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -31,23 +40,4 @@ jobs:
         run: uv pip install --system --upgrade -e '.[scripts]'
 
       - name: Run analysis script
-        run: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock --method LayerCAM
-
-  eval-latency:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@v10.2.0
-        with:
-          version: ${{ env.UV_VERSION }}
-      - name: Install dependencies
-        env:
-          UV_TORCH_BACKEND: cpu
-        run: uv pip install --system --upgrade -e '.[scripts]'
-
-      - name: Run analysis script
-        run: python scripts/eval_latency.py --arch resnet18 LayerCAM
+        run: ${{ matrix.command }}

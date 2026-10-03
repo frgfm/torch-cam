@@ -82,10 +82,10 @@ cam_extractor = LayerCAM(model)
 
 Once your CAM extractor is set, you only need to use your model to infer on your data as usual. If any additional information is required, the extractor will get it for you automatically.
 
+<!-- --8<-- [start:quickstart-input] -->
 ```python
 from torchvision.io import decode_image
 from torchvision.models import get_model, get_model_weights
-from torchcam.methods import LayerCAM
 
 # Get a model and an image
 weights = get_model_weights("resnet18").DEFAULT
@@ -94,12 +94,21 @@ preprocess = weights.transforms()
 img = decode_image("path/to/your/image.jpg")
 
 input_tensor = preprocess(img)
+```
+<!-- --8<-- [end:quickstart-input] -->
+
+Compute the class activation map:
+
+<!-- --8<-- [start:quickstart-cam] -->
+```python hl_lines="3 6"
+from torchcam.methods import LayerCAM
 
 with LayerCAM(model) as cam_extractor:
   out = model(input_tensor.unsqueeze(0))
   # Retrieve the CAM by passing the class index and the model output
   activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
 ```
+<!-- --8<-- [end:quickstart-cam] -->
 
 Here `class_idx` (the first argument) is the index in the model's output logits of the class you want to explain — `out.squeeze(0).argmax().item()` picks the top prediction, but you can pass any class index. The extractor returns one activation map per target layer.
 
@@ -115,7 +124,8 @@ plt.imshow(activation_map[0].squeeze(0).numpy()); plt.axis('off'); plt.tight_lay
 
 Or if you wish to overlay it on your input image:
 
-```python
+<!-- --8<-- [start:quickstart-overlay] -->
+```python hl_lines="3 6"
 import matplotlib.pyplot as plt
 from torchvision.transforms.v2.functional import to_pil_image
 from torchcam.utils import overlay_mask
@@ -124,6 +134,7 @@ from torchcam.utils import overlay_mask
 result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
+<!-- --8<-- [end:quickstart-overlay] -->
 
 ![overlayed_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/overlayed_heatmap.png)
 

@@ -6,7 +6,7 @@
 import logging
 from abc import abstractmethod
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from functools import partial
 from types import TracebackType
 from typing import Any, Self, cast
@@ -15,7 +15,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from ._utils import locate_candidate_layer
+from ._utils import _model_eval, locate_candidate_layer
 
 __all__ = ["_CAM", "OutputTarget"]
 
@@ -143,15 +143,8 @@ class _CAM:
         finally:
             self._hooks_enabled = previous
 
-    @contextmanager
-    def _eval_mode(self) -> Iterator[None]:
-        modes = [(module, module.training) for module in self.model.modules()]
-        try:
-            self.model.eval()
-            yield
-        finally:
-            for module, training in modes:
-                module.training = training
+    def _eval_mode(self) -> AbstractContextManager[None]:
+        return _model_eval(self.model)
 
     def __enter__(self) -> Self:
         return self

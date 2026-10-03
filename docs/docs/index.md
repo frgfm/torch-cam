@@ -30,30 +30,11 @@ Having issues with gradients, hooks, or layer selection? See the [troubleshootin
 
 Get an image and a model:
 
-```python
-from torchvision.io import decode_image
-from torchvision.models import get_model, get_model_weights
-
-weights = get_model_weights("resnet18").DEFAULT
-model = get_model("resnet18", weights=weights).eval()
-preprocess = weights.transforms()
-
-img_path = "path/to/your/image.jpg"
-
-img = decode_image(img_path)
-input_tensor = preprocess(img)
-```
+--8<-- "README.md:quickstart-input"
 
 Compute the class activation map:
 
-```python hl_lines="3 6"
-from torchcam.methods import LayerCAM
-
-with LayerCAM(model) as cam_extractor:
-  out = model(input_tensor.unsqueeze(0))
-  # Retrieve the CAM by passing the class index and the model output
-  activation_map = cam_extractor(out.squeeze(0).argmax().item(), out)
-```
+--8<-- "README.md:quickstart-cam"
 
 `class_idx` (the first argument) is the index in the model's output logits of the class to explain; `argmax` picks the top prediction, but any class index works. The call returns one activation map per target layer. See [Advanced usage](getting-started/advanced-usage.md) for batches, custom models and method selection.
 
@@ -61,15 +42,7 @@ with LayerCAM(model) as cam_extractor:
 
 Display it:
 
-```python hl_lines="3 6"
-import matplotlib.pyplot as plt
-from torchvision.transforms.v2.functional import to_pil_image
-from torchcam.utils import overlay_mask
-
-# Resize the CAM and overlay it
-result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
-plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
-```
+--8<-- "README.md:quickstart-overlay"
 
 ![overlayed_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/overlayed_heatmap.png)
 

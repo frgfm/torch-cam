@@ -34,8 +34,7 @@ def main(args):
     weights = get_model_weights(args.arch).DEFAULT
     model = get_model(args.arch, weights=weights).to(device=device)
     # Freeze the model
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
 
     eval_tf = []
     crop_pct = 0.875
