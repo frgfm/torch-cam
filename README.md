@@ -174,7 +174,9 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 
 ## Setup
 
-Python 3.11 (or higher) and [uv](https://docs.astral.sh/uv/)/[pip](https://pip.pypa.io/en/stable/installation/) are required to install TorchCAM. It supports PyTorch 2.x (`torch>=2.0`) and the matching torchvision release.
+Python 3.11 (or higher) and [uv](https://docs.astral.sh/uv/)/[pip](https://pip.pypa.io/en/stable/installation/) are required to install TorchCAM. The upcoming 0.5 release requires PyTorch 2.4.1 or higher (`torch>=2.4.1,<3`) and supports NumPy 1.26.4 and NumPy 2 (`numpy>=1.26.4,<3`). Use the matching torchvision release.
+
+On macOS, the upcoming 0.5 release requires Apple Silicon when using published PyTorch wheels. Intel Mac users can use Python 3.11 or 3.12 and install the previous release with `pip install "torchcam==0.4.1"`.
 
 ### Stable release
 
