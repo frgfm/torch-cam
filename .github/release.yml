@@ -9,16 +9,16 @@ changelog:
     # NEW FEATURES
     - title: New Features 🚀
       labels:
-        - "type: new feature"
+        - "type: feat"
     # BUG FIXES
     - title: Bug Fixes 🐛
       labels:
-        - "type: bug"
+        - "type: fix"
     # IMPROVEMENTS
     - title: Improvements
       labels:
-        - "type: enhancement"
+        - "type: improvement"
     # MISC
     - title: Miscellaneous
       labels:
-        - "type: misc"
+        - "*"

@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "torchcam"
-version = "0.5.0.dev0"
+version = "0.5.0"
 description = "Class activation maps (Grad-CAM, Score-CAM, LeGrad and more) for PyTorch CNNs and Vision Transformers"
 authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
