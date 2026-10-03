@@ -293,7 +293,7 @@ class _CAM:
                 weight = weight[(...,) + (None,) * missing_dims]  # noqa: PLW2901
 
                 # Perform the weighted combination to get the CAM
-                cam = torch.nansum(weight * activation, dim=1)
+                cam = (weight * activation).sum(dim=1)
 
                 if self._relu:
                     cam = F.relu(cam, inplace=True)
