@@ -137,7 +137,7 @@ plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 
 安装 TorchCAM 需要 Python 3.11 或更高版本，以及 [uv](https://docs.astral.sh/uv/) 或 [pip](https://pip.pypa.io/en/stable/installation/)。即将发布的 0.5 版本要求 PyTorch 2.4.1 或更高版本（`torch>=2.4.1,<3`），支持 NumPy 1.26.4 和 NumPy 2（`numpy>=1.26.4,<3`）。请使用对应版本的 torchvision。
 
-在 macOS 上，0.5 版本所需的 PyTorch 预编译包仅支持 Apple Silicon。Intel Mac 用户可以使用 `pip install "torchcam==0.4.1"` 安装上一版本。
+在 macOS 上，0.5 版本所需的 PyTorch 预编译包仅支持 Apple Silicon。Intel Mac 用户可以使用 Python 3.11 或 3.12，并通过 `pip install "torchcam==0.4.1"` 安装上一版本。
 
 ### 稳定版本
 
