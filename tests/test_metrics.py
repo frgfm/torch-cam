@@ -1,13 +1,13 @@
 from contextlib import contextmanager
 from functools import partial
-from operator import itemgetter
+from operator import itemgetter, neg
 
 import pytest
 import torch
 from torch import nn
 
 from torchcam import metrics
-from torchcam.methods import FinerCAM, LayerCAM, RefineCAM
+from torchcam.methods import FinerCAM, GradCAM, LayerCAM, RefineCAM, ScoreCAM, SmoothGradCAMpp
 
 
 class _SumClassifier(nn.Module):
@@ -113,7 +113,7 @@ def test_classification_metric_exact_value():
 
     metric.update(_exact_input(), class_idx=0)
 
-    assert metric.summary() == pytest.approx({"avg_drop": 0.6 / (1 + 1e-7), "conf_increase": 0})
+    assert metric.summary() == pytest.approx({"avg_drop": 0.6, "conf_increase": 0})
 
 
 def test_classification_metric_accepts_output_targets():
@@ -123,7 +123,200 @@ def test_classification_metric_accepts_output_targets():
 
     metric.update(_exact_input(), targets=itemgetter(0))
 
-    assert metric.summary() == pytest.approx({"avg_drop": 0.6 / (1 + 1e-7), "conf_increase": 0})
+    assert metric.summary() == pytest.approx({"avg_drop": 0.6, "conf_increase": 0})
+
+
+@pytest.mark.parametrize("scale", [1e-8, 1.0])
+def test_classification_metric_small_positive_confidence(scale):
+    extractor = _FixedExtractor(_SumClassifier(), torch.tensor([[[1.0, 0.0], [0.0, 0.0]]]))
+    metric = metrics.ClassificationMetric(extractor)
+
+    metric.update(_exact_input() * scale, class_idx=0)
+
+    assert metric.summary() == pytest.approx({"avg_drop": 0.6, "conf_increase": 0})
+
+
+@pytest.mark.parametrize("masked_score", [0.0, 0.5])
+def test_classification_metric_zero_confidence(masked_score):
+    extractor = _FixedExtractor(_SumClassifier(), torch.zeros((1, 2, 2)))
+    metric = metrics.ClassificationMetric(extractor, lambda scores: masked_score * (1 - scores))
+
+    metric.update(_exact_input(), class_idx=0)
+
+    assert metric.summary() == pytest.approx({"avg_drop": 0, "conf_increase": float(masked_score > 0)})
+
+
+class _TwoChannelClassifier(nn.Module):
+    def __init__(self, output_kind="tensor"):
+        super().__init__()
+        self.identity = nn.Identity()
+        self.output_kind = output_kind
+
+    def forward(self, input_tensor):
+        pooled = self.identity(input_tensor).flatten(2).mean(2)
+        scores = torch.stack((2 * pooled[:, 0] + pooled[:, 1], pooled[:, 0] + 2 * pooled[:, 1]), dim=1)
+        if self.output_kind == "dict":
+            return {"logits": scores}
+        if self.output_kind == "list":
+            return [{"logits": sample} for sample in scores]
+        return scores
+
+
+class _RecordingGradCAM(GradCAM):
+    def __call__(self, *args, **kwargs):
+        cams = super().__call__(*args, **kwargs)
+        self.last_cams = [cam.clone() for cam in cams]
+        return cams
+
+
+def _reference_probability_metrics(metric_cls, inputs, cam, indices):
+    model = _TwoChannelClassifier()
+
+    def confidence(batch):
+        return model(batch).softmax(-1).gather(1, torch.tensor(indices).unsqueeze(1)).squeeze(1)
+
+    original = confidence(inputs)
+    if metric_cls is metrics.ClassificationMetric:
+        masked = confidence(inputs * cam.unsqueeze(1))
+        return {
+            "avg_drop": (torch.relu(original - masked) / original).mean().item(),
+            "conf_increase": (masked > original).float().mean().item(),
+        }
+    order = cam.flatten(1).argsort(dim=1, descending=True)
+    deletion, insertion = [], []
+    for count in range(4):
+        mask = torch.zeros((len(indices), 3))
+        mask.scatter_(1, order[:, :count], 1)
+        mask = mask.reshape(-1, 1, 1, 3)
+        deletion.append(confidence(inputs * (1 - mask)))
+        insertion.append(confidence(inputs * mask))
+    return {
+        "deletion_auc": torch.trapezoid(torch.stack(deletion), dx=1 / 3, dim=0).mean().item(),
+        "insertion_auc": torch.trapezoid(torch.stack(insertion), dx=1 / 3, dim=0).mean().item(),
+    }
+
+
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+@pytest.mark.parametrize(
+    ("output_kind", "selection"),
+    [(kind, selection) for kind in ("tensor", "dict") for selection in ("automatic", "indices", "targets")]
+    + [("list", "targets")],
+)
+def test_metrics_use_raw_outputs_for_cams(metric_cls, selection, output_kind):
+    model = _TwoChannelClassifier(output_kind)
+    first = torch.tensor([[[[1.0, 0.9, 0.5]], [[0.0, 1.0, 0.0]]]])
+    inputs = torch.cat((first, first.flip(1))).requires_grad_(True)
+    indices = [0, 1]
+    output_fn = itemgetter("logits") if output_kind == "dict" else None
+    logits_fn = partial(torch.softmax, dim=-1)
+    targets = [itemgetter(index) for index in indices]
+    if output_kind == "list":
+        logits_fn = lambda output: [{"logits": sample["logits"].softmax(-1)} for sample in output]
+        targets = [lambda sample, index=index: sample["logits"][index] for index in indices]
+    selection_kwargs = {"targets": targets} if selection == "targets" or output_kind == "list" else {}
+    if selection == "indices" and output_kind != "list":
+        selection_kwargs = {"class_idx": indices}
+
+    with _RecordingGradCAM(model, "identity") as extractor:
+        raw_output = model(inputs)
+        if output_fn is not None:
+            raw_output = output_fn(raw_output)
+        expected_cams = (
+            extractor(scores=raw_output, targets=targets)
+            if selection_kwargs.get("targets")
+            else extractor(indices, raw_output)
+        )
+        metric_kwargs = {"steps": 3, "batch_size": 2} if metric_cls is metrics.DeletionInsertionMetric else {}
+        metric = metric_cls(extractor, logits_fn, output_fn=output_fn, **metric_kwargs)
+        metric.update(inputs, **selection_kwargs)
+
+        torch.testing.assert_close(extractor.last_cams[0], expected_cams[0])
+
+    # Independent probability scoring on the same raw-logit explanation.
+    assert metric.summary() == pytest.approx(
+        _reference_probability_metrics(metric_cls, inputs, expected_cams[0], indices)
+    )
+
+
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+@pytest.mark.parametrize("method", [ScoreCAM, SmoothGradCAMpp])
+@pytest.mark.parametrize("output_kind", ["dict", "reversed_classes"])
+def test_metrics_adapt_internal_extractor_forwards(metric_cls, method, output_kind):
+    inputs = torch.tensor([[[[1.0, 0.9, 0.5]], [[0.0, 1.0, 0.0]]]], requires_grad=True)
+    results = []
+    for adapted in (False, True):
+        model = _TwoChannelClassifier("dict" if adapted and output_kind == "dict" else "tensor")
+        output_fn = itemgetter("logits") if output_kind == "dict" else lambda scores: scores.flip(-1)
+        torch.manual_seed(123)
+        method_kwargs = {"num_samples": 2} if method is SmoothGradCAMpp else {"batch_size": 2}
+        with method(model, "identity", **method_kwargs) as extractor:
+            metric_kwargs = {"steps": 3, "batch_size": 2} if metric_cls is metrics.DeletionInsertionMetric else {}
+            metric = metric_cls(
+                extractor, partial(torch.softmax, dim=-1), output_fn=output_fn if adapted else None, **metric_kwargs
+            )
+            metric.update(inputs, class_idx=0 if adapted or output_kind == "dict" else 1)
+            results.append(metric.summary())
+
+        # The adapter must not change the model outside the metric update.
+        raw_output = model(inputs)
+        assert isinstance(raw_output, dict) == (adapted and output_kind == "dict")
+        if isinstance(raw_output, torch.Tensor):
+            assert raw_output[0, 0] > raw_output[0, 1]
+    assert results[0] == pytest.approx(results[1])
+
+
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+@pytest.mark.parametrize("fail_on_call", [1, 2])
+def test_metrics_remove_output_adapter_on_error(metric_cls, fail_on_call):
+    model = _TwoChannelClassifier("dict")
+    model.identity.eval()
+    modes = [module.training for module in model.modules()]
+    calls = 0
+
+    def output_fn(output):
+        nonlocal calls
+        calls += 1
+        if calls == fail_on_call:
+            raise RuntimeError("adapter failed")
+        return output["logits"]
+
+    inputs = torch.tensor([[[[1.0, 0.9, 0.5]], [[0.0, 1.0, 0.0]]]], requires_grad=True)
+    with ScoreCAM(model, "identity") as extractor:
+        metric = metric_cls(extractor, partial(torch.softmax, dim=-1), output_fn=output_fn)
+        with pytest.raises(RuntimeError, match="adapter failed"):
+            metric.update(inputs, class_idx=0)
+
+        assert metric.total == metric.nan_count == 0
+        assert extractor._hooks_enabled
+        assert isinstance(model(inputs), dict)
+        assert [module.training for module in model.modules()] == modes
+
+
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+def test_metrics_align_structured_targets_after_nan_filtering(metric_cls):
+    class FixedListExtractor(_FixedExtractor):
+        def __call__(self, *_args, **_kwargs):
+            return [self.cam.clone()]
+
+    first = torch.tensor([[[[1.0, 0.9, 0.5]], [[0.0, 1.0, 0.0]]]])
+    inputs = torch.cat((first, first, first.flip(1)))
+    cam = torch.tensor([[[1.0, 0.0, 0.5]], [[float("nan"), 0.0, 0.0]], [[0.0, 1.0, 0.5]]])
+    extractor = FixedListExtractor(_TwoChannelClassifier("list"), cam)
+    metric_kwargs = (
+        {"steps": 3, "batch_size": 2, "baseline": torch.zeros_like(inputs)}
+        if metric_cls is metrics.DeletionInsertionMetric
+        else {}
+    )
+    metric = metric_cls(
+        extractor, lambda output: [{"logits": sample["logits"].softmax(-1)} for sample in output], **metric_kwargs
+    )
+    metric.update(inputs, targets=[lambda sample, index=index: sample["logits"][index] for index in [0, 0, 1]])
+
+    assert metric.total == 2
+    assert metric.nan_count == 1
+    assert metric.summary() == pytest.approx(
+        _reference_probability_metrics(metric_cls, inputs[[0, 2]], cam[[0, 2]], [0, 1])
+    )
 
 
 def test_deletion_insertion_complete_curves_and_auc():
@@ -237,11 +430,14 @@ def test_deletion_insertion_class_indices(class_idx, expected):
         ([0], ValueError),
         ([0, 2], ValueError),
         ([False, 0], TypeError),
+        (True, TypeError),
+        (False, TypeError),
     ],
 )
-def test_metrics_reject_invalid_class_indices(class_idx, error):
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+def test_metrics_reject_invalid_class_indices(class_idx, error, metric_cls):
     extractor = _FixedExtractor(_SumClassifier(), _exact_input().squeeze(1))
-    metric = metrics.ClassificationMetric(extractor)
+    metric = metric_cls(extractor)
 
     with pytest.raises(error):
         metric.update(_exact_input().expand(2, -1, -1, -1), class_idx=class_idx)
@@ -375,6 +571,70 @@ def test_metrics_restore_model_and_hooks_on_scoring_error(metric_cls):
     assert [module.training for module in model.modules()] == modes
     assert extractor._hooks_enabled
     assert metric.total == 0
+
+
+@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+@pytest.mark.parametrize("bad_score", [float("nan"), float("inf"), -float("inf")])
+@pytest.mark.parametrize("bad_forward", [1, 2])
+def test_metrics_reject_nonfinite_scores_without_changing_state(metric_cls, bad_score, bad_forward):
+    model = _SumClassifier()
+    model.train()
+    model.identity.eval()
+    modes = [module.training for module in model.modules()]
+    extractor = _FixedExtractor(model, _exact_input().squeeze(1))
+    metric = metric_cls(extractor)
+    metric.update(_exact_input(), class_idx=0)
+    previous_summary = metric.summary()
+    fail_on_call = model.calls + bad_forward
+    metric.logits_fn = lambda scores: torch.full_like(scores, bad_score) if model.calls == fail_on_call else scores
+
+    with pytest.raises(ValueError, match="finite"):
+        metric.update(_exact_input(), class_idx=0)
+
+    assert metric.summary() == previous_summary
+    assert metric.total == 1
+    assert metric.nan_count == 0
+    assert [module.training for module in model.modules()] == modes
+    assert extractor._hooks_enabled
+
+
+@pytest.mark.parametrize("bad_forward", [1, 2])
+def test_classification_metric_rejects_negative_confidence(bad_forward):
+    model = _SumClassifier()
+    extractor = _FixedExtractor(model, _exact_input().squeeze(1))
+    metric = metrics.ClassificationMetric(extractor)
+    metric.logits_fn = lambda scores: -torch.ones_like(scores) if model.calls == bad_forward else scores
+
+    with pytest.raises(ValueError, match="nonnegative"):
+        metric.update(_exact_input(), class_idx=0)
+
+    assert metric.total == 0
+    assert metric.drop == metric.increase == metric.nan_count == 0
+    assert model.training
+    assert extractor._hooks_enabled
+
+
+def test_deletion_insertion_accepts_signed_scores():
+    extractor = _FixedExtractor(_SumClassifier(), _exact_input().squeeze(1))
+    metric = metrics.DeletionInsertionMetric(extractor, neg, steps=2)
+
+    metric.update(_exact_input(), targets=itemgetter(0))
+
+    assert metric.summary() == pytest.approx({"deletion_auc": -0.4, "insertion_auc": -0.6})
+
+
+def test_deletion_insertion_half_precision_integration():
+    class ConstantClassifier(nn.Module):
+        @staticmethod
+        def forward(input_tensor):
+            return input_tensor.new_full((input_tensor.shape[0], 2), 40000)
+
+    extractor = _FixedExtractor(ConstantClassifier(), _exact_input().squeeze(1))
+    metric = metrics.DeletionInsertionMetric(extractor, steps=2)
+
+    metric.update(_exact_input().half(), class_idx=0)
+
+    assert metric.summary() == {"deletion_auc": 40000, "insertion_auc": 40000}
 
 
 def test_deletion_insertion_reset():

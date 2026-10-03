@@ -2,9 +2,39 @@
 
 Apart from qualitative visual comparison, it is important to have a refined evaluation metric for class activation maps. This submodule is dedicated to the evaluation of CAM methods.
 
+Both metrics compute CAMs from the model's raw output. A `logits_fn` such as softmax changes only the scores used to measure the explanation. It does not change the score differentiated by a gradient-based CAM. Class indices and callable `targets` select the same outputs before and after this score transform, so `logits_fn` must preserve that output layout.
+
+Use `output_fn` when the model output needs an adapter. The adapter runs before both CAM extraction and metric scoring, including extra model calls inside methods such as ScoreCAM and SmoothGradCAMpp. It does not change the model output outside the metric update. For example, a model that returns a dictionary of batched logits can use:
+
+```python
+from functools import partial
+from operator import itemgetter
+
+import torch
+
+from torchcam.metrics import ClassificationMetric
+
+metric = ClassificationMetric(
+    cam_extractor,
+    logits_fn=partial(torch.softmax, dim=-1),
+    output_fn=itemgetter("logits"),
+)
+metric.update(input_tensor)
+```
+
+If you previously used `logits_fn` to extract or reshape a model output, move that adapter to `output_fn`. Keep the probability transform in `logits_fn`. Native per-sample list outputs still work with callable `targets` and do not require an adapter. The target must accept the same per-sample structure from both the raw and transformed outputs.
+
+Preserve the class identity and order expected by the CAM extractor when adapting outputs. For example, CAM selects classifier weight rows directly. Extracting `output["logits"]` preserves those class indices; an arbitrary class permutation is not supported across all CAM methods.
+
 ## Classification confidence
 
 ![Average Drop and Increase in Confidence compare the selected-class score on the original and CAM-masked inputs.](../img/classification-metrics.svg)
+
+Average Drop uses the exact relative loss for each positive original confidence. It does not add an epsilon to the denominator, which would suppress drops at small confidence values. When the original confidence is zero, its drop is defined as zero. A larger masked confidence still counts as an increase.
+
+Selected original and masked scores must be finite and nonnegative. Positive raw scores remain supported, but use probabilities to compare with published confidence metrics. Negative scores raise `ValueError`; Average Drop has no confidence-loss interpretation for a negative denominator. Use deletion/insertion for signed scalar targets.
+
+Both metrics reject nonfinite selected scores with `ValueError` and leave their accumulated results unchanged. CAMs that contain NaNs are still skipped and counted by `nan_count`.
 
 ::: torchcam.metrics.ClassificationMetric
     options:
@@ -50,6 +80,8 @@ The default baseline is `zeros_like(input_tensor)`. This represents the dataset 
 `batch_size` limits how many perturbed inputs are scored in one forward pass. It bounds temporary memory but does not reduce the number of perturbed samples. With $S$ effective intervals, each valid input requires $2S - 1$ additional scoring samples, plus the original CAM-producing forward and any backward pass required by the extractor.
 
 By default, the metric integrates raw model outputs. Pass a function such as softmax for probability curves comparable to the paper; raw-logit AUCs may fall outside $[0, 1]$ and should not be compared with probability AUCs.
+
+Finite signed scalar scores are supported. Half-precision and bfloat16 scores are promoted to float32 before integration, so adjacent finite values do not overflow during half-precision addition.
 
 ```python
 from functools import partial
