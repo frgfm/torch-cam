@@ -140,7 +140,11 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           package_version="$(uv version --short)"
-          test "$RELEASE_TAG" = "v$package_version"
+          tag_version="$(uv version --dry-run --frozen --short -- "${RELEASE_TAG#v}")"
+          if test "$tag_version" != "$package_version"; then
+            echo "::error::Release tag $RELEASE_TAG does not match package version $package_version"
+            exit 1
+          fi
           echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
       - name: Build and test distribution
         env:
@@ -148,6 +152,7 @@ jobs:
         run: |
           make build
           for wheel in dist/*.whl; do uv pip install "${wheel}[test]"; done
+          # Tests import scripts.*; keep the source torchcam package off sys.path.
           cp -R scripts "$RUNNER_TEMP/"
           cd "$RUNNER_TEMP"
           python -c "from pathlib import Path; import torchcam; assert Path(torchcam.__file__).with_name('py.typed').is_file(); print(torchcam.__version__, torchcam.__file__)"
@@ -187,13 +192,7 @@ jobs:
     permissions:
       # For PyPI's trusted publishing.
       id-token: write
-    outputs:
-      package_version: ${{ needs.test.outputs.package_version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
@@ -202,7 +201,7 @@ jobs:
           name: release-distributions
           path: dist/
       - name: Publish to PyPI
-        run: make publish
+        run: uv publish --trusted-publishing always
 
   verify-publish:
     runs-on: ${{ matrix.os }}
@@ -210,7 +209,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.11', '3.12', '3.13', '3.14']
-    needs: publish
+    needs: [test, publish]
     steps:
       - uses: actions/setup-python@v7
         with:
@@ -222,5 +221,5 @@ jobs:
         env:
           UV_TORCH_BACKEND: cpu
         run: |
-          uv pip install --system torchcam==${{ needs.publish.outputs.package_version }}
+          uv pip install --system torchcam==${{ needs.test.outputs.package_version }}
           python -c "import torchcam; print(torchcam.__version__)"
