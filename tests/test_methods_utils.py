@@ -1,7 +1,16 @@
 import pytest
+from torch import nn
 from torchvision.models import get_model
 
 from torchcam.methods import _utils
+
+
+def test_locate_candidate_layer_skips_non_tensor_outputs():
+    class DictOutput(nn.Sequential):
+        def forward(self, x):
+            return {"logits": super().forward(x)}
+
+    assert _utils.locate_candidate_layer(DictOutput(nn.Conv2d(3, 4, 3)), (3, 8, 8)) == "0"
 
 
 def test_locate_candidate_layer(mock_img_model, monkeypatch):

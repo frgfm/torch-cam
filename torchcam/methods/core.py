@@ -7,6 +7,7 @@ import logging
 from abc import abstractmethod
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
+from difflib import get_close_matches
 from functools import partial
 from types import TracebackType
 from typing import Any, Self, cast
@@ -102,12 +103,14 @@ class _CAM:
                 logger.warning(f"no value was provided for `target_layer`, thus set to '{target_name}'.")
                 target_names = [target_name]
             else:
-                raise ValueError("unable to resolve `target_layer` automatically, please specify its value.")  # noqa: TRY004
+                raise ValueError("specify `target_layer` (see `model.named_modules()`) or fix `input_shape`")  # noqa: TRY004
         else:
             raise TypeError("invalid argument type for `target_layer`")
 
-        if any(name not in self.submodule_dict for name in target_names):
-            raise ValueError(f"Unable to find all submodules {target_names} in the model")
+        if missing := [name for name in target_names if name not in self.submodule_dict]:
+            hints = {name: matches for name in missing if (matches := get_close_matches(name, self.submodule_dict))}
+            found = f", closest matches: {hints}" if hints else ""
+            raise ValueError(f"unknown `target_layer` names: {missing}{found}; see `model.named_modules()`")
         self.target_names = target_names
         self.model = model
         self._reshape_transform = reshape_transform

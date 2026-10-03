@@ -16,6 +16,7 @@ what your model accepts and returns:
 | Multi-input model | Adapter required | Wrap the inputs into one tensor argument while preserving the hooked path. |
 | Tensor or per-sample list output | Native with `targets` | Reduce each sample output to one scalar tensor. |
 | torchvision VisionTransformer | Native with `LeGrad` | Target supported encoder blocks; other CAM methods need `reshape_transform`. |
+| timm or Hugging Face CNN | Native (timm) or logits wrapper (Hugging Face) | See [timm and Hugging Face models](#timm-and-hugging-face-models). |
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
 | Detection, segmentation, embedding, or other output | Native with `targets` | Define a scalar target; gradient methods require it to remain differentiable. |
 
@@ -220,6 +221,40 @@ you prefer names, discover the correct one *after* wrapping:
 print([n for n, _ in wrapped.named_modules() if n.endswith("layer4")])
 # -> ['model.backbone.layer4']
 ```
+
+## timm and Hugging Face models
+
+[timm](https://huggingface.co/docs/timm) classifiers return logits, so every API works as-is, including automatic
+target-layer resolution:
+
+```python
+from urllib.request import urlretrieve
+import timm
+from PIL import Image
+from torchcam.explain import explain
+
+urlretrieve("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
+image = Image.open("dog.jpg").convert("RGB")
+model = timm.create_model("resnet50.a1_in1k", pretrained=True).eval()
+transform = timm.data.create_transform(**timm.data.resolve_data_config({}, model=model))
+result = explain(model, transform(image).unsqueeze(0))
+```
+
+Hugging Face `transformers` classifiers return an output object whose first item is the logits, so the
+`LogitsOnly` wrapper above works as-is:
+
+```python
+from transformers import AutoImageProcessor, AutoModelForImageClassification
+
+processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
+model = LogitsOnly(AutoModelForImageClassification.from_pretrained("microsoft/resnet-50")).eval()
+input_tensor = processor(images=image, return_tensors="pt")["pixel_values"]
+labels = model.model.config.id2label
+result = explain(model, input_tensor, class_names=[labels[index] for index in range(len(labels))])
+```
+
+Transformer-based timm and Hugging Face classifiers (ViT, DeiT, Swin) also need an explicit `target_layer` and a
+`reshape_transform`, as described below.
 
 ## Vision Transformers and other non-CNN models
 

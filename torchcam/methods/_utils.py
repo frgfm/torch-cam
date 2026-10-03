@@ -36,9 +36,10 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
     """
     output_shapes: list[tuple[str | None, tuple[int, ...]]] = []
 
-    def _record_output_shape(_: nn.Module, _input: Tensor, output: Tensor, name: str | None = None) -> None:
+    def _record_output_shape(_: nn.Module, _input: Tensor, output: object, name: str | None = None) -> None:
         """Activation hook."""
-        output_shapes.append((name, output.shape))
+        if isinstance(output, Tensor):
+            output_shapes.append((name, output.shape))
 
     hook_handles: list[torch.utils.hooks.RemovableHandle] = []
     with _model_eval(mod):

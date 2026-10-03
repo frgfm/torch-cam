@@ -12,6 +12,7 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
 This project is meant for:
 
 * ⚡ **exploration**: easily assess the influence of spatial features on classification outputs
+* 🐛 **debugging**: compare predicted and expected classes, and save evidence that humans and AI agents can verify
 * 👩‍🔬 **research**: quickly implement your own ideas for new CAM methods
 
 ## Installation
@@ -28,7 +29,7 @@ Having issues with gradients, hooks, or layer selection? See the [troubleshootin
 
 ## Quick start
 
-Get an image and a model:
+To explain one prediction and save the evidence, see [Debug one prediction](getting-started/debug-prediction.md). For full control, use a CAM extractor directly. Get an image and a model:
 
 --8<-- "README.md:quickstart-input"
 
