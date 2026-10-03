@@ -66,6 +66,7 @@ docs = [
     "mkdocs-llmstxt==0.5.0",
 ]
 demo = [
+    "Pillow>=12.3.0",
     "streamlit>=1.61.0,<2.0.0",
     "torchvision>=0.15.0,<1.0.0",
 ]

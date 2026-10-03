@@ -4,9 +4,11 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import gc
+from io import BytesIO
 from threading import Lock
 
 import torch
+from PIL import Image, UnidentifiedImageError, features
 from torchvision.models import get_model
 
 import app
@@ -24,7 +26,63 @@ def hook_count(model):
     )
 
 
+def image_upload(image, image_format, **kwargs):
+    source = BytesIO()
+    source.name = "upload.png"
+    image.save(source, format=image_format, **kwargs)
+    return source
+
+
+def check_image_decoding():
+    for image_format, mode in (("JPEG", "L"), ("PNG", "RGBA")):
+        image = Image.new(mode, (8, 4))
+        source = image_upload(image, image_format)
+        decoded = app.read_image(source)
+        source.close()
+        check(decoded.mode == "RGB", f"{image_format} was not converted to RGB")
+        check(decoded.size == image.size, f"{image_format} dimensions changed")
+        decoded.load()
+
+    image = Image.new("RGB", (8, 4))
+    exif = Image.Exif()
+    exif[274] = 6  # Rotate 90 degrees clockwise.
+    oriented = app.read_image(image_upload(image, "JPEG", exif=exif))
+    check(oriented.size == (4, 8), "EXIF orientation was not applied")
+
+    # Filename filtering alone accepts these formats when renamed to .png.
+    unsupported_formats = ["GIF", "BMP"]
+    if features.check_codec("jpg_2000"):
+        unsupported_formats.append("JPEG2000")
+    for image_format in unsupported_formats:
+        try:
+            app.read_image(image_upload(image, image_format))
+        except UnidentifiedImageError:
+            pass
+        else:
+            raise AssertionError(f"Disguised {image_format} upload was accepted")
+
+    try:
+        app.read_image(BytesIO(b"\x89PNG\r\n\x1a\ntruncated"))
+    except OSError:
+        pass
+    else:
+        raise AssertionError("Truncated PNG upload was accepted")
+
+    pixel_limit = Image.MAX_IMAGE_PIXELS
+    try:
+        Image.MAX_IMAGE_PIXELS = 24  # The 32-pixel image should trigger the warning, not the error.
+        try:
+            app.read_image(image_upload(image, "PNG"))
+        except Image.DecompressionBombWarning:
+            pass
+        else:
+            raise AssertionError("Oversized PNG upload was accepted")
+    finally:
+        Image.MAX_IMAGE_PIXELS = pixel_limit
+
+
 def main():
+    check_image_decoding()
     check(app.compatible_methods("vit_b_16") == ("LeGrad",), "ViT compatibility changed")
     check("LeGrad" not in app.compatible_methods("resnet18"), "LeGrad must stay ViT-only")
     check("FinerCAM" in app.compatible_methods("resnet18"), "FinerCAM is missing")

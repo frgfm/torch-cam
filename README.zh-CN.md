@@ -193,6 +193,8 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 
 项目提供了一个简洁的演示应用，供你体验支持的 CAM 方法。欢迎访问 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam) 在线试用。
 
+演示支持上传 JPEG 和 PNG 图片。
+
 如果希望在本地运行演示，需要安装额外的依赖项 [Streamlit](https://streamlit.io/)：
 
 ```

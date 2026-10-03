@@ -219,6 +219,8 @@ The full package documentation is available [here](https://frgfm.github.io/torch
 
 A minimal demo app is provided for you to play with the supported CAM methods! Feel free to check out the live demo on [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam)
 
+The demo accepts JPEG and PNG uploads.
+
 If you prefer running the demo by yourself, you will need an extra dependency ([Streamlit](https://streamlit.io/)) for the app to run:
 
 ```

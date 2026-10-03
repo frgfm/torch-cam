@@ -93,7 +93,7 @@ def read_image(source):
     source.seek(0)
     with warnings.catch_warnings():
         warnings.simplefilter("error", Image.DecompressionBombWarning)
-        with Image.open(source) as image:
+        with Image.open(source, formats=("JPEG", "PNG")) as image:
             image.load()
             return ImageOps.exif_transpose(image).convert("RGB")
 
