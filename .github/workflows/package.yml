@@ -29,21 +29,17 @@ env:
 
 jobs:
   install:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ['3.11', '3.12', '3.13']
-        exclude:
-          - os: windows-latest
-            python: '3.13'
+        python: ['3.11', '3.12', '3.13', '3.14']
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-          architecture: x64
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
@@ -52,15 +48,17 @@ jobs:
       - name: Build the package
         run: make build
       - name: Install the engine
+        shell: bash
         env:
           UV_TORCH_BACKEND: cpu
-        run: make install
+        run: uv pip install dist/*.whl
       - name: Check that we can import the engine
+        shell: bash
         run: |
+          cd "$RUNNER_TEMP"
           python -c "import torchcam; print(torchcam.__version__)"
 
   numpy-compatibility:
-    if: github.event_name != 'release'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -88,14 +86,13 @@ jobs:
         run: python .github/check_numpy_compatibility.py
 
   code-quality:
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
@@ -123,29 +120,48 @@ jobs:
         uses: frgfm/lint-my-headers@b2cbf9115943aa4b1407c3c944cc7c51250e7673 # v0.6.0
 
   test:
-    if: github.event_name != 'release'
     runs-on: ubuntu-latest
+    outputs:
+      package_version: ${{ steps.version.outputs.package_version }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
           activate-environment: true
           enable-cache: false
-      - name: Run tests
+      - name: Check release version
+        if: github.event_name == 'release'
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version="$(uv version --short)"
+          test "$RELEASE_TAG" = "v$package_version"
+          echo "package_version=$package_version" >> "$GITHUB_OUTPUT"
+      - name: Build and test distribution
         env:
           UV_TORCH_BACKEND: cpu
         run: |
-          make install-test
-          UV_NO_SYNC=1 make test
+          make build
+          for wheel in dist/*.whl; do uv pip install "${wheel}[test]"; done
+          cp -R scripts "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP"
+          python -c "from pathlib import Path; import torchcam; assert Path(torchcam.__file__).with_name('py.typed').is_file(); print(torchcam.__version__, torchcam.__file__)"
+          python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib --cov-report "xml:$GITHUB_WORKSPACE/coverage.xml"
       - uses: actions/upload-artifact@v7
         with:
           path: ./coverage.xml
           name: coverage-reports
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'release'
+        with:
+          path: dist/
+          name: release-distributions
+          if-no-files-found: error
 
   codecov-upload:
     runs-on: ubuntu-latest
@@ -166,39 +182,27 @@ jobs:
 
   publish:
     if: github.event_name == 'release'
+    needs: [install, numpy-compatibility, code-quality, headers, test]
     runs-on: ubuntu-latest
     permissions:
       # For PyPI's trusted publishing.
       id-token: write
     outputs:
-      package_version: ${{ steps.set_version.outputs.package_version }}
+      package_version: ${{ needs.test.outputs.package_version }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
-      - name: Set package version
-        id: set_version
-        run: |
-          RELEASE_TAG=${{ github.ref_name }}
-          # Strip "v" prefix
-          BUILD_VERSION=${RELEASE_TAG#v}
-          # Replace SemVer pre-release separators with PEP440 compatible ones
-          BUILD_VERSION=${BUILD_VERSION//-alpha./a}
-          BUILD_VERSION=${BUILD_VERSION//-beta./b}
-          BUILD_VERSION=${BUILD_VERSION//-rc./rc}
-          echo "package_version=${BUILD_VERSION}" >> $GITHUB_OUTPUT
-          echo "BUILD_VERSION=${BUILD_VERSION}" >> $GITHUB_ENV
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-distributions
+          path: dist/
       - name: Publish to PyPI
-        env:
-          UV_TORCH_BACKEND: cpu
-        run: |
-          make set-version
-          make build && make publish
+        run: make publish
 
   verify-publish:
     runs-on: ${{ matrix.os }}
@@ -211,7 +215,6 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-          architecture: x64
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}

@@ -20,7 +20,6 @@ jobs:
       pull-requests: write
     env:
       TZ: Europe/Paris
-      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/copyright-quality-venv
       UV_TORCH_BACKEND: cpu
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -34,6 +33,7 @@ jobs:
       - name: Refresh years and open a review pull request
         shell: bash
         env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/copyright-quality-venv
           GH_TOKEN: ${{ github.token }}
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
