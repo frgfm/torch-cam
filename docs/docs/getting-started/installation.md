@@ -15,6 +15,8 @@ If you install torchvision for the demo or examples, use the release matching yo
 
 Matplotlib 3.8.4 or higher, below version 4, is also required. Earlier Matplotlib wheels can fail to import with NumPy 2.
 
+Pillow 9.3 or higher is required for the core library; the demo extra requires Pillow 12.3 or higher.
+
 On macOS, the required PyTorch wheels support Apple Silicon. Intel Mac users can use Python 3.11 or 3.12 and install
 the previous release with `pip install "torchcam==0.4.1"`, which uses NumPy 1.x.
 

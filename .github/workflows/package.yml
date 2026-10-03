@@ -81,9 +81,18 @@ jobs:
         env:
           UV_TORCH_BACKEND: cpu
           NUMPY_REQUIREMENT: ${{ matrix.numpy }}
-        run: uv pip install dist/*.whl "torch==2.4.1" "matplotlib==3.8.4" "$NUMPY_REQUIREMENT"
+        run: |
+          for wheel in dist/*.whl; do
+            uv pip install "${wheel}[test]" "torch==2.4.1" "torchvision==0.19.1" "matplotlib==3.8.4" "$NUMPY_REQUIREMENT"
+          done
       - name: Check NumPy interoperability and explanation exports
         run: python .github/check_numpy_compatibility.py
+      - name: Test minimum supported dependencies
+        shell: bash
+        run: |
+          cp -R scripts "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP"
+          python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib -o addopts=
 
   code-quality:
     if: github.event_name != 'push'
