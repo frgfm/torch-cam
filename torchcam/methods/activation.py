@@ -214,6 +214,27 @@ class ScoreCAM(_CAM):
         indices = torch.tensor(class_idx, device=cast(Tensor, output).device)[sample_indices]
         return cast(Tensor, output).gather(1, indices.view(-1, 1)).squeeze(1)
 
+    def _init_score_weights(
+        self,
+        activations: list[Tensor],
+        class_idx: int | list[int] | None,
+        targets: OutputTarget | list[OutputTarget] | None,
+    ) -> tuple[list[Tensor], list[OutputTarget] | None, Tensor]:
+        weights = [act.new_zeros(act.shape[0] * act.shape[1]) for act in activations]
+        logits = self.model(self._input)
+        target_fns = _resolve_targets(targets, activations[0].shape[0]) if targets is not None else None
+        batch_indices = torch.arange(activations[0].shape[0])
+        return weights, target_fns, self._select_scores(logits, batch_indices, class_idx, target_fns)
+
+    def _score_input(
+        self,
+        input_tensor: Tensor,
+        sample_indices: Tensor,
+        class_idx: int | list[int] | None,
+        targets: list[OutputTarget] | None,
+    ) -> Tensor:
+        return self._select_scores(self.model(input_tensor), sample_indices, class_idx, targets)
+
     @torch.no_grad()
     def _get_score_weights(
         self,
@@ -221,26 +242,16 @@ class ScoreCAM(_CAM):
         class_idx: int | list[int] | None,
         targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> list[Tensor]:
-        # Initialize weights
-        # (N * C)
-        weights = [act.new_zeros(act.shape[0] * act.shape[1]) for act in activations]
-
-        # (N, M)
-        logits = self.model(self._input)
-        target_fns = _resolve_targets(targets, activations[0].shape[0]) if targets is not None else None
-        batch_indices = torch.arange(activations[0].shape[0])
-        baseline_scores = self._select_scores(logits, batch_indices, class_idx, target_fns)
+        weights, target_fns, baseline_scores = self._init_score_weights(activations, class_idx, targets)
 
         for activation, weight in zip(activations, weights, strict=True):
             masks, sample_indices, buffer = self._prepare_masked_inputs(activation)
             # Process by chunk (GPU RAM limitation)
             for idx_ in range(math.ceil(weight.numel() / self.bs)):
                 slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
-                # Get the softmax probabilities of the target class
-                # (*, M)
                 chunk_indices = sample_indices[slice_]
-                chunk_scores = self._select_scores(
-                    self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)),
+                chunk_scores = self._score_input(
+                    self._masked_input_chunk(masks, sample_indices, buffer, slice_),
                     chunk_indices,
                     class_idx,
                     target_fns,
@@ -349,15 +360,7 @@ class SSCAM(ScoreCAM):
     ) -> list[Tensor]:
         # Noise must still be sampled at input resolution, in the same order.
         activations = [self._upsample(act) for act in activations]
-        # Initialize weights
-        # (N * C)
-        weights = [act.new_zeros(act.shape[0] * act.shape[1]) for act in activations]
-
-        # (N, M)
-        logits = self.model(self._input)
-        target_fns = _resolve_targets(targets, activations[0].shape[0]) if targets is not None else None
-        batch_indices = torch.arange(activations[0].shape[0])
-        baseline_scores = self._select_scores(logits, batch_indices, class_idx, target_fns)
+        weights, target_fns, baseline_scores = self._init_score_weights(activations, class_idx, targets)
 
         for activation, weight in zip(activations, weights, strict=True):
             # Add noise
@@ -368,10 +371,9 @@ class SSCAM(ScoreCAM):
                 # Process by chunk (GPU RAM limitation)
                 for idx_ in range(math.ceil(weight.numel() / self.bs)):
                     slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
-                    # Get the softmax probabilities of the target class
                     chunk_indices = sample_indices[slice_]
-                    chunk_scores = self._select_scores(
-                        self.model(self._masked_input_chunk(masks, sample_indices, buffer, slice_)),
+                    chunk_scores = self._score_input(
+                        self._masked_input_chunk(masks, sample_indices, buffer, slice_),
                         chunk_indices,
                         class_idx,
                         target_fns,
@@ -460,14 +462,7 @@ class ISCAM(ScoreCAM):
         activations = [self._upsample(act) for act in activations]
         prepared_inputs = [self._prepare_masked_inputs(act) for act in activations]
 
-        # Initialize weights
-        weights = [act.new_zeros(act.shape[0] * act.shape[1]) for act in activations]
-
-        # (N, M)
-        logits = self.model(self._input)
-        target_fns = _resolve_targets(targets, activations[0].shape[0]) if targets is not None else None
-        batch_indices = torch.arange(activations[0].shape[0])
-        baseline_scores = self._select_scores(logits, batch_indices, class_idx, target_fns)
+        weights, target_fns, baseline_scores = self._init_score_weights(activations, class_idx, targets)
 
         for (masks, sample_indices, buffer), weight in zip(prepared_inputs, weights, strict=True):
             coeff = 0.0
@@ -478,10 +473,9 @@ class ISCAM(ScoreCAM):
                 # Process by chunk (GPU RAM limitation)
                 for idx_ in range(math.ceil(weight.numel() / self.bs)):
                     slice_ = slice(idx_ * self.bs, min((idx_ + 1) * self.bs, weight.numel()))
-                    # Get the softmax probabilities of the target class
                     chunk_indices = sample_indices[slice_]
-                    chunk_scores = self._select_scores(
-                        self.model(coeff * self._masked_input_chunk(masks, sample_indices, buffer, slice_)),
+                    chunk_scores = self._score_input(
+                        coeff * self._masked_input_chunk(masks, sample_indices, buffer, slice_),
                         chunk_indices,
                         class_idx,
                         target_fns,

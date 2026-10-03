@@ -281,8 +281,7 @@ def test_legrad_matches_manual_oracle(
 
 def test_legrad_torchvision_vit_repeated_calls_and_frozen_parameters():
     model = _build_vit().double()
-    for parameter in model.parameters():
-        parameter.requires_grad_(False)
+    model.requires_grad_(False)
     flags = [parameter.requires_grad for parameter in model.parameters()]
     state = {name: value.clone() for name, value in model.state_dict().items()}
     input_tensor = torch.randn(2, 3, 32, 32, dtype=torch.float64)

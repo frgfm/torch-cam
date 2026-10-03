@@ -1,14 +1,11 @@
 PY_DIR = .
-PACKAGE_DIR = ${PY_DIR}/torchcam
 PYPROJECT_FILE = ${PY_DIR}/pyproject.toml
-PYTHON_REQ_FILE = /tmp/requirements.txt
 DEMO_FILE = ./demo/app.py
-TESTS_DIR = ./tests
 DOCS_DIR = ./docs
 
 
 
-.PHONY: help install install-quality ruff-lint ruff-lint-fix ruff-format ruff-format-fix lint-check lint-format precommit typing-check deps-check headers-check headers-fix quality style init-gh-labels init-gh-settings install-mintlify start-mintlify
+.PHONY: help install install-quality ruff-lint ruff-lint-fix ruff-format ruff-format-fix lint-check lint-format precommit typing-check deps-check headers-check headers-fix quality style
 
 help: ## Show this help message
 	@echo "Available commands:"

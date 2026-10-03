@@ -57,7 +57,7 @@ def _load_image(img_path):
     return Image.open(img_path, mode="r").convert("RGB")
 
 
-def main(args):  # noqa: PLR0912
+def main(args):
     if args.device is None:
         args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -67,8 +67,7 @@ def main(args):  # noqa: PLR0912
     weights = get_model_weights(args.arch).DEFAULT
     model = get_model(args.arch, weights=weights).to(device=device).eval()
     # Freeze the model
-    for p in model.parameters():
-        p.requires_grad_(False)
+    model.requires_grad_(False)
 
     # Image
     pil_img = _load_image(args.img)
@@ -109,9 +108,9 @@ def main(args):  # noqa: PLR0912
 
     # Homogenize number of elements in each row
     num_cols = math.ceil((len(cam_extractors) + 1) / args.rows)
-    _, axes = plt.subplots(args.rows, num_cols, figsize=(6, 4))
+    _, axes = plt.subplots(args.rows, num_cols, figsize=(6, 4), squeeze=False)
     # Display input
-    ax = axes[0][0] if args.rows > 1 else axes[0] if num_cols > 1 else axes
+    ax = axes.flat[0]
     ax.imshow(pil_img)
     ax.set_title("Input", size=8)
 
@@ -137,22 +136,13 @@ def main(args):  # noqa: PLR0912
         # Plot the result
         result = overlay_mask(pil_img, heatmap, alpha=args.alpha)
 
-        ax = axes[idx // num_cols][idx % num_cols] if args.rows > 1 else axes[idx] if num_cols > 1 else axes
+        ax = axes.flat[idx]
 
         ax.imshow(result)
         ax.set_title(f"{extractor.__class__.__name__}: {class_name}", size=8)
 
-    # Clear axes
-    if num_cols > 1:
-        for axes_ in axes:
-            if args.rows > 1:
-                for ax in axes_:
-                    ax.axis("off")
-            else:
-                axes_.axis("off")
-
-    else:
-        axes.axis("off")
+    for ax in axes.flat:
+        ax.axis("off")
 
     plt.tight_layout()
     if args.savefig:

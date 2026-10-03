@@ -3,12 +3,13 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Callable, Iterator
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import Any, Protocol, cast
 
 import torch
 
+from .methods._utils import _model_eval
 from .methods.core import OutputTarget, _resolve_targets, _target_scores
 
 
@@ -28,17 +29,6 @@ class _CAMExtractor(Protocol):
     def fuse_cams(self, cams: list[torch.Tensor]) -> torch.Tensor: ...
 
     def _hooks_off(self) -> AbstractContextManager[None]: ...
-
-
-@contextmanager
-def _model_eval(model: torch.nn.Module) -> Iterator[None]:
-    modes = [(module, module.training) for module in model.modules()]
-    try:
-        model.eval()
-        yield
-    finally:
-        for module, training in modes:
-            module.training = training
 
 
 def _get_scores(

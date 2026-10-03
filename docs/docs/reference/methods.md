@@ -15,10 +15,6 @@ With TorchCAM, the target layer is selected when you create your CAM extractor. 
 
 Methods related to activation-based class activation maps.
 
-::: torchcam.methods.CAM
-    options:
-        heading_level: 3
-
 ::: torchcam.methods
     options:
         heading_level: 3
