@@ -10,47 +10,99 @@ CAM performance evaluation
 import argparse
 import math
 import os
+import platform
 from functools import partial
 from pathlib import Path
 
 import torch
+import torchvision
 from torch.utils.data import SequentialSampler
 from torchvision.datasets import ImageFolder
 from torchvision.models import get_model, get_model_weights
 from torchvision.transforms import v2 as T
 from torchvision.transforms.functional import InterpolationMode
 
-from torchcam import methods
+from torchcam import __version__, methods
 from torchcam.metrics import ClassificationMetric, DeletionInsertionMetric
 
+METHOD_NAMES = tuple(sorted(name for name, value in vars(methods).items() if isinstance(value, type)))
+BENCHMARK_WEIGHTS = {"resnet18": "IMAGENET1K_V1", "mobilenet_v3_large": "IMAGENET1K_V2"}
 
-def main(args):
-    if args.device is None:
-        args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    device = torch.device(args.device)
+def _positive_int(value):
+    value = int(value)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("expected a positive integer")
+    return value
 
-    # Pretrained imagenet model
-    weights = get_model_weights(args.arch).DEFAULT
-    model = get_model(args.arch, weights=weights).to(device=device)
-    # Freeze the model
-    model.requires_grad_(False)
 
-    eval_tf = []
-    crop_pct = 0.875
-    scale_size = min(math.floor(args.size / crop_pct), 320)
-    if scale_size < 320:
-        eval_tf.append(T.Resize(scale_size, interpolation=InterpolationMode.BILINEAR, antialias=True))
-    eval_tf.extend([
-        T.CenterCrop(args.size),
+def _nonnegative_int(value):
+    value = int(value)
+    if value < 0:
+        raise argparse.ArgumentTypeError("expected a non-negative integer")
+    return value
+
+
+def _resolve_weights(arch, name):
+    available = get_model_weights(arch)
+    name = name or BENCHMARK_WEIGHTS.get(arch, "DEFAULT")
+    try:
+        return available[name]
+    except KeyError:
+        raise ValueError(
+            f"unknown weights {name!r} for {arch}; choose from {', '.join(available.__members__)}"
+        ) from None
+
+
+def _build_transform(size):
+    return T.Compose([
+        T.Resize(math.floor(size / 0.875), interpolation=InterpolationMode.BILINEAR, antialias=True),
+        T.CenterCrop(size),
         T.PILToTensor(),
         T.ToDtype(torch.float32, scale=True),
         T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ])
 
+
+def _report_protocol(args, weights, cam_extractor, dataset):
+    print(
+        f"method={args.method} model={args.arch} device={args.device} seed={args.seed} "
+        f"weights={weights} target_layers={','.join(cam_extractor.target_names)}"
+    )
+    print(f"checkpoint={weights.url}")
+    print(
+        f"dataset={Path(dataset.root).resolve()} samples={len(dataset)} batch_size={args.batch_size} "
+        f"workers={args.workers} threads={torch.get_num_threads()}"
+    )
+    print(
+        f"python={platform.python_version()} torch={torch.__version__} "
+        f"torchvision={torchvision.__version__} torchcam={__version__}"
+    )
+    print(
+        f"resize={math.floor(args.size / 0.875)} interpolation=bilinear antialias=True crop={args.size} "
+        "mean=(0.485,0.456,0.406) std=(0.229,0.224,0.225) "
+        "target=original-predicted-class scoring=softmax masking=normalized-input"
+    )
+    if args.deletion_insertion:
+        print(
+            f"deletion_insertion=True baseline=normalized-zero-for-both-curves steps={args.di_steps} "
+            f"di_batch_size={args.di_batch_size} cam_draws=separate-per-metric"
+        )
+
+
+def main(args):
+    if args.device is None:
+        args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    device = torch.device(args.device)
+    torch.manual_seed(args.seed)
+
+    weights = _resolve_weights(args.arch, args.weights)
+    model = get_model(args.arch, weights=weights).eval().to(device=device)
+    model.requires_grad_(False)
+
     ds = ImageFolder(
         Path(args.data_path).joinpath("val"),
-        T.Compose(eval_tf),
+        _build_transform(args.size),
     )
     loader = torch.utils.data.DataLoader(
         ds,
@@ -62,7 +114,10 @@ def main(args):
     )
 
     # Hook the corresponding layer in the model
-    with methods.__dict__[args.method](model, args.target.split(",") if args.target else None) as cam_extractor:
+    with methods.__dict__[args.method](
+        model, args.target.split(",") if args.target else None, input_shape=(3, args.size, args.size)
+    ) as cam_extractor:
+        _report_protocol(args, weights, cam_extractor, ds)
         metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
         deletion_insertion_metric = (
             DeletionInsertionMetric(
@@ -85,42 +140,53 @@ def main(args):
                 model.zero_grad()
                 deletion_insertion_metric.update(x.detach().requires_grad_(True))
 
-    print(f"{args.method} w/ {args.arch} (validation set of Imagenette on ({args.size}, {args.size}) inputs)")
+    print(f"{args.method} w/ {args.arch} ({len(ds)} validation inputs of size ({args.size}, {args.size}))")
     metrics_dict = metric.summary()
     print(
-        f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}, Skipped {metric.nan_count} samples"
+        f"Average Drop {metrics_dict['avg_drop']:.2%}, Increase in Confidence {metrics_dict['conf_increase']:.2%}, "
+        f"Valid {metric.total} samples, Skipped {metric.nan_count} samples"
     )
     if deletion_insertion_metric is not None:
         faithfulness = deletion_insertion_metric.summary()
         print(
             f"Deletion AUC {faithfulness['deletion_auc']:.4f}, Insertion AUC {faithfulness['insertion_auc']:.4f}, "
-            f"Skipped {deletion_insertion_metric.nan_count} samples"
+            f"Valid {deletion_insertion_metric.total} samples, Skipped {deletion_insertion_metric.nan_count} samples"
         )
 
 
-if __name__ == "__main__":
+def _build_parser():
     parser = argparse.ArgumentParser(
         description="CAM method performance evaluation",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("data_path", type=str, help="path to dataset folder")
-    parser.add_argument("method", type=str, help="CAM method to use")
+    parser.add_argument("method", choices=METHOD_NAMES, help="CAM method to use")
     parser.add_argument(
         "--arch",
         type=str,
         default="mobilenet_v3_large",
         help="Name of the torchvision architecture",
     )
+    parser.add_argument(
+        "--weights",
+        default=None,
+        help="Torchvision weights name (ResNet18: IMAGENET1K_V1; MobileNet V3 Large: IMAGENET1K_V2; others: DEFAULT)",
+    )
+    parser.add_argument("--seed", type=_nonnegative_int, default=0, help="PyTorch random seed")
     parser.add_argument("--target", type=str, default=None, help="Target layer name")
-    parser.add_argument("--size", type=int, default=224, help="The image input size")
-    parser.add_argument("-b", "--batch-size", default=32, type=int, help="batch size")
+    parser.add_argument("--size", type=_positive_int, default=224, help="The image input size")
+    parser.add_argument("-b", "--batch-size", default=32, type=_positive_int, help="batch size")
     parser.add_argument(
         "--deletion-insertion",
         action="store_true",
         help="also compute deletion and insertion faithfulness AUCs",
     )
-    parser.add_argument("--di-steps", default=20, type=int, help="maximum deletion/insertion perturbation intervals")
-    parser.add_argument("--di-batch-size", default=32, type=int, help="deletion/insertion perturbation chunk size")
+    parser.add_argument(
+        "--di-steps", default=20, type=_positive_int, help="maximum deletion/insertion perturbation intervals"
+    )
+    parser.add_argument(
+        "--di-batch-size", default=32, type=_positive_int, help="deletion/insertion perturbation chunk size"
+    )
     parser.add_argument(
         "--device",
         type=str,
@@ -130,10 +196,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "-j",
         "--workers",
-        default=min(os.cpu_count(), 16),
-        type=int,
+        default=min(os.cpu_count() or 1, 16),
+        type=_nonnegative_int,
         help="number of data loading workers",
     )
-    args = parser.parse_args()
+    return parser
 
-    main(args)
+
+if __name__ == "__main__":
+    main(_build_parser().parse_args())
