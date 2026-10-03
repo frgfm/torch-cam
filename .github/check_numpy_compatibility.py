@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import matplotlib as mpl
 import numpy as np
 import torch
 from PIL import Image
@@ -43,7 +44,10 @@ def main():
                 exported.load()
                 assert exported.size == image.size
 
-    print(f"NumPy interoperability and explanation exports passed: torch={torch.__version__}, numpy={np.__version__}")
+    print(
+        f"NumPy interoperability and explanation exports passed: "
+        f"torch={torch.__version__}, numpy={np.__version__}, matplotlib={mpl.__version__}"
+    )
 
 
 if __name__ == "__main__":

@@ -78,12 +78,12 @@ jobs:
           enable-cache: false
       - name: Build the wheel
         run: uv build --wheel
-      - name: Install with the minimum PyTorch and selected NumPy
+      - name: Install with minimum PyTorch and Matplotlib and selected NumPy
         shell: bash
         env:
           UV_TORCH_BACKEND: cpu
           NUMPY_REQUIREMENT: ${{ matrix.numpy }}
-        run: uv pip install dist/*.whl "torch==2.4.1" "$NUMPY_REQUIREMENT"
+        run: uv pip install dist/*.whl "torch==2.4.1" "matplotlib==3.8.4" "$NUMPY_REQUIREMENT"
       - name: Check NumPy interoperability and explanation exports
         run: python .github/check_numpy_compatibility.py
 

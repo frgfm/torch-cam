@@ -5,8 +5,9 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 ## v0.5.0 (Unreleased)
 
 RefineCAM, FinerCAM, LeGrad, Vision Transformer reshape transforms, callable output targets, deletion/insertion metrics,
-`torchcam.explain`, and demo improvements. NumPy 2 is supported; PyTorch 2.4.1+, NumPy 1.26.4+, and Pillow 9.3+
-are now required. The PyTorch minimum ensures NumPy 2 interoperability, including on Windows.
+`torchcam.explain`, and demo improvements. NumPy 2 is supported; PyTorch 2.4.1+, Matplotlib 3.8.4+, NumPy 1.26.4+,
+and Pillow 9.3+ are now required. The PyTorch and Matplotlib minimums ensure NumPy 2 interoperability, including on Windows.
+Published PyTorch wheels for this range require Apple Silicon on macOS.
 
 ## v0.4.1 (2025-10-27)
 

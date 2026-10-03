@@ -13,6 +13,11 @@ and NumPy 2 (`numpy>=1.26.4,<3`). Earlier PyTorch wheels can fail with `RuntimeE
 when NumPy 2 is installed; the minimum includes the [Windows fix in PyTorch 2.4.1](https://github.com/pytorch/pytorch/issues/131668#issuecomment-2307447045).
 If you install torchvision for the demo or examples, use the release matching your PyTorch version.
 
+Matplotlib 3.8.4 or higher, below version 4, is also required. Earlier Matplotlib wheels can fail to import with NumPy 2.
+
+On macOS, the required PyTorch wheels support Apple Silicon. Intel Mac users can install the previous release with
+`pip install "torchcam==0.4.1"`, which uses NumPy 1.x.
+
 Check the installed version when an example and your environment behave differently:
 
 ```python
