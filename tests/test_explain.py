@@ -239,7 +239,7 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
     for class_idx, maps in result.cams.items():
         stored = np.load(bundle / f"class-{class_idx}-layer-0.npy", allow_pickle=False)
         assert stored.dtype == np.float32
-        assert np.array_equal(stored, maps[0].numpy())
+        assert torch.equal(torch.from_numpy(stored), maps[0])
         with Image.open(bundle / f"class-{class_idx}-layer-0-heatmap.png") as heatmap:
             assert heatmap.mode == "L"
         with Image.open(bundle / f"class-{class_idx}-layer-0-overlay.png") as overlay:

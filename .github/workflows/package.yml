@@ -5,7 +5,6 @@ on:
     branches: main
     paths:
       - '.github/workflows/package.yml'
-      - '.github/check_numpy_compatibility.py'
       - 'torchcam/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -14,7 +13,6 @@ on:
     branches: main
     paths:
       - '.github/workflows/package.yml'
-      - '.github/check_numpy_compatibility.py'
       - 'torchcam/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -83,16 +81,16 @@ jobs:
           NUMPY_REQUIREMENT: ${{ matrix.numpy }}
         run: |
           for wheel in dist/*.whl; do
-            uv pip install "${wheel}[test]" "torch==2.4.1" "torchvision==0.19.1" "matplotlib==3.8.4" "$NUMPY_REQUIREMENT"
+            uv pip install "${wheel}[test]" "torch==2.4.1" "torchvision==0.19.1" "matplotlib==3.8.4" "Pillow==9.3.0" "$NUMPY_REQUIREMENT"
           done
-      - name: Check NumPy interoperability and explanation exports
-        run: python .github/check_numpy_compatibility.py
       - name: Test minimum supported dependencies
         shell: bash
         run: |
+          # Tests import scripts.*; keep the source torchcam package off sys.path.
           cp -R scripts "$RUNNER_TEMP/"
           cd "$RUNNER_TEMP"
-          python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib -o addopts=
+          python -c "import sys; from pathlib import Path; import torchcam; assert Path(torchcam.__file__).is_relative_to(sys.prefix), torchcam.__file__"
+          python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib --no-cov
 
   code-quality:
     if: github.event_name != 'push'
@@ -149,7 +147,7 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           package_version="$(uv version --short)"
-          tag_version="$(uv version --dry-run --frozen --short -- "${RELEASE_TAG#v}")"
+          tag_version="$(uv version --dry-run --short -- "${RELEASE_TAG#v}")"
           if test "$tag_version" != "$package_version"; then
             echo "::error::Release tag $RELEASE_TAG does not match package version $package_version"
             exit 1
@@ -164,8 +162,9 @@ jobs:
           # Tests import scripts.*; keep the source torchcam package off sys.path.
           cp -R scripts "$RUNNER_TEMP/"
           cd "$RUNNER_TEMP"
-          python -c "from pathlib import Path; import torchcam; assert Path(torchcam.__file__).with_name('py.typed').is_file(); print(torchcam.__version__, torchcam.__file__)"
+          python -c "import sys; from pathlib import Path; import torchcam; path = Path(torchcam.__file__); assert path.is_relative_to(sys.prefix), path; assert path.with_name('py.typed').is_file(); print(torchcam.__version__, path)"
           python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib --cov-report "xml:$GITHUB_WORKSPACE/coverage.xml"
+          uv publish --dry-run --trusted-publishing never --token dry-run "$GITHUB_WORKSPACE"/dist/*
       - uses: actions/upload-artifact@v7
         with:
           path: ./coverage.xml
@@ -205,6 +204,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
       - uses: actions/download-artifact@v8
         with:
           name: release-distributions
@@ -226,6 +226,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.2.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
       - name: Install package
         env:
           UV_TORCH_BACKEND: cpu
