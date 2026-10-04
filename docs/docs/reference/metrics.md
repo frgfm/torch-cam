@@ -2,6 +2,8 @@
 
 Apart from qualitative visual comparison, it is important to have a refined evaluation metric for class activation maps. This submodule is dedicated to the evaluation of CAM methods.
 
+Run the [performance benchmark notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb)) to evaluate confidence scores and deletion/insertion AUCs, compare explicit baselines, and record runtime metadata.
+
 Both metrics compute CAMs from the model's raw output. A `logits_fn` such as softmax changes only the scores used to measure the explanation. It does not change the score differentiated by a gradient-based CAM. Class indices and callable `targets` select the same outputs before and after this score transform, so `logits_fn` must preserve that output layout.
 
 The score transform receives separate tensor copies with no autograd graph. This also applies to tensor leaves in dictionaries, lists, and tuples, including named tuples. Thus, an in-place score transform does not change the raw outputs used to build the CAM. Use `output_fn` to convert custom output objects into these supported containers before score transformation.

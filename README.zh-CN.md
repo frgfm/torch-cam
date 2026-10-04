@@ -293,8 +293,17 @@ python scripts/eval_latency.py SmoothGradCAMpp
 
 ### 示例笔记本
 
-想查看更多 TorchCAM 功能示例？
-可以查看 [Jupyter 笔记本](notebooks)，获得更全面的了解。
+以下笔记本托管在 [frgfm/notebooks](https://github.com/frgfm/notebooks/tree/main/torch-cam)，可直接在 Colab 中运行：
+
+每个笔记本都包含环境配置单元格，固定使用包含 TorchCAM 0.5.0 发布后修复的开发版本。请先运行这些单元格，以使用笔记本对应的实现。
+
+| 笔记本 | 使用场景 | 运行 |
+|:-------|:---------|:-----|
+| [快速入门](https://github.com/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb) | 提取 CAM、叠加热力图并融合多个层的激活图 | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/quicktour.ipynb) |
+| [调试单个预测](https://github.com/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb) | 比较预测类别与预期类别，并保存解释证据文件 | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb) |
+| [Vision Transformer](https://github.com/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb) | 使用 LeGrad 和基于 token 的 GradCAM 解释 torchvision ViT | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb) |
+| [延迟评测](https://github.com/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) | 在自己的硬件上测量 CAM 提取延迟和端到端延迟 | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) |
+| [效果评测](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) | 指定基线，评估置信度指标和删除/插入忠实度指标 | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) |
 
 ### 社区教程
 

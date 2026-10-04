@@ -4,6 +4,8 @@ Use `torchcam.explain.explain` when a classifier's top prediction differs from t
 
 TorchCAM deliberately does not load models, checkpoints, labels, or preprocessing. Reuse those trusted pieces from the owner's repository so the explanation describes the same inference path.
 
+Run the [prediction debugging notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb)) to compare classes, visualize overlays, and inspect a saved evidence bundle.
+
 ## CNN example
 
 This complete example uses automatic CNN target-layer resolution and writes predicted-versus-expected evidence:

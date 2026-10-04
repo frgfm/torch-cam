@@ -258,6 +258,8 @@ Transformer-based timm and Hugging Face classifiers (ViT, DeiT, Swin) also need 
 
 ## Vision Transformers and other non-CNN models
 
+The [Vision Transformers notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb)) compares LeGrad attention gradients with GradCAM after token reshaping on a pretrained torchvision ViT.
+
 TorchCAM's methods operate on **spatial feature maps** of shape `(N, C, H, W)` (or `(N, C, D, H, W)` in 3D).
 Transformer blocks emit token sequences of shape `(N, num_tokens, dim)`, which have no spatial grid, so CAM methods
 do not apply directly and automatic `target_layer` resolution cannot infer the token layout.
