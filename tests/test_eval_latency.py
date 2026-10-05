@@ -75,7 +75,6 @@ def test_cli_rejects_invalid_values(argv, message, capsys):
 
 
 def test_first_call_and_warmup_are_excluded(monkeypatch, mock_img_model):
-    monkeypatch.setattr(torch, "set_num_interop_threads", lambda _threads: None)
     monkeypatch.setattr(eval_latency, "get_model", lambda *_args, **_kwargs: mock_img_model)
     sample = Mock(side_effect=[(idx / 1000, [torch.ones((1, 2, 2))]) for idx in range(1, 7)])
     monkeypatch.setattr(eval_latency, "_time_sample", sample)

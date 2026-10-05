@@ -40,7 +40,7 @@ def nonnegative_int(value):
 
 
 def _method_list(value):
-    names = value.split(",")
+    names = [name.strip() for name in value.split(",")]
     if any(name not in METHOD_NAMES for name in names):
         raise argparse.ArgumentTypeError(f"choose CAM methods from {', '.join(METHOD_NAMES)}")
     return names
@@ -61,16 +61,26 @@ def resolve_transformer_config(model, target_layer):
         grid_size = model.image_size // model.patch_size
         target_layer = target_layer or model.encoder.layers[-2].ln_1
         reshape_transform = partial(vit_reshape_transform, grid_size=grid_size)
+        native_layers = set(model.conv_proj.modules())
     elif isinstance(model, SwinTransformer):
         target_layer = target_layer or model.features[-1][-1].norm2
         reshape_transform = swin_reshape_transform
+        native_layers = {model.features[0][0], model.permute, model.avgpool}
+    else:
+        return target_layer, reshape_transform
+    targets = target_layer if isinstance(target_layer, list) else [target_layer]
+    native = [(model.get_submodule(layer) if isinstance(layer, str) else layer) in native_layers for layer in targets]
+    if any(native):
+        if not all(native):
+            raise ValueError("Transformer target layers must share a tensor layout")
+        reshape_transform = None
     return target_layer, reshape_transform
 
 
 def build_extractor(model, method, target_layer=None, input_shape=(3, 224, 224), **kwargs):
     extractor_cls = getattr(methods, method)
     if isinstance(target_layer, str) and "," in target_layer:
-        target_layer = target_layer.split(",")
+        target_layer = [name.strip() for name in target_layer.split(",")]
     if extractor_cls is not methods.LeGrad:
         target_layer, reshape_transform = resolve_transformer_config(model, target_layer)
         kwargs.update(input_shape=input_shape, reshape_transform=reshape_transform)

@@ -7,8 +7,6 @@ on:
       - '.github/workflows/scripts.yml'
       - 'torchcam/**'
       - 'scripts/**'
-      - 'tests/test_eval*.py'
-      - 'tests/test_cam_example.py'
       - 'pyproject.toml'
 
 env:

@@ -161,7 +161,7 @@ def _build_parser():
         help="Torchvision weights name (ResNet18: IMAGENET1K_V1; MobileNet V3 Large: IMAGENET1K_V2; others: DEFAULT)",
     )
     parser.add_argument("--seed", type=nonnegative_int, default=0, help="PyTorch random seed")
-    parser.add_argument("--target", type=str, default=None, help="Target layer name")
+    parser.add_argument("--target", type=str, default=None, help="Target layers, separated by commas")
     parser.add_argument("--size", type=positive_int, default=224, help="The image input size")
     parser.add_argument("-b", "--batch-size", default=32, type=positive_int, help="batch size")
     parser.add_argument(

@@ -109,10 +109,7 @@ def _build_parser():
 
 
 def _evaluate(args):
-    torch.set_num_threads(args.threads)
-    torch.set_num_interop_threads(1)
     device = torch.device(args.device or ("cuda:0" if torch.cuda.is_available() else "cpu"))
-    torch.manual_seed(args.seed)
 
     weights = get_model_weights(args.arch).DEFAULT if args.weights == "default" else None
     if device.type == "mps":
@@ -186,13 +183,12 @@ def _evaluate(args):
 
 def main(args):
     if args.worker:
+        torch.set_num_threads(args.threads)
+        torch.set_num_interop_threads(1)
+        torch.manual_seed(args.seed)
         print(json.dumps(_evaluate(args), allow_nan=False))
         return
-    command = [sys.executable, str(Path(__file__).resolve()), args.method, "--worker"]
-    for name, value in vars(args).items():
-        if name not in {"method", "worker", "output"} and value is not None:
-            for item in value if isinstance(value, list) else [value]:
-                command.extend(["--" + name.replace("_", "-"), str(item)])
+    command = [sys.executable, str(Path(__file__).resolve()), "--worker", *sys.argv[1:]]
     runs = [
         json.loads(subprocess.run(command, check=True, stdout=subprocess.PIPE, text=True).stdout)  # noqa: S603
         for _ in range(args.repeat)
@@ -257,7 +253,7 @@ def main(args):
         f"weights={runs[0]['weights']} target_layers={','.join(runs[0]['target_layers'])} threads={args.threads} seed={args.seed}"
     )
     print(
-        f"First call {summary['first_ms']:.2f} ms; median {summary['median_ms']:.2f} ms; "
+        f"Trial medians: first call {summary['first_ms']:.2f} ms; median {summary['median_ms']:.2f} ms; "
         f"p95 {summary['p95_ms']:.2f} ms; IQR {summary['iqr_ms']:.2f} ms; peak RSS {rss}"
     )
 

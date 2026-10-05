@@ -288,7 +288,7 @@ The recorded protocol used the validation set of [imagenette2-320](https://githu
 You can run a new benchmark on your hardware with an explicit seed and weight version as follows:
 
 ```bash
-python scripts/eval_perf.py ~/Downloads/imagenette2-320 LayerCAM --arch mobilenet_v3_large --seed 0 --weights IMAGENET1K_V2
+uv run --extra scripts python scripts/eval_perf.py ~/Downloads/imagenette2-320 LayerCAM --arch mobilenet_v3_large --seed 0 --weights IMAGENET1K_V2
 ```
 
 The optional `--deletion-insertion` evaluation uses a normalized zero baseline for both curves and 20 perturbation steps by default. It generates CAMs separately from the classification metrics, consuming extra random draws that can change subsequent stochastic classification CAMs even with the same seed; compare stochastic methods using the same flags. This differs from the original RISE protocol, which uses a blurred image as its insertion baseline; scores from different protocols are not directly comparable.
@@ -330,9 +330,9 @@ uv run --extra scripts python scripts/eval_latency.py SmoothGradCAMpp --device c
 
 Each command runs five fresh processes with one CPU thread. It reports the first call after extractor setup, then runs 10 full CAM warm-up calls before collecting 100 samples. Use `--repeat`, `--threads`, `--warmup`, and `--it` to change these settings. `--weights none` uses an untrained model and avoids downloads; omit it to use pretrained weights.
 
-The default `--scope extractor` excludes the initial model forward pass. `--scope end-to-end` includes the forward pass and CAM extraction; both exclude image loading, preprocessing, device transfers, and extractor setup. The JSON report saves raw samples, median/p95 latency, resolved layers and weights, versions, revision, and script hash. Peak RSS is the highest RAM use of a worker through setup and measurement, including output checks. CUDA allocated and reserved memory are reported separately. RSS is unavailable on Windows.
+The default `--scope extractor` excludes the initial model forward pass. `--scope end-to-end` includes the forward pass and CAM extraction; both exclude image loading, preprocessing, device transfers, and extractor setup. The JSON report saves raw samples, median/p95 latency, resolved layers and weights, versions, revision, and script hash. Summary latency statistics are medians of trial statistics; memory uses the highest peak. Peak RSS is the highest RAM use of a worker through setup and measurement, including output checks. CUDA allocated and reserved memory are reported separately. RSS is unavailable on Windows.
 
-ViT and Swin spatial methods use the same reshape setup as the example script. LeGrad needs an explicit transformer block (`--target-layer encoder.layers.encoder_layer_11` for `vit_b_16`). RefineCAM needs at least two repeated `--target-layer` arguments. The example script accepts these layers as `--target layer3,layer4`.
+ViT and Swin spatial methods preserve channel-first targets and reshape token/channel-last targets. In `eval_latency.py`, LeGrad needs an explicit transformer block (`--target-layer encoder.layers.encoder_layer_11` for `vit_b_16`), and RefineCAM needs at least two repeated `--target-layer` arguments. `cam_example.py` uses `--target` for both methods: `--target encoder.layers.encoder_layer_11` for LeGrad or `--target layer3,layer4` for RefineCAM. Targets in one extractor must share a tensor layout.
 
 *All script arguments can be checked using `python scripts/eval_latency.py --help`*
 
