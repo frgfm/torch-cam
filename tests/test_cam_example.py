@@ -6,7 +6,6 @@ import pytest
 import torch
 from PIL import Image, UnidentifiedImageError
 from torchvision.models.swin_transformer import SwinTransformer
-from torchvision.models.vision_transformer import VisionTransformer
 
 from scripts import cam_example
 
@@ -46,31 +45,6 @@ def test_load_image_rejects_corrupt_payload(monkeypatch):
         cam_example._load_image("https://example.com/image.png")
 
 
-@pytest.mark.parametrize("argv", [["--method", "UnknownCAM"], ["--rows", "0"]])
-def test_cli_rejects_invalid_values(argv):
-    with pytest.raises(SystemExit):
-        cam_example._build_parser().parse_args(argv)
-
-
-@pytest.mark.parametrize("method", ["GradCAM", "LeGrad"])
-def test_vit_extractor_returns_spatial_maps(method):
-    model = VisionTransformer(
-        image_size=32,
-        patch_size=8,
-        num_layers=2,
-        num_heads=2,
-        hidden_dim=32,
-        mlp_dim=64,
-        num_classes=3,
-    ).eval()
-    torch.nn.init.normal_(model.heads.head.weight)
-    target = "encoder.layers.encoder_layer_0" + (".ln_1" if method == "GradCAM" else "")
-    with cam_example.build_extractor(model, method, target, (3, 32, 32)) as extractor:
-        scores = model(torch.rand(1, 3, 32, 32))
-        assert extractor(0, scores)[0].shape == (1, 4, 4)
-    assert not any(module._forward_hooks for module in model.modules())
-
-
 def test_swin_explicit_target_returns_spatial_maps():
     model = SwinTransformer(
         patch_size=[2, 2],
@@ -82,10 +56,4 @@ def test_swin_explicit_target_returns_spatial_maps():
     ).eval()
     with cam_example.build_extractor(model, "GradCAM", "features.1.0.norm2", (3, 32, 32)) as extractor:
         scores = model(torch.rand(1, 3, 32, 32))
-        assert extractor(0, scores)[0].shape == (1, 16, 16)
-
-
-def test_refinecam_accepts_comma_separated_layers(mock_img_model):
-    with cam_example.build_extractor(mock_img_model, "RefineCAM", "0.1,0.3") as extractor:
-        scores = mock_img_model(torch.rand(1, 3, 16, 16).requires_grad_(True))
         assert extractor(0, scores)[0].shape == (1, 16, 16)

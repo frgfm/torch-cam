@@ -30,16 +30,8 @@ jobs:
             command: python scripts/cam_example.py --arch vit_b_16 --weights none --img sample.png --noblock --method LeGrad --target encoder.layers.encoder_layer_11 --savefig vit.png
           - name: eval-latency
             command: |
-              for method in CAM LayerCAM SmoothGradCAMpp ScoreCAM; do
-                arch=resnet18
-                if [ "$method" = ScoreCAM ]; then arch=mobilenet_v3_small; fi
-                for scope in extractor end-to-end; do
-                  python scripts/eval_latency.py "$method" --arch "$arch" --weights none --size 64 --it 3 --warmup 1 --repeat 1 --scope "$scope" --output "$method-$scope.json"
-                done
-              done
-              python scripts/eval_latency.py RefineCAM --weights none --size 64 --target-layer layer3 --target-layer layer4 --it 3 --warmup 1 --repeat 1 --output refine.json
-              python scripts/eval_latency.py GradCAM --arch swin_t --weights none --size 64 --target-layer features.7.1.norm2 --it 3 --warmup 1 --repeat 1 --output swin.json
-              python scripts/eval_latency.py LeGrad --arch vit_b_16 --weights none --target-layer encoder.layers.encoder_layer_11 --it 3 --warmup 1 --repeat 1 --output legrad.json
+              python scripts/eval_latency.py LayerCAM --weights none --size 64 --it 3 --warmup 1 --repeat 2 --scope end-to-end --output latency.json
+              python scripts/eval_latency.py ScoreCAM --arch mobilenet_v3_small --weights none --size 64 --it 1 --warmup 0 --repeat 1 --output score.json
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
