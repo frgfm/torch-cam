@@ -7,6 +7,7 @@ on:
       - '.github/workflows/scripts.yml'
       - 'torchcam/**'
       - 'scripts/**'
+      - 'pyproject.toml'
 
 env:
   PYTHON_VERSION: "3.11"
@@ -22,9 +23,13 @@ jobs:
       matrix:
         include:
           - name: cam-example
-            command: python scripts/cam_example.py --arch resnet18 --class-idx 232 --noblock --method LayerCAM
+            command: python scripts/cam_example.py --arch resnet18 --weights none --img sample.png --noblock --method LayerCAM,RefineCAM --target layer3,layer4 --savefig cnn.png
+          - name: cam-example-legrad
+            command: python scripts/cam_example.py --arch vit_b_16 --weights none --img sample.png --noblock --method LeGrad --target encoder.layers.encoder_layer_11 --savefig vit.png
           - name: eval-latency
-            command: python scripts/eval_latency.py --arch resnet18 LayerCAM
+            command: |
+              python scripts/eval_latency.py LayerCAM --weights none --size 64 --it 3 --warmup 1 --repeat 2 --scope end-to-end --output latency.json
+              python scripts/eval_latency.py ScoreCAM --arch mobilenet_v3_small --weights none --size 64 --it 1 --warmup 0 --repeat 1 --output score.json
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -40,4 +45,16 @@ jobs:
         run: uv pip install --system --upgrade -e '.[scripts]'
 
       - name: Run analysis script
-        run: ${{ matrix.command }}
+        env:
+          MPLBACKEND: Agg
+        run: |
+          python -c "from PIL import Image; Image.new('RGB', (256, 256), 'red').save('sample.png')"
+          ${{ matrix.command }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}-results
+          path: |
+            *.json
+            cnn.png
+            vit.png
+          if-no-files-found: error

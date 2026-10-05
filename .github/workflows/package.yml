@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/package.yml'
       - 'torchcam/**'
+      - 'scripts/**'
       - 'tests/**'
       - 'pyproject.toml'
       - 'Makefile'
@@ -14,6 +15,7 @@ on:
     paths:
       - '.github/workflows/package.yml'
       - 'torchcam/**'
+      - 'scripts/**'
       - 'tests/**'
       - 'pyproject.toml'
       - 'Makefile'

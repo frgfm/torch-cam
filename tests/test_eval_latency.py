@@ -72,3 +72,15 @@ def test_cli_rejects_invalid_values(argv, message, capsys):
     with pytest.raises(SystemExit):
         eval_latency._build_parser().parse_args(argv)
     assert message in capsys.readouterr().err
+
+
+def test_first_call_and_warmup_are_excluded(monkeypatch, mock_img_model):
+    monkeypatch.setattr(eval_latency, "get_model", lambda *_args, **_kwargs: mock_img_model)
+    sample = Mock(side_effect=[(idx / 1000, [torch.ones((1, 2, 2))]) for idx in range(1, 7)])
+    monkeypatch.setattr(eval_latency, "_time_sample", sample)
+    args = eval_latency._build_parser().parse_args(["LayerCAM", "--weights", "none", "--device", "cpu"])
+    args.target_layer, args.size, args.warmup, args.it = ["0.3"], 16, 2, 3
+    result = eval_latency._evaluate(args)
+    assert sample.call_count == 6
+    assert result["first_ms"] == 1
+    assert result["samples_ms"] == [4, 5, 6]

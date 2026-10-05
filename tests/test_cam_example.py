@@ -3,7 +3,10 @@ from io import BytesIO
 from unittest.mock import Mock
 
 import pytest
+import torch
 from PIL import Image, UnidentifiedImageError
+from torchvision.models.swin_transformer import SwinTransformer
+from torchvision.models.vision_transformer import VisionTransformer
 
 from scripts import cam_example
 
@@ -41,3 +44,22 @@ def test_load_image_rejects_corrupt_payload(monkeypatch):
 
     with pytest.raises(UnidentifiedImageError):
         cam_example._load_image("https://example.com/image.png")
+
+
+def test_transformer_targets_return_spatial_maps():
+    models = [
+        (SwinTransformer([2, 2], 8, [2], [1], [2, 2], num_classes=3), ["features.1.0.norm2", "permute"], 16),
+        (
+            VisionTransformer(32, 8, 2, 2, 32, 64, num_classes=3),
+            ["encoder.layers.encoder_layer_0.ln_1", "conv_proj"],
+            4,
+        ),
+    ]
+    for model, targets, size in models:
+        model.eval().requires_grad_(False)
+        for target in targets:
+            with cam_example.build_extractor(model, "GradCAM", [target], (3, 32, 32)) as extractor:
+                scores = model(torch.rand(1, 3, 32, 32).requires_grad_(True))
+                assert extractor(0, scores)[0].shape == (1, size, size)
+        with pytest.raises(ValueError, match="share a tensor layout"):
+            cam_example.build_extractor(model, "GradCAM", targets)
