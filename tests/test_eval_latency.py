@@ -1,3 +1,4 @@
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -66,9 +67,58 @@ def test_validate_cams_rejects_invalid_output():
         (("UnknownCAM",), "invalid choice"),
         (("GradCAM", "--it", "0"), "expected a positive integer"),
         (("ScoreCAM", "--batch-size", "0"), "expected a positive integer"),
+        (("LayerCAM", "--warmup", "-1"), "expected a non-negative integer"),
+        (("LayerCAM", "--repeat", "0"), "expected a positive integer"),
+        (("LayerCAM", "--threads", "0"), "expected a positive integer"),
+        (("LayerCAM", "--seed", "-1"), "expected a non-negative integer"),
     ],
 )
 def test_cli_rejects_invalid_values(argv, message, capsys):
     with pytest.raises(SystemExit):
         eval_latency._build_parser().parse_args(argv)
     assert message in capsys.readouterr().err
+
+
+def test_first_call_and_warmup_are_excluded(monkeypatch, mock_img_model, tmp_path):
+    monkeypatch.setattr(torch, "set_num_interop_threads", lambda _threads: None)
+    monkeypatch.setattr(eval_latency, "get_model", lambda *_args, **_kwargs: mock_img_model)
+    calls = []
+
+    def sample(*_args):
+        calls.append(len(calls) + 1)
+        return calls[-1] / 1000, [torch.ones((1, 2, 2))]
+
+    monkeypatch.setattr(eval_latency, "_time_sample", sample)
+    args = eval_latency._build_parser().parse_args([
+        "LayerCAM",
+        "--weights",
+        "none",
+        "--device",
+        "cpu",
+        "--size",
+        "16",
+        "--target-layer",
+        "0.3",
+        "--warmup",
+        "2",
+        "--it",
+        "3",
+    ])
+    result = eval_latency._evaluate(args)
+
+    assert calls == [1, 2, 3, 4, 5, 6]
+    assert result["first_ms"] == 1
+    assert result["samples_ms"] == [4, 5, 6]
+    assert result["target_layers"] == ["0.3"]
+    assert not any(module._forward_hooks for module in mock_img_model.modules())
+    monkeypatch.setattr(
+        eval_latency, "subprocess", Mock(run=Mock(return_value=Mock(stdout=json.dumps(result))), PIPE=-1)
+    )
+    monkeypatch.setattr(eval_latency.shutil, "which", lambda _name: None)
+    args.output = tmp_path / "latency.json"
+    args.repeat = 2
+    eval_latency.main(args)
+    report = json.loads(args.output.read_text())
+    assert len(report["runs"]) == 2
+    assert report["summary"]["mean_ms"] == 5
+    assert "samples_ms" not in report["summary"]

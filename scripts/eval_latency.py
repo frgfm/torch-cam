@@ -8,22 +8,27 @@ CAM latency benchmark
 """
 
 import argparse
+import hashlib
+import json
+import os
+import platform
+import shutil
+import subprocess  # noqa: S404
+import sys
 import time
+from pathlib import Path
 
 import numpy as np
 import torch
+import torchvision
 from torchvision.models import get_model, get_model_weights
 
-from torchcam import methods
+from torchcam import __version__, methods
 
-METHOD_NAMES = tuple(sorted(name for name, value in vars(methods).items() if isinstance(value, type)))
-
-
-def _positive_int(value):
-    value = int(value)
-    if value <= 0:
-        raise argparse.ArgumentTypeError("expected a positive integer")
-    return value
+if __package__:
+    from .cam_example import METHOD_NAMES, build_extractor, nonnegative_int, positive_int
+else:
+    from cam_example import METHOD_NAMES, build_extractor, nonnegative_int, positive_int
 
 
 def _synchronize(device):
@@ -57,7 +62,7 @@ def _time_sample(model, input_tensor, extractor, requested_class, device, scope,
 def _validate_cams(cams, expected_shapes):
     if not cams or any(
         not isinstance(cam, torch.Tensor)
-        or cam.ndim < 3
+        or cam.ndim != 3
         or cam.shape[0] != 1
         or cam.numel() == 0
         or not torch.isfinite(cam).all().item()
@@ -77,17 +82,25 @@ def _build_parser():
     )
     parser.add_argument("method", choices=METHOD_NAMES, help="CAM method to use")
     parser.add_argument("--arch", default="resnet18", help="Name of the torchvision architecture")
-    parser.add_argument("--size", type=_positive_int, default=224, help="The image input size")
+    parser.add_argument("--size", type=positive_int, default=224, help="The image input size")
     parser.add_argument("--class-idx", type=int, default=232, help="Index of the class to inspect")
     parser.add_argument("--device", default=None, help="Device (auto-selects CUDA, otherwise CPU; pass mps explicitly)")
-    parser.add_argument("--it", type=_positive_int, default=100, help="Number of iterations to run")
+    parser.add_argument("--it", type=positive_int, default=100, help="Number of iterations to run")
+    parser.add_argument(
+        "--warmup", type=nonnegative_int, default=10, help="Full CAM warm-up calls after the first call"
+    )
+    parser.add_argument("--repeat", type=positive_int, default=5, help="Fresh worker processes")
+    parser.add_argument("--threads", type=positive_int, default=1, help="CPU threads; inter-op threads stay at 1")
+    parser.add_argument("--seed", type=nonnegative_int, default=0, help="Random seed")
+    parser.add_argument("--output", type=Path, help="Save settings, environment, trials, and summary as JSON")
+    parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
         "--scope", choices=("extractor", "end-to-end"), default="extractor", help="Region included in timing"
     )
     parser.add_argument("--weights", choices=("default", "none"), default="default", help="Torchvision weights")
     parser.add_argument(
         "--batch-size",
-        type=_positive_int,
+        type=positive_int,
         default=32,
         help="Masked-input batch size for ScoreCAM-family methods",
     )
@@ -95,9 +108,11 @@ def _build_parser():
     return parser
 
 
-def main(args):
+def _evaluate(args):
+    torch.set_num_threads(args.threads)
+    torch.set_num_interop_threads(1)
     device = torch.device(args.device or ("cuda:0" if torch.cuda.is_available() else "cpu"))
-    torch.manual_seed(0)
+    torch.manual_seed(args.seed)
 
     weights = get_model_weights(args.arch).DEFAULT if args.weights == "default" else None
     if device.type == "mps":
@@ -109,25 +124,18 @@ def main(args):
 
     input_tensor = torch.rand((1, 3, args.size, args.size), device=device, requires_grad=True)
 
-    for _ in range(10):
-        with torch.no_grad():
-            _ = model(input_tensor)
-        _synchronize(device)
-
     extractor_cls = getattr(methods, args.method)
-    extractor_kwargs = (
-        {"target_layer": args.target_layer[0] if len(args.target_layer) == 1 else args.target_layer}
-        if args.target_layer
-        else {}
-    )
-    if issubclass(extractor_cls, methods.ScoreCAM):
-        extractor_kwargs["batch_size"] = args.batch_size
+    extractor_kwargs = {"batch_size": args.batch_size} if issubclass(extractor_cls, methods.ScoreCAM) else {}
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
 
     timings = []
     expected_shapes = None
     cam_kwargs = {"target_shape": tuple(input_tensor.shape[2:])} if extractor_cls is methods.RefineCAM else {}
-    with extractor_cls(model, **extractor_kwargs) as cam_extractor:
-        for _ in range(args.it):
+    with build_extractor(
+        model, args.method, args.target_layer, tuple(input_tensor.shape[1:]), **extractor_kwargs
+    ) as cam_extractor:
+        for idx in range(1 + args.warmup + args.it):
             elapsed, cams = _time_sample(
                 model,
                 input_tensor,
@@ -138,20 +146,120 @@ def main(args):
                 cam_kwargs,
             )
             expected_shapes = _validate_cams(cams, expected_shapes)
-            timings.append(1000 * elapsed)
+            if idx == 0:
+                first_ms = 1000 * elapsed
+            elif idx > args.warmup:
+                timings.append(1000 * elapsed)
 
-    timings_ = np.asarray(timings)
-    q1, median, q3 = np.percentile(timings_, (25, 50, 75))
-    target_layers = ",".join(args.target_layer) if args.target_layer else "auto"
-    cam_batch_size = args.batch_size if issubclass(extractor_cls, methods.ScoreCAM) else "n/a"
+    q1, median, q3 = np.percentile(timings, (25, 50, 75))
+    result = {
+        "pid": os.getpid(),
+        "threads": torch.get_num_threads(),
+        "interop_threads": torch.get_num_interop_threads(),
+        "device": str(device),
+        "weights": str(weights),
+        "checkpoint": weights.url if weights else None,
+        "target_layers": cam_extractor.target_names,
+        "cam_shapes": expected_shapes,
+        "samples_ms": timings,
+        "first_ms": first_ms,
+        "median_ms": float(median),
+        "p95_ms": float(np.percentile(timings, 95, method="higher")),
+        "iqr_ms": float(q3 - q1),
+        "mean_ms": float(np.mean(timings)),
+        "std_ms": float(np.std(timings)),
+        "peak_rss_mib": None,
+    }
+    if sys.platform != "win32":
+        import resource  # noqa: PLC0415
+
+        result["peak_rss_mib"] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (
+            1024**2 if sys.platform == "darwin" else 1024
+        )
+    if device.type == "cuda":
+        result.update(
+            cuda_peak_allocated_mib=torch.cuda.max_memory_allocated(device) / 1024**2,
+            cuda_peak_reserved_mib=torch.cuda.max_memory_reserved(device) / 1024**2,
+        )
+    return result
+
+
+def main(args):
+    if args.worker:
+        print(json.dumps(_evaluate(args), allow_nan=False))
+        return
+    command = [sys.executable, str(Path(__file__).resolve()), args.method, "--worker"]
+    for name, value in vars(args).items():
+        if name not in {"method", "worker", "output"} and value is not None:
+            for item in value if isinstance(value, list) else [value]:
+                command.extend(["--" + name.replace("_", "-"), str(item)])
+    runs = [
+        json.loads(subprocess.run(command, check=True, stdout=subprocess.PIPE, text=True).stdout)  # noqa: S603
+        for _ in range(args.repeat)
+    ]
+    summary = {}
+    for key in runs[0]:
+        if key != "samples_ms" and key.endswith(("_ms", "_mib")):
+            values = [run[key] for run in runs if run[key] is not None]
+            summary[key] = (max(values) if "peak" in key else float(np.median(values))) if values else None
+    summary["median_range_ms"] = [min(run["median_ms"] for run in runs), max(run["median_ms"] for run in runs)]
+    if args.output:
+        root = Path(__file__).resolve().parents[1]
+        git = shutil.which("git")
+        revision = (
+            subprocess.run([git, "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False)  # noqa: S603
+            if git
+            else None
+        )
+        report = {
+            "schema_version": 1,
+            "config": {key: value for key, value in vars(args).items() if key not in {"worker", "output"}},
+            "environment": {
+                "python": platform.python_version(),
+                "platform": platform.platform(),
+                "processor": platform.processor() or platform.machine(),
+                "versions": {
+                    "torch": torch.__version__,
+                    "torchvision": torchvision.__version__,
+                    "torchcam": __version__,
+                },
+                "numpy": np.__version__,
+                "cuda_version": torch.version.cuda,
+                "cudnn_benchmark": torch.backends.cudnn.benchmark,
+                "cudnn_precision": torch.backends.cudnn.fp32_precision
+                if hasattr(torch.backends.cudnn, "fp32_precision")
+                else torch.backends.cudnn.allow_tf32,
+                "matmul_precision": torch.backends.cuda.matmul.fp32_precision
+                if hasattr(torch.backends.cuda.matmul, "fp32_precision")
+                else torch.backends.cuda.matmul.allow_tf32,
+                "revision": revision.stdout.strip() or None if revision else None,
+                "dirty": bool(
+                    subprocess.run(  # noqa: S603
+                        [git, "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    ).stdout
+                )
+                if git and revision and revision.returncode == 0
+                else None,
+                "harness_sha256": hashlib.sha256(
+                    Path(__file__).read_bytes() + Path(__file__).with_name("cam_example.py").read_bytes()
+                ).hexdigest(),
+            },
+            "runs": runs,
+            "summary": summary,
+        }
+        args.output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+    rss = "unavailable" if summary["peak_rss_mib"] is None else f"{summary['peak_rss_mib']:.1f} MiB"
     print(
-        f"method={args.method} model={args.arch} device={device} input=1x3x{args.size}x{args.size} "
-        f"iterations={args.it} scope={args.scope} weights={args.weights} seed=0 input_batch_size=1 "
-        f"cam_batch_size={cam_batch_size} target_layers={target_layers}"
+        f"{args.method}/{args.arch}: {args.scope}, {runs[0]['device']}, {args.repeat} fresh processes; "
+        f"weights={runs[0]['weights']} target_layers={','.join(runs[0]['target_layers'])} threads={args.threads} seed={args.seed}"
     )
-    print(f"samples_ms=[{', '.join(f'{sample:.3f}' for sample in timings_)}]")
-    print(f"median {median:.2f}ms, IQR {q3 - q1:.2f}ms (q1 {q1:.2f}ms, q3 {q3:.2f}ms)")
-    print(f"mean {timings_.mean():.2f}ms, std {timings_.std():.2f}ms")
+    print(
+        f"First call {summary['first_ms']:.2f} ms; median {summary['median_ms']:.2f} ms; "
+        f"p95 {summary['p95_ms']:.2f} ms; IQR {summary['iqr_ms']:.2f} ms; peak RSS {rss}"
+    )
 
 
 if __name__ == "__main__":

@@ -13,7 +13,6 @@ from functools import partial
 from io import BytesIO
 from urllib.request import Request, urlopen
 
-import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 from torchvision.models import get_model, get_model_weights
@@ -22,7 +21,29 @@ from torchvision.models.vision_transformer import VisionTransformer
 from torchvision.transforms.functional import to_pil_image, to_tensor
 
 from torchcam import methods
-from torchcam.utils import overlay_mask
+
+METHOD_NAMES = tuple(sorted(name for name, value in vars(methods).items() if isinstance(value, type)))
+
+
+def positive_int(value):
+    value = int(value)
+    if value <= 0:
+        raise argparse.ArgumentTypeError("expected a positive integer")
+    return value
+
+
+def nonnegative_int(value):
+    value = int(value)
+    if value < 0:
+        raise argparse.ArgumentTypeError("expected a non-negative integer")
+    return value
+
+
+def _method_list(value):
+    names = value.split(",")
+    if any(name not in METHOD_NAMES for name in names):
+        raise argparse.ArgumentTypeError(f"choose CAM methods from {', '.join(METHOD_NAMES)}")
+    return names
 
 
 def vit_reshape_transform(tensor, grid_size):
@@ -46,6 +67,16 @@ def resolve_transformer_config(model, target_layer):
     return target_layer, reshape_transform
 
 
+def build_extractor(model, method, target_layer=None, input_shape=(3, 224, 224), **kwargs):
+    extractor_cls = getattr(methods, method)
+    if isinstance(target_layer, str) and "," in target_layer:
+        target_layer = target_layer.split(",")
+    if extractor_cls is not methods.LeGrad:
+        target_layer, reshape_transform = resolve_transformer_config(model, target_layer)
+        kwargs.update(input_shape=input_shape, reshape_transform=reshape_transform)
+    return extractor_cls(model, target_layer=target_layer, **kwargs)
+
+
 def _load_image(img_path):
     if img_path.startswith(("http://", "https://")):
         request = Request(  # noqa: S310
@@ -58,6 +89,10 @@ def _load_image(img_path):
 
 
 def main(args):
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
+    from torchcam.utils import overlay_mask  # noqa: PLC0415
+
     if args.device is None:
         args.device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -65,7 +100,7 @@ def main(args):
 
     # Pretrained imagenet model
     weights = get_model_weights(args.arch).DEFAULT
-    model = get_model(args.arch, weights=weights).to(device=device).eval()
+    model = get_model(args.arch, weights=None if args.weights == "none" else weights).to(device=device).eval()
     # Freeze the model
     model.requires_grad_(False)
 
@@ -77,14 +112,10 @@ def main(args):
     img_tensor = preprocess(to_tensor(pil_img)).to(device=device)
     img_tensor.requires_grad_(True)
 
-    target_layer, reshape_transform = resolve_transformer_config(model, args.target)
-
-    if isinstance(args.method, str):
-        cam_methods = args.method.split(",")
-    elif reshape_transform is not None:
-        cam_methods = ["GradCAM"]
-    else:
-        cam_methods = [
+    cam_methods = args.method or (
+        ["GradCAM"]
+        if isinstance(model, (VisionTransformer, SwinTransformer))
+        else [
             "CAM",
             "GradCAM",
             "GradCAMpp",
@@ -95,41 +126,23 @@ def main(args):
             "XGradCAM",
             "LayerCAM",
         ]
-    # Hook the corresponding layer in the model
-    cam_extractors = [
-        methods.__dict__[name](
-            model,
-            target_layer=target_layer,
-            enable_hooks=False,
-            reshape_transform=reshape_transform,
-        )
-        for name in cam_methods
-    ]
+    )
 
     # Homogenize number of elements in each row
-    num_cols = math.ceil((len(cam_extractors) + 1) / args.rows)
+    num_cols = math.ceil((len(cam_methods) + 1) / args.rows)
     _, axes = plt.subplots(args.rows, num_cols, figsize=(6, 4), squeeze=False)
     # Display input
     ax = axes.flat[0]
     ax.imshow(pil_img)
     ax.set_title("Input", size=8)
 
-    for idx, extractor in zip(range(1, len(cam_extractors) + 1), cam_extractors, strict=True):
-        extractor.enable_hooks()
-        model.zero_grad()
-        scores = model(img_tensor.unsqueeze(0))
-
-        # Select the class index
-        class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
-        class_name = weights.meta["categories"][class_idx]
-        print(f"{extractor.__class__.__name__}: class {class_idx} ({class_name})")
-
-        # Use the hooked data to compute activation map
-        activation_map = extractor(class_idx, scores)[0].squeeze(0).cpu()
-
-        # Clean data
-        extractor.disable_hooks()
-        extractor.remove_hooks()
+    for idx, name in enumerate(cam_methods, 1):
+        with build_extractor(model, name, args.target, tuple(img_tensor.shape)) as extractor:
+            scores = model(img_tensor.unsqueeze(0))
+            class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
+            class_name = weights.meta["categories"][class_idx]
+            print(f"{name}: class {class_idx} ({class_name})")
+            activation_map = extractor.fuse_cams(extractor(class_idx, scores))[0].cpu()
         # Convert it to PIL image
         # The indexing below means first image in batch
         heatmap = to_pil_image(activation_map, mode="F")
@@ -139,7 +152,7 @@ def main(args):
         ax = axes.flat[idx]
 
         ax.imshow(result)
-        ax.set_title(f"{extractor.__class__.__name__}: {class_name}", size=8)
+        ax.set_title(f"{name}: {class_name}", size=8)
 
     for ax in axes.flat:
         ax.axis("off")
@@ -151,12 +164,13 @@ def main(args):
         plt.show()
 
 
-if __name__ == "__main__":
+def _build_parser():
     parser = argparse.ArgumentParser(
         description="Saliency Map comparison",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--arch", type=str, default="resnet18", help="Name of the architecture")
+    parser.add_argument("--weights", choices=("default", "none"), default="default", help="Torchvision weights")
     parser.add_argument(
         "--img",
         type=str,
@@ -171,16 +185,18 @@ if __name__ == "__main__":
         help="Default device to perform computation on",
     )
     parser.add_argument("--savefig", type=str, default=None, help="Path to save figure")
-    parser.add_argument("--method", type=str, default=None, help="CAM method to use")
-    parser.add_argument("--target", type=str, default=None, help="the target layer")
+    parser.add_argument("--method", type=_method_list, default=None, help="CAM methods, separated by commas")
+    parser.add_argument("--target", type=str, default=None, help="Target layers, separated by commas")
     parser.add_argument("--alpha", type=float, default=0.5, help="Transparency of the heatmap")
-    parser.add_argument("--rows", type=int, default=1, help="Number of rows for the layout")
+    parser.add_argument("--rows", type=positive_int, default=1, help="Number of rows for the layout")
     parser.add_argument(
         "--noblock",
         dest="noblock",
         help="Disables blocking visualization",
         action="store_true",
     )
-    args = parser.parse_args()
+    return parser
 
-    main(args)
+
+if __name__ == "__main__":
+    main(_build_parser().parse_args())

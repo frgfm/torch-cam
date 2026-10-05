@@ -12,7 +12,6 @@ import math
 import os
 import platform
 from functools import partial
-from inspect import signature
 from pathlib import Path
 
 import torch
@@ -23,25 +22,15 @@ from torchvision.models import get_model, get_model_weights
 from torchvision.transforms import v2 as T
 from torchvision.transforms.functional import InterpolationMode
 
-from torchcam import __version__, methods
+from torchcam import __version__
 from torchcam.metrics import ClassificationMetric, DeletionInsertionMetric
 
-METHOD_NAMES = tuple(sorted(name for name, value in vars(methods).items() if isinstance(value, type)))
+if __package__:
+    from .cam_example import METHOD_NAMES, build_extractor, nonnegative_int, positive_int
+else:
+    from cam_example import METHOD_NAMES, build_extractor, nonnegative_int, positive_int
+
 BENCHMARK_WEIGHTS = {"resnet18": "IMAGENET1K_V1", "mobilenet_v3_large": "IMAGENET1K_V2"}
-
-
-def _positive_int(value):
-    value = int(value)
-    if value <= 0:
-        raise argparse.ArgumentTypeError("expected a positive integer")
-    return value
-
-
-def _nonnegative_int(value):
-    value = int(value)
-    if value < 0:
-        raise argparse.ArgumentTypeError("expected a non-negative integer")
-    return value
 
 
 def _resolve_weights(arch, name):
@@ -115,12 +104,7 @@ def main(args):
     )
 
     # Hook the corresponding layer in the model
-    extractor_cls = methods.__dict__[args.method]
-    # LeGrad requires explicit blocks and does not accept an input shape.
-    extractor_kwargs = (
-        {"input_shape": (3, args.size, args.size)} if "input_shape" in signature(extractor_cls).parameters else {}
-    )
-    with extractor_cls(model, args.target.split(",") if args.target else None, **extractor_kwargs) as cam_extractor:
+    with build_extractor(model, args.method, args.target, (3, args.size, args.size)) as cam_extractor:
         _report_protocol(args, weights, cam_extractor, ds)
         metric = ClassificationMetric(cam_extractor, partial(torch.softmax, dim=-1))
         deletion_insertion_metric = (
@@ -176,20 +160,20 @@ def _build_parser():
         default=None,
         help="Torchvision weights name (ResNet18: IMAGENET1K_V1; MobileNet V3 Large: IMAGENET1K_V2; others: DEFAULT)",
     )
-    parser.add_argument("--seed", type=_nonnegative_int, default=0, help="PyTorch random seed")
+    parser.add_argument("--seed", type=nonnegative_int, default=0, help="PyTorch random seed")
     parser.add_argument("--target", type=str, default=None, help="Target layer name")
-    parser.add_argument("--size", type=_positive_int, default=224, help="The image input size")
-    parser.add_argument("-b", "--batch-size", default=32, type=_positive_int, help="batch size")
+    parser.add_argument("--size", type=positive_int, default=224, help="The image input size")
+    parser.add_argument("-b", "--batch-size", default=32, type=positive_int, help="batch size")
     parser.add_argument(
         "--deletion-insertion",
         action="store_true",
         help="also compute deletion and insertion faithfulness AUCs",
     )
     parser.add_argument(
-        "--di-steps", default=20, type=_positive_int, help="maximum deletion/insertion perturbation intervals"
+        "--di-steps", default=20, type=positive_int, help="maximum deletion/insertion perturbation intervals"
     )
     parser.add_argument(
-        "--di-batch-size", default=32, type=_positive_int, help="deletion/insertion perturbation chunk size"
+        "--di-batch-size", default=32, type=positive_int, help="deletion/insertion perturbation chunk size"
     )
     parser.add_argument(
         "--device",
@@ -201,7 +185,7 @@ def _build_parser():
         "-j",
         "--workers",
         default=min(os.cpu_count() or 1, 16),
-        type=_nonnegative_int,
+        type=nonnegative_int,
         help="number of data loading workers",
     )
     return parser

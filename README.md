@@ -325,8 +325,14 @@ These CPU measurements used 100 iterations on (224, 224) inputs and a laptop wit
 You can run this latency benchmark for any CAM method  on your hardware as follows:
 
 ```bash
-python scripts/eval_latency.py SmoothGradCAMpp
+uv run --extra scripts python scripts/eval_latency.py SmoothGradCAMpp --device cpu --weights none --output latency.json
 ```
+
+Each command runs five fresh processes with one CPU thread. It reports the first call after extractor setup, then runs 10 full CAM warm-up calls before collecting 100 samples. Use `--repeat`, `--threads`, `--warmup`, and `--it` to change these settings. `--weights none` uses an untrained model and avoids downloads; omit it to use pretrained weights.
+
+The default `--scope extractor` excludes the initial model forward pass. `--scope end-to-end` includes the forward pass and CAM extraction; both exclude image loading, preprocessing, device transfers, and extractor setup. The JSON report saves raw samples, median/p95 latency, resolved layers and weights, versions, revision, and script hash. Peak RSS is the highest RAM use of a worker through setup and measurement, including output checks. CUDA allocated and reserved memory are reported separately. RSS is unavailable on Windows.
+
+ViT and Swin spatial methods use the same reshape setup as the example script. LeGrad needs an explicit transformer block (`--target-layer encoder.layers.encoder_layer_11` for `vit_b_16`). RefineCAM needs at least two repeated `--target-layer` arguments. The example script accepts these layers as `--target layer3,layer4`.
 
 *All script arguments can be checked using `python scripts/eval_latency.py --help`*
 
