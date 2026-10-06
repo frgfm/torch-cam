@@ -45,23 +45,39 @@ class PredictionExplanation:
     versions: Mapping[str, str]
     class_names: tuple[str, ...] | None = None
 
-    def save(self, directory: str | Path, image: Image, alpha: float = 0.5) -> Path:
+    def save(
+        self,
+        directory: str | Path,
+        image: Image,
+        alpha: float = 0.5,
+        *,
+        context: Mapping[str, str] | None = None,
+    ) -> Path:
         """Save NumPy maps, heatmaps, overlays, and a completion manifest to a new directory.
 
         Args:
             directory: new output directory
-            image: source image used for full-size overlays
+            image: model-view image after the input's spatial transforms, before normalization
             alpha: source-image opacity in the overlay
+            context: caller-supplied identifiers, such as checkpoint, preprocessing, sample, split, and group
 
         Returns:
             output directory
 
         Raises:
-            TypeError: if the image is not a PIL image
+            TypeError: if the image is not a PIL image or context does not map strings to strings
+            ValueError: if the image dimensions differ from the model input
             FileExistsError: if the output directory already exists
         """
         if not isinstance(image, Image):
             raise TypeError("`image` must be a PIL image")
+        if image.size != (self.input_shape[-1], self.input_shape[-2]):
+            raise ValueError("`image` must match the model input size; pass the resized/cropped model-view image")
+        if context is not None and (
+            not isinstance(context, Mapping)
+            or any(not isinstance(key, str) or not isinstance(value, str) for key, value in context.items())
+        ):
+            raise TypeError("`context` must map strings to strings")
 
         output_dir = Path(directory)
         if output_dir.exists():
@@ -69,6 +85,7 @@ class PredictionExplanation:
         output_dir.mkdir(parents=True)
         with ExitStack() as cleanup:
             cleanup.callback(shutil.rmtree, output_dir)
+            image.save(output_dir / "input.png")
             probabilities = self.logits.softmax(dim=1)[0]
             classes: dict[str, dict[str, Any]] = {}
 
@@ -115,8 +132,11 @@ class PredictionExplanation:
                 "input_shape": list(self.input_shape),
                 "versions": dict(self.versions),
                 "image_size": list(image.size),
+                "input_image": "input.png",
                 "alpha": alpha,
             }
+            if context is not None:
+                manifest["context"] = dict(context)
             (output_dir / "manifest.json").write_text(
                 json.dumps(manifest, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8"
             )

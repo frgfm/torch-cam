@@ -1,7 +1,7 @@
 ---
 name: torchcam-debug-prediction
 description: Debug one surprising 2D image-classification prediction in an existing PyTorch repository with TorchCAM. Use when an owner asks for predicted-versus-expected CAM evidence, a saved explanation bundle, GradCAM on a CNN, or LeGrad on a supported Vision Transformer. Reuse the repository's trusted model loader, checkpoint, class mapping, and preprocessing instead of inventing replacements.
-compatibility: Requires local Python execution, PyTorch, Pillow, and torchcam>=0.5.0.
+compatibility: Requires local Python execution, PyTorch, Pillow, and a post-0.5.0 TorchCAM revision with model-view bundle saving.
 metadata:
   author: frgfm
   version: "1.0"
@@ -18,7 +18,8 @@ Find and reuse the code that already defines:
 - the model architecture and trusted checkpoint loader;
 - evaluation preprocessing, including resize, crop, normalization, and color conversion;
 - the ordered class-name mapping;
-- the original image before normalization.
+- the model-view display image after the same spatial transforms, before normalization;
+- available checkpoint, preprocessing, sample, split, and group identifiers.
 
 Search the repository before writing code. Prefer its test or inference entry point over reconstructing the model. Load only checkpoints already trusted by the owner; TorchCAM does not load checkpoints or preprocessing.
 
@@ -47,10 +48,14 @@ result = explain(
     class_names=class_names,
     target_layer=target_layer,  # omit for automatic CNN resolution
 )
-bundle = result.save("torchcam-explanation", image=original_image, alpha=0.5)
+bundle = result.save("torchcam-explanation", image=model_image, alpha=0.5, context=run_context)
 ```
 
 For a ViT, also pass `method=LeGrad` and the explicit blocks. Use a new output directory; `save` refuses to overwrite an existing one.
+
+`model_image` must show the exact resized/cropped pixels used by `input_tensor`, without normalization. Retain this image from the owner's preprocessing path. For torchvision weight transforms, the debugging guide shows how to undo only their known normalization. Do not resize a cropped CAM onto the untouched original image or infer an unknown inverse transform. Matching dimensions are necessary but do not prove pixel correspondence.
+
+`run_context` maps string identifiers to strings, for example `checkpoint_id`, `preprocessing_id`, and `sample_id`; add `split_id` or `group_id` when available. Reuse the owner's identifiers and immutable checkpoint revision/checksum. Omit `context` when unavailable rather than inventing provenance. The stricter image contract and `context` keyword require the post-0.5.0 implementation; use a tested revision that includes them.
 
 ## 4. Validate the evidence bundle
 
@@ -59,7 +64,7 @@ Treat `manifest.json` as the completion marker. Before reporting success:
 1. Parse it and require `schema_version == 1`.
 2. Read artifacts from `manifest["classes"][str(class_idx)]["artifacts"]`. Resolve every relative `map`, `heatmap`, and `overlay` path under the bundle directory and require each file to exist. Prediction and expected entries contain class references; logits and probabilities live in the corresponding class entry.
 3. Load each `.npy` map with `allow_pickle=False`; require a finite two-dimensional `float32` array.
-4. Open every overlay and require its dimensions to match `manifest.json`'s `image_size`.
+4. Open `manifest["input_image"]` and every overlay; require their dimensions to match both `manifest.json`'s `image_size` and the model input's spatial dimensions. Check that the saved input shares the model's crop. Verify supplied context against the owner's run records.
 5. Confirm the prediction and optional expected class indices match the repository's class ordering.
 
 No manifest means the bundle is incomplete, even if some images exist.

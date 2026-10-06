@@ -223,12 +223,12 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
         class_names=["a", "b", "c"],
         target_layer="features.1",
     )
-    image = Image.fromarray(np.zeros((13, 19, 3), dtype=np.uint8))
+    image = Image.fromarray(np.zeros((8, 8, 3), dtype=np.uint8))
     with pytest.raises(TypeError, match="PIL image"):
         result.save(tmp_path / "bad-image", cast(Any, None))
     bundle = result.save(tmp_path / "bundle", image)
 
-    expected_files = {"manifest.json"}
+    expected_files = {"manifest.json", "input.png"}
     for class_idx in result.cams:
         expected_files.update({
             f"class-{class_idx}-layer-0.npy",
@@ -250,13 +250,51 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
     assert manifest["schema_version"] == 1
     assert manifest["prediction"]["class_idx"] == result.predicted_class_idx
     assert manifest["expected"] == {"class_idx": 0, "class_name": "a"}
-    assert manifest["image_size"] == [19, 13]
+    assert manifest["image_size"] == [8, 8]
+    assert manifest["input_image"] == "input.png"
+    assert "context" not in manifest
     assert manifest["target_layers"] == ["features.1"]
     for class_data in manifest["classes"].values():
         assert all("/" not in path for path in class_data["artifacts"][0].values() if isinstance(path, str))
 
     with pytest.raises(FileExistsError):
         result.save(bundle, image)
+
+
+def test_save_requires_model_view_and_preserves_caller_context(tmp_path):
+    original = Image.fromarray(np.arange(12 * 20 * 3, dtype=np.uint8).reshape(12, 20, 3))
+    model_image = original.crop((4, 2, 16, 10))
+    model = _TinyCNN().eval()
+    input_tensor = torch.from_numpy(np.array(model_image)).permute(2, 0, 1).float().unsqueeze(0) / 255
+    result = explain(model, input_tensor, target_layer="features.1")
+    output_dir = tmp_path / "evidence"
+    context = {
+        "checkpoint_id": "checkpoint-sha256:example",
+        "preprocessing_id": "crop=(4,2,16,10); scale=1/255",
+        "sample_id": "sample-7",
+        "split_id": "validation-v1",
+        "group_id": "camera-b",
+    }
+
+    with pytest.raises(ValueError, match="model-view"):
+        result.save(output_dir, original, context=context)
+    assert not output_dir.exists()
+
+    for invalid in ([], {"sample_id": 7}, {7: "sample"}):
+        with pytest.raises(TypeError, match="strings to strings"):
+            result.save(output_dir, model_image, context=cast(Any, invalid))
+        assert not output_dir.exists()
+
+    bundle = result.save(output_dir, model_image, context=context)
+    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["image_size"] == [12, 8]
+    assert manifest["context"] == context
+    assert manifest["input_shape"][-2:] == [8, 12]
+    with Image.open(bundle / manifest["input_image"]) as stored_input:
+        assert np.array_equal(stored_input, model_image)
+    for class_idx, maps in result.cams.items():
+        with Image.open(bundle / f"class-{class_idx}-layer-0-overlay.png") as overlay:
+            assert np.array_equal(overlay, overlay_mask(model_image, Image.fromarray(maps[0].numpy()), alpha=0.5))
 
 
 def test_save_writes_manifest_only_after_artifacts(tmp_path, monkeypatch):

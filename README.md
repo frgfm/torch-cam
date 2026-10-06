@@ -74,6 +74,7 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 from urllib.request import urlretrieve
 from PIL import Image
 from torchvision.models import ResNet18_Weights, resnet18
+from torchvision.transforms.functional import to_pil_image
 from torchcam.explain import explain
 
 urlretrieve("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
@@ -81,8 +82,14 @@ image = Image.open("dog.jpg").convert("RGB")
 weights = ResNet18_Weights.DEFAULT
 model = resnet18(weights=weights).eval()
 
-result = explain(model, weights.transforms()(image).unsqueeze(0), class_names=weights.meta["categories"])
-result.save("torchcam-explanation", image)  # CAMs, heatmaps, overlays and manifest.json
+preprocess = weights.transforms()
+input_tensor = preprocess(image).unsqueeze(0)
+model_image = to_pil_image(
+    input_tensor[0] * input_tensor.new_tensor(preprocess.std)[:, None, None]
+    + input_tensor.new_tensor(preprocess.mean)[:, None, None]
+)
+result = explain(model, input_tensor, class_names=weights.meta["categories"])
+result.save("torchcam-explanation", model_image)  # CAMs, heatmaps, overlays and manifest.json
 ```
 
 Pass `expected_class_idx` to compare the prediction with the class you expected. See [Debug one prediction](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/) for the full contract.
