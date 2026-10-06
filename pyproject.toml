@@ -52,7 +52,7 @@ test = [
 ]
 quality = [
     "lint-my-headers==0.6.0",
-    "ruff==0.16.9",
+    "ruff==0.16.10",
     "ty==0.0.84",
     "prek==0.5.4",
 ]
