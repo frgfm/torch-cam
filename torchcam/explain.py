@@ -85,7 +85,8 @@ class PredictionExplanation:
         output_dir.mkdir(parents=True)
         with ExitStack() as cleanup:
             cleanup.callback(shutil.rmtree, output_dir)
-            image.save(output_dir / "input.png")
+            input_image = "input.png" if image.mode in {"L", "RGB"} else "input.tiff"
+            image.save(output_dir / input_image)
             probabilities = self.logits.softmax(dim=1)[0]
             classes: dict[str, dict[str, Any]] = {}
 
@@ -132,7 +133,7 @@ class PredictionExplanation:
                 "input_shape": list(self.input_shape),
                 "versions": dict(self.versions),
                 "image_size": list(image.size),
-                "input_image": "input.png",
+                "input_image": input_image,
                 "alpha": alpha,
             }
             if context is not None:

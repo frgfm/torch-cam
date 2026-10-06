@@ -6,7 +6,7 @@ TorchCAM deliberately does not load models, checkpoints, labels, or preprocessin
 
 Run the [prediction debugging notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb)) to compare classes, visualize overlays, and inspect a saved evidence bundle.
 
-The model-view size check, saved `input.png`, and optional `context` below require a development revision after 0.5.0. Install the [latest source](installation.md) or use a tested pinned revision containing these changes. The existing prediction notebook pins its own implementation.
+The model-view size check, saved input image, and optional `context` below require a development revision after 0.5.0. Install the [latest source](installation.md) or use a tested pinned revision containing these changes. The existing prediction notebook pins its own implementation.
 
 ## CNN example
 
@@ -15,7 +15,7 @@ This complete example uses automatic CNN target-layer resolution and writes pred
 ```python
 from PIL import Image
 from torchvision.models import ResNet18_Weights, resnet18
-from torchvision.transforms.functional import to_pil_image
+from torchvision.transforms.functional import center_crop, resize
 
 from torchcam.explain import explain
 
@@ -25,10 +25,10 @@ model = resnet18(weights=weights).eval()
 class_names = weights.meta["categories"]
 preprocess = weights.transforms()
 input_tensor = preprocess(image).unsqueeze(0)
-# Undo normalization for display; keep the exact resize and crop seen by the model.
-model_image = to_pil_image(
-    input_tensor[0] * input_tensor.new_tensor(preprocess.std)[:, None, None]
-    + input_tensor.new_tensor(preprocess.mean)[:, None, None]
+# Keep the exact spatial transforms without normalizing or quantizing the display image.
+model_image = center_crop(
+    resize(image, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+    preprocess.crop_size,
 )
 
 result = explain(
@@ -58,7 +58,7 @@ ViTs require an explicit method and target blocks. Torchvision `VisionTransforme
 ```python
 from PIL import Image
 from torchvision.models import ViT_B_16_Weights, vit_b_16
-from torchvision.transforms.functional import to_pil_image
+from torchvision.transforms.functional import center_crop, resize
 
 from torchcam.explain import explain
 from torchcam.methods import LeGrad
@@ -68,9 +68,9 @@ weights = ViT_B_16_Weights.DEFAULT
 model = vit_b_16(weights=weights).eval()
 preprocess = weights.transforms()
 input_tensor = preprocess(image).unsqueeze(0)
-model_image = to_pil_image(
-    input_tensor[0] * input_tensor.new_tensor(preprocess.std)[:, None, None]
-    + input_tensor.new_tensor(preprocess.mean)[:, None, None]
+model_image = center_crop(
+    resize(image, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+    preprocess.crop_size,
 )
 
 result = explain(
@@ -107,9 +107,9 @@ A distinct expected class gets a fresh model forward. If expected and predicted 
 
 `result.save(directory, image, alpha=0.5, context=None)` creates a new directory and never overwrites one. Pass the **model-view image** after the same spatial transforms used for inference, before normalization. Its width and height must match `input_tensor`. Resizing a cropped CAM onto the untouched original image can place cues in the wrong region. TorchCAM checks dimensions; the caller must ensure pixel correspondence even when two images have the same size.
 
-For custom preprocessing, retain a display copy after resize/crop and before normalization. Do not guess an inverse transform. The examples above undo only the normalization specified by the torchvision weights, leaving their spatial transforms intact.
+For custom preprocessing, retain a display copy after resize/crop and before normalization. Do not guess an inverse transform. The examples above apply the same native spatial transforms specified by the torchvision weights. They avoid floating-point normalization round trips when retaining the display pixels.
 
-It saves the model-view image as `input.png`, then writes the following files for each class and returned map:
+It saves the model-view image as `input.png` for 8-bit RGB/grayscale images and as `input.tiff` for other supported modes, preserving floating-point and signed integer pixels. Read the filename from `input_image` in the manifest. It then writes the following files for each class and returned map:
 
 - `class-<class_idx>-layer-<layer_idx>.npy`: the finite `float32` CAM;
 - `class-<class_idx>-layer-<layer_idx>-heatmap.png`: an 8-bit grayscale heatmap;

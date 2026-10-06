@@ -313,3 +313,20 @@ def test_save_writes_manifest_only_after_artifacts(tmp_path, monkeypatch):
 
     assert not output_dir.exists()
     assert result.save(output_dir, image) == output_dir
+
+
+@pytest.mark.parametrize("mode", ["F", "I"])
+def test_save_preserves_float_and_signed_integer_grayscale(tmp_path, mode):
+    values = np.arange(96).reshape(8, 12)
+    values = (values / 100 - 0.25).astype(np.float32) if mode == "F" else (values * 4096 - 10000).astype(np.int32)
+    image = Image.fromarray(values)
+    model = nn.Sequential(nn.Conv2d(1, 2, 1), nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(2, 2)).eval()
+    input_tensor = torch.from_numpy(values.astype(np.float32)).unsqueeze(0).unsqueeze(0)
+    result = explain(model, input_tensor, target_layer="0")
+
+    bundle = result.save(tmp_path / mode, image)
+    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["input_image"] == "input.tiff"
+    with Image.open(bundle / manifest["input_image"]) as stored_input:
+        assert stored_input.mode == mode
+        np.testing.assert_array_equal(stored_input, values)

@@ -53,7 +53,7 @@ bundle = result.save("torchcam-explanation", image=model_image, alpha=0.5, conte
 
 For a ViT, also pass `method=LeGrad` and the explicit blocks. Use a new output directory; `save` refuses to overwrite an existing one.
 
-`model_image` must show the exact resized/cropped pixels used by `input_tensor`, without normalization. Retain this image from the owner's preprocessing path. For torchvision weight transforms, the debugging guide shows how to undo only their known normalization. Do not resize a cropped CAM onto the untouched original image or infer an unknown inverse transform. Matching dimensions are necessary but do not prove pixel correspondence.
+`model_image` must show the exact resized/cropped pixels used by `input_tensor`, without normalization. Retain this image from the owner's preprocessing path. For torchvision weight transforms, the debugging guide retains the display image using the same native spatial transforms. Do not resize a cropped CAM onto the untouched original image or infer an unknown inverse transform. Matching dimensions are necessary but do not prove pixel correspondence.
 
 `run_context` maps string identifiers to strings, for example `checkpoint_id`, `preprocessing_id`, and `sample_id`; add `split_id` or `group_id` when available. Reuse the owner's identifiers and immutable checkpoint revision/checksum. Omit `context` when unavailable rather than inventing provenance. The stricter image contract and `context` keyword require the post-0.5.0 implementation; use a tested revision that includes them.
 
@@ -64,7 +64,7 @@ Treat `manifest.json` as the completion marker. Before reporting success:
 1. Parse it and require `schema_version == 1`.
 2. Read artifacts from `manifest["classes"][str(class_idx)]["artifacts"]`. Resolve every relative `map`, `heatmap`, and `overlay` path under the bundle directory and require each file to exist. Prediction and expected entries contain class references; logits and probabilities live in the corresponding class entry.
 3. Load each `.npy` map with `allow_pickle=False`; require a finite two-dimensional `float32` array.
-4. Open `manifest["input_image"]` and every overlay; require their dimensions to match both `manifest.json`'s `image_size` and the model input's spatial dimensions. Check that the saved input shares the model's crop. Verify supplied context against the owner's run records.
+4. For a new bundle, open the file referenced by `manifest["input_image"]` and every overlay. Their PIL size must equal `tuple(manifest["image_size"]) == (manifest["input_shape"][-1], manifest["input_shape"][-2])`, in **width, height** order. Check that the saved input shares the model's crop. Verify supplied context against the owner's run records. When inspecting an older schema-v1 bundle without `input_image`, report that its overlay alignment cannot be verified; schema version 1 alone does not establish a model-view frame.
 5. Confirm the prediction and optional expected class indices match the repository's class ordering.
 
 No manifest means the bundle is incomplete, even if some images exist.
