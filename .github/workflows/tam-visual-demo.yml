@@ -1,0 +1,40 @@
+name: TAM pretrained visual demo
+
+on:
+  push:
+    branches: [tmp/tam-visual-demo-20261007]
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OMP_NUM_THREADS: '4'
+      MKL_NUM_THREADS: '4'
+      HF_HUB_DISABLE_XET: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Install CPU inference dependencies
+        run: uv pip install --system --torch-backend cpu -e . 'torch==2.14.1' 'transformers==5.19.0'
+      - name: Download the input photograph
+        run: |
+          mkdir -p tam-demo-results
+          python -c "from urllib.request import urlretrieve; urlretrieve('https://raw.githubusercontent.com/huggingface/transformers/main/tests/fixtures/tests_samples/COCO/000000039769.png', 'tam-demo-results/input.png')"
+          cp .github/tam_visual_demo.py tam-demo-results/run_demo.py
+      - name: Generate a caption and its token activation map
+        run: python -u .github/tam_visual_demo.py --image tam-demo-results/input.png --output-dir tam-demo-results
+      - name: Save prediction, images, and reproducible explanation data
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tam-pretrained-visual-demo
+          path: tam-demo-results/
+          retention-days: 7
+          if-no-files-found: warn
