@@ -22,7 +22,7 @@ jobs:
           python-version: '3.11'
       - uses: astral-sh/setup-uv@v10.2.0
       - name: Install CPU inference dependencies
-        run: uv pip install --system --torch-backend cpu -e . 'torch==2.14.1' 'transformers==5.19.0'
+        run: uv pip install --system --torch-backend cpu -e . 'torch==2.14.1' 'transformers==5.19.0' torchvision
       - name: Download the input photograph
         run: |
           mkdir -p tam-demo-results
