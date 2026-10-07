@@ -3,6 +3,8 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
+from contextlib import nullcontext
+
 import torch
 from torch import Tensor, nn
 
@@ -71,10 +73,17 @@ class TAM:
         target_ids = torch.tensor(ids, device=visual_features.device, dtype=torch.long)
         # Accumulate in float32 for half-precision models, without converting the full vocabulary head.
         dtype = torch.float64 if visual_features.dtype == torch.float64 else torch.float32
-        with torch.autocast(device_type=visual_features.device.type, enabled=False):
+        device_type = visual_features.device.type
+        autocast = (
+            torch.autocast(device_type=device_type, enabled=False)
+            if torch.amp.is_autocast_available(device_type)
+            else nullcontext()
+        )
+        with autocast:
             visual = visual_features.flatten(1, 2).to(dtype)
             weights = self.token_classifier.weight[target_ids].to(dtype)
             maps = (visual * weights.unsqueeze(1)).sum(-1).relu()
+            tolerance = maps.amax(-1, keepdim=True) * (16 * torch.finfo(dtype).eps)
             relevance = (context_features.to(dtype) * weights.unsqueeze(1)).sum(-1).relu()
             relevance.masked_fill_(context_ids == target_ids.unsqueeze(1), 0)
             relevance /= relevance.sum(-1, keepdim=True) + 1e-8
@@ -83,7 +92,10 @@ class TAM:
             interference = context_maps.bmm(relevance.unsqueeze(-1)).squeeze(-1)
             denominator = interference.square().sum(-1, keepdim=True)
             scale = (maps * interference).sum(-1, keepdim=True) / denominator.masked_fill(denominator == 0, 1)
-            maps = (maps - scale * interference).relu().reshape(visual_features.shape[:3])
+            maps = (maps - scale * interference).relu()
+            # Avoid amplifying round-off from complete cancellation into a strong heatmap.
+            maps.masked_fill_(maps.amax(-1, keepdim=True) <= tolerance, 0)
+            maps = maps.reshape(visual_features.shape[:3])
             maps = self._filter(maps)
             if normalized:
                 maps = _CAM._normalize(maps)  # noqa: SLF001
@@ -124,7 +136,8 @@ class TAM:
             indices.append(length - 1 - (reflected - (length - 1)).abs())
         padded = maps[:, indices[0]][:, :, indices[1]]
         windows = padded.unfold(1, self.kernel_size, 1).unfold(2, self.kernel_size, 1).flatten(-2).sort(-1).values
-        variation = windows.std(-1, correction=0) / windows.mean(-1).clamp_min(1e-8)
+        mean = windows.mean(-1)
+        variation = windows.std(-1, correction=0) / mean.masked_fill(mean == 0, 1)
         ranks = torch.arange(self.kernel_size**2, device=maps.device) - self.kernel_size**2 // 2
         weights = torch.exp(-ranks.square() / (2 * variation.square().unsqueeze(-1)).clamp_min(1e-8))
         return (windows * weights).sum(-1) / weights.sum(-1)

@@ -60,6 +60,51 @@ def test_tam_low_precision_and_autocast(dtype):
     torch.testing.assert_close(maps, expected.to(dtype), atol=0, rtol=0)
 
 
+def test_tam_without_autocast_backend(monkeypatch):
+    head, visual, context, ids = _inputs()
+    expected = TAM(head)(2, visual, context, ids)
+    monkeypatch.setattr(torch.amp, "is_autocast_available", lambda _device: False)
+    monkeypatch.setattr(torch, "autocast", lambda **_kwargs: pytest.fail("This backend has no autocast"))
+    torch.testing.assert_close(TAM(head)(2, visual, context, ids), expected)
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize("normalized", [False, True])
+@pytest.mark.parametrize("kernel_size", [1, 3])
+def test_tam_complete_cancellation(dtype, normalized, kernel_size):
+    head = nn.Linear(1, 2, bias=False, dtype=dtype)
+    with torch.no_grad():
+        head.weight.copy_(torch.tensor([[0.1], [0.3]], dtype=dtype))
+    visual = torch.arange(10, 70, 10, dtype=dtype).reshape(1, 2, 3, 1)
+    maps = TAM(head, kernel_size)(0, visual, torch.ones(1, 1, 1, dtype=dtype), torch.tensor([[1]]), normalized)
+    assert maps.count_nonzero() == 0
+
+
+@pytest.mark.parametrize("scale", [1e-12, 1.0, 1e6])
+@pytest.mark.parametrize(("dtype", "delta"), [(torch.float32, 1e-4), (torch.float64, 1e-10)])
+def test_tam_preserves_weak_residual(scale, dtype, delta):
+    head = nn.Linear(2, 2, bias=False, dtype=dtype)
+    with torch.no_grad():
+        head.weight.copy_(torch.tensor([[1, 0], [1, delta]], dtype=dtype))
+    visual = torch.tensor([[[[1, 0], [1, 0]], [[1, 0], [1, 1]]]], dtype=dtype) * scale
+    context = torch.tensor([[[1.0, 0]]], dtype=dtype)
+    maps = TAM(head, kernel_size=1)(1, visual, context, torch.tensor([[0]]), normalized=False)
+    expected = torch.tensor([[[0, 0], [0, 0.75 * delta]]], dtype=dtype)
+    torch.testing.assert_close(maps / scale, expected, rtol=1e-3, atol=delta * 1e-3)
+
+
+def test_tam_smoothing_preserves_tiny_maps():
+    head = nn.Linear(1, 1, bias=False, dtype=torch.float64)
+    with torch.no_grad():
+        head.weight.fill_(1)
+    visual = torch.tensor([[[[0], [1], [0]], [[3], [0], [1]]]], dtype=torch.float64)
+    context, ids = torch.empty(1, 0, 1, dtype=torch.float64), torch.empty(1, 0, dtype=torch.long)
+    extractor = TAM(head)
+    expected = extractor(0, visual, context, ids, normalized=False)
+    actual = extractor(0, visual * 1e-10, context, ids, normalized=False)
+    torch.testing.assert_close(actual / 1e-10, expected)
+
+
 @pytest.mark.parametrize("shape", [(1, 1), (1, 4), (2, 3)])
 @pytest.mark.parametrize("value", [0.0, 2.0])
 def test_tam_constant_maps_and_empty_context(shape, value):
