@@ -60,7 +60,7 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 
 ## Why TorchCAM
 
-- **12 CAM methods, one API**: from CAM and Grad-CAM to Finer-CAM, LeGrad and RefineCAM.
+- **12 CAM methods plus VLM token maps**: from CAM and Grad-CAM to LeGrad, RefineCAM and [TAM](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms).
 - **CNNs and Vision Transformers**: automatic target-layer resolution for CNNs, LeGrad and reshape transforms for ViTs.
 - **Lean**: fully typed, with only 4 runtime dependencies (PyTorch, NumPy, Pillow, Matplotlib).
 - **Measurable**: built-in faithfulness metrics (average drop, increase in confidence, deletion/insertion).

@@ -19,6 +19,7 @@ what your model accepts and returns:
 | timm or Hugging Face CNN | Native (timm) or logits wrapper (Hugging Face) | See [timm and Hugging Face models](#timm-and-hugging-face-models). |
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
 | Detection, segmentation, embedding, or other output | Native with `targets` | Define a scalar target; gradient methods require it to remain differentiable. |
+| Multimodal language model | State adapter with `TAM` | Final language-model image/text states, context token IDs, and a linear vocabulary head. |
 
 ## Use your own model
 
@@ -400,6 +401,51 @@ extra spatial dimension). Note that `overlay_mask` works on 2D PIL images, so ov
 
 See the latency and faithfulness benchmarks in the [README](https://github.com/frgfm/torch-cam#performance-benchmarks)
 for concrete numbers, and the [methods reference](../reference/methods.md) for the full API.
+
+## Token activation maps for VLMs
+
+[`TAM`](../reference/methods.md#torchcam.methods.TAM) explains which image regions activate a selected vocabulary token.
+It uses final **language-model** states, rather than the vision encoder's features, and requires no gradients,
+hooks, or extra model inference. Earlier text's estimated interference is removed before rank Gaussian smoothing.
+
+The example below explains the first greedy answer token for a prepared Hugging Face Qwen2.5-VL model, processor,
+and `inputs`. It assumes **one image and batch size one**. Transformers is only needed by the caller.
+
+```python
+import torch
+from torchcam.methods import TAM
+
+with torch.inference_mode():
+    output = model(**inputs, output_hidden_states=True, logits_to_keep=1, use_cache=False)
+states = output.hidden_states[-1]  # (1, sequence, language_model_width), after the final norm
+input_ids = inputs["input_ids"][0]
+image_mask = input_ids == model.config.image_token_id
+special_ids = torch.tensor(processor.tokenizer.all_special_ids, device=input_ids.device)
+text_mask = ~torch.isin(input_ids, special_ids) & inputs["attention_mask"][0].bool()
+text_mask &= ~image_mask
+merge = model.config.vision_config.spatial_merge_size
+height, width = (int(dim) // merge for dim in inputs["image_grid_thw"][0, 1:])
+
+extractor = TAM(model.get_output_embeddings())
+maps = extractor(
+    token_id=output.logits[:, -1].argmax(-1).tolist(),
+    visual_features=states[:, image_mask].reshape(1, height, width, states.shape[-1]),
+    context_features=states[:, text_mask],
+    context_ids=inputs["input_ids"][:, text_mask],
+)  # Tensor (1, height, width); use maps[0] with overlay_mask
+```
+
+For later answer tokens, retain the initial visual states and extend the text context with earlier generated IDs
+and the final states that predicted them. Explain the current token before adding it to that context.
+Other architectures need their own image-token selection and spatial ordering; this example does not establish
+automatic support for every VLM, multi-image layout, video, or quantized output head.
+
+TAM returns only visual maps, normalized independently per image; `normalized=False` retains their raw scale.
+Repeated context IDs matching the target are excluded, an empty context is supported, and `kernel_size=1` disables
+smoothing. Half-precision states are accumulated in float32. This implementation selects only the relevant output
+weights instead of materializing image-token logits for the entire vocabulary. It implements the visual algorithm
+from the [paper](https://arxiv.org/abs/2506.23270), without the reference application's text rendering or joint
+image/text normalization. Its maps are estimates of visual relevance, not proof of a causal explanation.
 
 ## Using CAM during or after training
 
