@@ -2,6 +2,10 @@
 
 Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-cam/releases).
 
+## Unreleased
+
+`PredictionExplanation.save()` now requires a display image matching the model input's spatial dimensions. Pass the actual resize/crop view instead of the untouched original image. Bundles save that view losslessly and add `input_image` plus optional caller-supplied `context` identifiers to schema version 1.
+
 ## v0.5.0 (2026-10-03)
 
 Release note: [v0.5.0](https://github.com/frgfm/torch-cam/releases/tag/v0.5.0)

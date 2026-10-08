@@ -74,6 +74,7 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 from urllib.request import urlretrieve
 from PIL import Image
 from torchvision.models import ResNet18_Weights, resnet18
+from torchvision.transforms.functional import center_crop, resize
 from torchcam.explain import explain
 
 urlretrieve("https://github.com/pytorch/hub/raw/master/images/dog.jpg", "dog.jpg")
@@ -81,8 +82,14 @@ image = Image.open("dog.jpg").convert("RGB")
 weights = ResNet18_Weights.DEFAULT
 model = resnet18(weights=weights).eval()
 
-result = explain(model, weights.transforms()(image).unsqueeze(0), class_names=weights.meta["categories"])
-result.save("torchcam-explanation", image)  # CAMs, heatmaps, overlays and manifest.json
+preprocess = weights.transforms()
+input_tensor = preprocess(image).unsqueeze(0)
+model_image = center_crop(
+    resize(image, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+    preprocess.crop_size,
+)
+result = explain(model, input_tensor, class_names=weights.meta["categories"])
+result.save("torchcam-explanation", model_image)  # CAMs, heatmaps, overlays and manifest.json
 ```
 
 Pass `expected_class_idx` to compare the prediction with the class you expected. See [Debug one prediction](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/) for the full contract.
@@ -157,10 +164,15 @@ Or if you wish to overlay it on your input image:
 ```python hl_lines="3 6"
 import matplotlib.pyplot as plt
 from torchvision.transforms.v2.functional import to_pil_image
+from torchvision.transforms.functional import center_crop, resize
 from torchcam.utils import overlay_mask
 
-# Resize the CAM and overlay it
-result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
+# Use the same spatial transforms as inference, before normalization.
+model_image = center_crop(
+    resize(img, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+    preprocess.crop_size,
+)
+result = overlay_mask(to_pil_image(model_image), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
 <!-- --8<-- [end:quickstart-overlay] -->
