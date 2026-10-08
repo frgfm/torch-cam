@@ -45,3 +45,14 @@ Methods related to gradient-based class activation maps.
             - LayerCAM
             - LeGrad
             - RefineCAM
+
+## Token activation maps
+
+Visual explanations for selected vocabulary tokens in multimodal language models. TAM consumes final language-model
+states and a linear vocabulary head directly; it does not use the class CAM hook API.
+
+::: torchcam.methods.TAM
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__]
