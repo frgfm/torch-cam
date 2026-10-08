@@ -56,24 +56,25 @@ def qwen_inputs():
 def test_qwen_token_alignment_intermediate_logits_and_hook_cleanup(qwen_inputs, monkeypatch):
     model, inputs = qwen_inputs
     answer = torch.tensor([[4, 5, 4]])
-    prefixes, outputs = [], []
+    prefixes = []
+    current = None
 
     def capture(_module, _args, kwargs, output):
+        nonlocal current
         prefixes.append(kwargs["input_ids"].clone())
-        outputs.append(output)
+        assert output.logits.shape == (1, 1, 32)  # Replay projects only the predicting state.
+        current = output
 
-    class CheckedDEXAR(DEXAR):
-        def __call__(self, scores, attentions, visual_mask, **kwargs):
-            step = len(prefixes) - 1
-            output = outputs[-1]
-            token = int(answer[0, step])
-            head = model.get_output_embeddings()
-            expected = head(model.model.norm(output.hidden_states[1][:, -1]))[:, token]
-            torch.testing.assert_close(scores[0], expected)
-            torch.testing.assert_close(scores[-1], output.logits[:, -1, token])
-            return super().__call__(scores, attentions, visual_mask, **kwargs)
+    original_call = DEXAR.__call__
 
-    monkeypatch.setattr(dexar_example, "DEXAR", CheckedDEXAR)
+    def check_logits(self, scores, attentions, visual_mask, **kwargs):
+        token = int(answer[0, len(prefixes) - 1])
+        expected = model.lm_head(model.model.norm(current.hidden_states[1][:, -1]))[:, token]
+        torch.testing.assert_close(scores[0], expected)
+        torch.testing.assert_close(scores[-1], current.logits[:, -1, token])
+        return original_call(self, scores, attentions, visual_mask, **kwargs)
+
+    monkeypatch.setattr(DEXAR, "__call__", check_logits)
     handle = model.register_forward_hook(capture, with_kwargs=True)
     try:
         maps, weights, sequence, tam_maps, timings = dexar_example.explain_qwen(model, inputs, answer, [28, 29, 30, 31])
@@ -89,6 +90,7 @@ def test_qwen_token_alignment_intermediate_logits_and_hook_cleanup(qwen_inputs, 
     assert all(value >= 0 for value in timings.values())
     assert inputs["input_ids"].shape[1] == 10
     assert not model.get_input_embeddings()._forward_hooks
+    assert not model.lm_head._forward_pre_hooks
     assert all(parameter.grad is None for parameter in model.parameters())
     assert all(not parameter.requires_grad for parameter in model.parameters())
 
@@ -103,6 +105,7 @@ def test_qwen_hook_cleanup_on_failed_forward(qwen_inputs, monkeypatch):
     with pytest.raises(RuntimeError, match="failed forward"):
         dexar_example.explain_qwen(model, inputs, torch.tensor([[4]]), [])
     assert not model.get_input_embeddings()._forward_hooks
+    assert not model.lm_head._forward_pre_hooks
 
 
 def test_qwen_rejects_multiple_frames(qwen_inputs):

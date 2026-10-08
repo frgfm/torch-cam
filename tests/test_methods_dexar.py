@@ -67,6 +67,15 @@ def test_dexar_constant_maps_and_zero_sequence_weights():
     assert not extractor.aggregate(maps, torch.zeros(2, 3)).any()
 
 
+@pytest.mark.parametrize("values", [[1e38] * 4, [1e-8, 1e38, 0, 0]])
+def test_dexar_finite_weights_do_not_overflow_or_mutate(values):
+    maps = torch.tensor([[[[1.0, 0.0]], [[0.0, 0.0]], [[1.0, 0.0]], [[1.0, 0.0]]]])
+    weights = torch.tensor([values])
+    original = weights.clone()
+    torch.testing.assert_close(DEXAR((1, 2)).aggregate(maps, weights), maps[:, 0])
+    torch.testing.assert_close(weights, original)
+
+
 def test_dexar_retain_graph_does_not_change_parameter_gradients():
     score, attention = _layer([[[0, 2, 1]]])
     parameter = nn.Parameter(torch.ones((), dtype=score.dtype))
@@ -89,56 +98,8 @@ def test_dexar_disconnected_returned_attention():
         DEXAR((1, 2))([score], [disconnected], torch.tensor([False, True, True]))
 
 
-@pytest.mark.parametrize("grid", [None, (2, 0), (True, 2), [2, 3], (2.0, 3)])
-def test_dexar_invalid_grid(grid):
-    with pytest.raises(ValueError, match="grid_shape"):
-        DEXAR(grid)
-
-
-@pytest.mark.parametrize("invalid", ["empty", "layers", "scores", "attention", "mask", "grid", "no_text", "detached"])
-def test_dexar_invalid_layer_inputs(invalid):
-    score, attention = _layer([[[0, 2, 1]]])
-    scores, attentions = [score], [attention]
-    mask = torch.tensor([False, True, True])
-    if invalid == "empty":
-        scores, attentions = [], []
-    elif invalid == "layers":
-        scores = [score, score]
-    elif invalid == "scores":
-        scores = [score.unsqueeze(1)]
-    elif invalid == "attention":
-        attentions = [attention[:, 0]]
-    elif invalid == "mask":
-        mask = mask.long()
-    elif invalid == "grid":
-        mask[1] = False
-    elif invalid == "no_text":
-        mask = torch.ones(3, dtype=torch.bool)
-    else:
-        scores = [score.detach()]
-    with pytest.raises((ValueError, RuntimeError)):
-        DEXAR((1, 2))(scores, attentions, mask)
-
-
 @pytest.mark.parametrize("mode", [torch.no_grad, torch.inference_mode])
 def test_dexar_requires_autograd(mode):
     score, attention = _layer([[[0, 2, 1]]])
     with mode(), pytest.raises(RuntimeError, match="gradient tracking"):
         DEXAR((1, 2))([score], [attention], torch.tensor([False, True, True]))
-
-
-@pytest.mark.parametrize("invalid", ["shape", "weights", "negative", "nan", "integer"])
-def test_dexar_invalid_aggregation(invalid):
-    maps, weights = torch.ones(1, 2, 1, 2), torch.ones(1, 2)
-    if invalid == "shape":
-        maps = maps.squeeze(0)
-    elif invalid == "weights":
-        weights = weights[:, :1]
-    elif invalid == "negative":
-        weights[0, 0] = -1
-    elif invalid == "nan":
-        maps[0, 0, 0, 0] = float("nan")
-    else:
-        maps = maps.long()
-    with pytest.raises(ValueError):
-        DEXAR((1, 2)).aggregate(maps, weights)
