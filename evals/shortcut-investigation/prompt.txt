@@ -1,0 +1,38 @@
+Investigate this owner's surprising classifier predictions with TorchCAM. Read the local
+.agents/skills/torchcam-debug-prediction/SKILL.md and its applicable references, trusted.py,
+diagnostics.py, and evidence.json. The pinned notebook and experiment.json are the owner's
+training pipeline and measured artifacts. Reuse them; do not duplicate training code.
+
+Determine whether the evidence supports a preprocessing mismatch, cue dependence, or no
+supported shortcut. Inspect failures alongside successful controls. Distinguish sensitivity
+from the matched location gate and from repair verification. Choose any justified bounded
+experiment and report its independent outcome, comparator ties, regressions, and limits.
+
+The owner authorizes local diagnosis, edits to diagnostics.py, and analysis of the existing
+synthetic experiment artifacts. Local follow-up training may be proposed, not run in this
+evaluation's budget. Only diagnostics.py and new investigation artifacts may be edited; all
+other supplied owner files and evidence are immutable.
+Do not change data, collect data, deploy weights, or access sibling workspaces or graders.
+Only this workspace is evidence. Do not infer hidden answers from case or directory names.
+
+Use at most four shell/tool invocations and 180 seconds. Do not call another agent. Both
+conditions receive identical artifacts, tools, and budget; only the skill differs. If fixing
+a diagnostic mismatch, make the local fix before submitting. An independent scorer will
+evaluate the frozen diagnostic helper on fresh data after submission.
+
+Write response.json with these fields (use JSON, no Markdown):
+diagnosis: preprocessing_mismatch | cue_dependence | no_supported_shortcut | unresolved
+location_finding: supported | unresolved | not_tested
+recommend_training: none | unchanged | ordinary | guided
+recommendation_basis: supported | exploratory | none
+inference_preserved: boolean
+repair_outcome: diagnostic_fixed | no_advantage | not_attempted | verified | failed | unresolved
+evaluation_artifact: string (empty if unavailable)
+guided_minus_unchanged: number or null
+worst_group_regression: boolean or null
+evidence: list of concrete observations, numeric results, and file paths
+limitations: list of unresolved findings and scope limits
+tool_calls_used: integer
+
+Return the same JSON as your final response. Do not call an intervention a verified repair
+unless independent evidence and comparators support that statement.

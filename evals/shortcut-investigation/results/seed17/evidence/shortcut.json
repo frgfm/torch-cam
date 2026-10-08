@@ -1,0 +1,799 @@
+{
+  "provenance": {
+    "notebook_revision": "cb719ae40cd137e93cb9a16bdb59f1c03e4ee587",
+    "notebook_sha256": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "experiment_sha256": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc",
+    "runtime": {
+      "python": "3.11.16",
+      "torchcam_revision": "5a0bc4d439ad642a37ed301d94601048e8d32de8",
+      "torchcam": "0.6.0.dev0",
+      "cpu_threads": 2,
+      "torch": "2.14.1+cpu",
+      "numpy": "2.4.6",
+      "matplotlib": "3.11.2",
+      "Pillow": "12.3.0",
+      "nbformat": "5.10.4",
+      "nbclient": "0.10.2",
+      "ipykernel": "6.30.1"
+    },
+    "case_seed": 17
+  },
+  "owner_contract": "central 16x16 defines label; border editable; RGB float32 [0,1]; model centers",
+  "trusted_inference": {
+    "accuracy": 0.5,
+    "n": 256
+  },
+  "diagnostic_inference": {
+    "accuracy": 0.5,
+    "prediction_disagreement": 0.0
+  },
+  "successful_controls": 128,
+  "failures": 128,
+  "cue_check": {
+    "operator": "swap red and blue only in top-left 8x8; central label pixels unchanged",
+    "n": 256,
+    "original_accuracy": 0.5,
+    "edited_accuracy": 0.5,
+    "prediction_flip_rate": 1.0,
+    "mean_absolute_probability_change": 0.9202487468719482,
+    "limit": "Sensitivity check on synthetic permitted pixels; not the matched location gate"
+  },
+  "pilot_location_checks": {
+    "regime": "shortcut",
+    "seed": 17,
+    "status": "unresolved",
+    "chosen": 0,
+    "confirmed": null,
+    "cam_scores": [
+      0.4131850453559309,
+      0.15970434132032096,
+      0.014664633131815208,
+      0.015013224096037447,
+      0.01433313409506809,
+      0.019426044858761315,
+      0.0188125954063878,
+      0.019817929962144376
+    ],
+    "probes": [
+      {
+        "sample": 0,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 1,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 2,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 3,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 4,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 5,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 6,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 7,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 8,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 9,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 10,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 11,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 12,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 13,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 14,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 15,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 16,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 17,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 18,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 19,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 20,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 21,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 22,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 23,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 24,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 25,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 26,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 27,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 28,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 29,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 30,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 31,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 32,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 33,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 34,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 35,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 36,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 37,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 38,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 39,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 40,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 41,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 42,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 43,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 44,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 45,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 46,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 47,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 48,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 49,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 50,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 51,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 52,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 53,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 54,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 55,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 56,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 57,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 58,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 59,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 60,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 61,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 62,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 63,
+        "status": "ok",
+        "correct": false
+      }
+    ],
+    "interventions": [
+      {
+        "tile": 0,
+        "edit": "neutralize",
+        "target_drop": 0.46017447113990784,
+        "control_drop": 0.3980447053909302,
+        "excess": 0.06212977319955826,
+        "ci": [
+          -0.009945569280534982,
+          0.13612475022673606
+        ],
+        "original_accuracy": 0.5,
+        "edited_accuracy": 0.5,
+        "supported": false
+      },
+      {
+        "tile": 0,
+        "edit": "donor_blend",
+        "target_drop": 0.2372402846813202,
+        "control_drop": 0.20502452552318573,
+        "excess": 0.03221576288342476,
+        "ci": [
+          -0.02212384631857276,
+          0.08700453992933034
+        ],
+        "original_accuracy": 0.5,
+        "edited_accuracy": 0.5,
+        "supported": false
+      },
+      {
+        "tile": 1,
+        "edit": "neutralize",
+        "target_drop": 0.0,
+        "control_drop": 2.3283064365386963e-09,
+        "excess": -2.3283064365386963e-09,
+        "ci": [
+          -8.614733815193176e-09,
+          4.423782229423523e-09
+        ],
+        "original_accuracy": 0.5,
+        "edited_accuracy": 0.5,
+        "supported": false
+      },
+      {
+        "tile": 1,
+        "edit": "donor_blend",
+        "target_drop": 0.0,
+        "control_drop": 2.3283064365386963e-09,
+        "excess": -2.3283064365386963e-09,
+        "ci": [
+          -8.614733815193176e-09,
+          4.423782229423523e-09
+        ],
+        "original_accuracy": 0.5,
+        "edited_accuracy": 0.5,
+        "supported": false
+      },
+      {
+        "tile": 7,
+        "edit": "neutralize",
+        "target_drop": 0.0,
+        "control_drop": 2.3283064365386963e-09,
+        "excess": -2.3283064365386963e-09,
+        "ci": [
+          -8.614733815193176e-09,
+          4.423782229423523e-09
+        ],
+        "original_accuracy": 0.5,
+        "edited_accuracy": 0.5,
+        "supported": false
+      },
+      {
+        "tile": 7,
+        "edit": "donor_blend",
+        "target_drop": 0.0,
+        "control_drop": 2.3283064365386963e-09,
+        "excess": -2.3283064365386963e-09,
+        "ci": [
+          -8.614733815193176e-09,
+          4.423782229423523e-09
+        ],
+        "original_accuracy": 0.5,
+        "edited_accuracy": 0.5,
+        "supported": false
+      }
+    ]
+  },
+  "independent_evaluation": {
+    "artifact": "experiment.json",
+    "test_offset": 100000,
+    "selection_frozen_before_test": true,
+    "runs": [
+      {
+        "regime": "shortcut",
+        "seed": 7,
+        "arm": "unchanged",
+        "final_hash": "bb05f862fc4df81129fc38ec673d2f89b6162e9fd177aec7ff151cd786cb00bd",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 7,
+        "arm": "ordinary",
+        "final_hash": "830cb2bef27b955b31129c46434379d95607d6f58e47ac8913e4eaec5ba8bff3",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 7,
+        "arm": "guided",
+        "final_hash": "9d8d232def4001020e27ab3ba6baf6a03e81fe881305ba2f404c22173ff41369",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 17,
+        "arm": "unchanged",
+        "final_hash": "0111d4774073a6ba8d37ae4713391064bb8b826b4c4dcfdc1516c875fb68da48",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 17,
+        "arm": "ordinary",
+        "final_hash": "1a180d21965bd7386477341ec114db4f60118c9a084a08d6482457b82aa99016",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 17,
+        "arm": "guided",
+        "final_hash": "e690b94b6b2327baba9b6da230f4cae0377cf3c6839f1bb7e15e23f53f1346fa",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 27,
+        "arm": "unchanged",
+        "final_hash": "0bcf07309fa6c7d16878c3c2f7c8132edfdc689a12c9e11c5c1e12ec46a8c3e0",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 27,
+        "arm": "ordinary",
+        "final_hash": "0ceeb4df98b432ddd1f8bebd65d7477441d016c38dbb45f3080c690e7220c84f",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "shortcut",
+        "seed": 27,
+        "arm": "guided",
+        "final_hash": "ce2d77db26ee2dac3bb521ec4164b829def4c265b6466d59afba46bdbed93150",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      }
+    ],
+    "limit": "All arms tie; no demonstrated CAM-guided advantage. Historical initial failures remain in notebook."
+  },
+  "scope_limit": "Pilot checks concern the pilot, not a final checkpoint's cue invariance"
+}

@@ -1,0 +1,50 @@
+{
+  "baseline/preprocessing": {
+    "trusted.py": "b50b8884c32f814f5e14f03d3b8409c793e00341d228b20c013f0422a6893283",
+    "checkpoint.pt": "6931055fc0d4b62f0ba5dd5f8cf5a056e1dd6adb909a76cefda6e1827beadae0",
+    "shortcut_repair.ipynb": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "notebook_adapter.py": "134f79d3065d5aab62ce39f314fca46b3285ecd38180fcf86d302d032605ff88",
+    "evidence.json": "863a2ef1f7bae4f105f445de1c9e087e0efab6ae96ae3de376945efdc4655024",
+    "experiment.json": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc"
+  },
+  "baseline/shortcut": {
+    "trusted.py": "b50b8884c32f814f5e14f03d3b8409c793e00341d228b20c013f0422a6893283",
+    "checkpoint.pt": "4d237139cc0cca2d4ef9dbf77a70acc47c5a6d467117c546a20e81b9a86375bf",
+    "shortcut_repair.ipynb": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "notebook_adapter.py": "134f79d3065d5aab62ce39f314fca46b3285ecd38180fcf86d302d032605ff88",
+    "evidence.json": "243f2398e48753186d928b33273adbd96b5209d3182504b4fbdb22a592de6b00",
+    "experiment.json": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc"
+  },
+  "baseline/control": {
+    "trusted.py": "b50b8884c32f814f5e14f03d3b8409c793e00341d228b20c013f0422a6893283",
+    "checkpoint.pt": "6931055fc0d4b62f0ba5dd5f8cf5a056e1dd6adb909a76cefda6e1827beadae0",
+    "shortcut_repair.ipynb": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "notebook_adapter.py": "134f79d3065d5aab62ce39f314fca46b3285ecd38180fcf86d302d032605ff88",
+    "evidence.json": "8fb9a604a349c5c1c1af6f0d3b849aac905780989e6ece79f1dd3501dfb77d47",
+    "experiment.json": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc"
+  },
+  "extended/preprocessing": {
+    "trusted.py": "b50b8884c32f814f5e14f03d3b8409c793e00341d228b20c013f0422a6893283",
+    "checkpoint.pt": "6931055fc0d4b62f0ba5dd5f8cf5a056e1dd6adb909a76cefda6e1827beadae0",
+    "shortcut_repair.ipynb": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "notebook_adapter.py": "134f79d3065d5aab62ce39f314fca46b3285ecd38180fcf86d302d032605ff88",
+    "evidence.json": "863a2ef1f7bae4f105f445de1c9e087e0efab6ae96ae3de376945efdc4655024",
+    "experiment.json": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc"
+  },
+  "extended/shortcut": {
+    "trusted.py": "b50b8884c32f814f5e14f03d3b8409c793e00341d228b20c013f0422a6893283",
+    "checkpoint.pt": "4d237139cc0cca2d4ef9dbf77a70acc47c5a6d467117c546a20e81b9a86375bf",
+    "shortcut_repair.ipynb": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "notebook_adapter.py": "134f79d3065d5aab62ce39f314fca46b3285ecd38180fcf86d302d032605ff88",
+    "evidence.json": "243f2398e48753186d928b33273adbd96b5209d3182504b4fbdb22a592de6b00",
+    "experiment.json": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc"
+  },
+  "extended/control": {
+    "trusted.py": "b50b8884c32f814f5e14f03d3b8409c793e00341d228b20c013f0422a6893283",
+    "checkpoint.pt": "6931055fc0d4b62f0ba5dd5f8cf5a056e1dd6adb909a76cefda6e1827beadae0",
+    "shortcut_repair.ipynb": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "notebook_adapter.py": "134f79d3065d5aab62ce39f314fca46b3285ecd38180fcf86d302d032605ff88",
+    "evidence.json": "8fb9a604a349c5c1c1af6f0d3b849aac905780989e6ece79f1dd3501dfb77d47",
+    "experiment.json": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc"
+  }
+}

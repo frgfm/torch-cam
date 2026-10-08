@@ -80,6 +80,7 @@ plugins:
         - getting-started/installation.md
         - getting-started/notebooks.md
         - getting-started/debug-prediction.md
+        - getting-started/shortcut-investigation.md
         - getting-started/advanced-usage.md
         - getting-started/troubleshooting.md
       Package Reference:
@@ -181,6 +182,7 @@ nav:
     - getting-started/installation.md
     - getting-started/notebooks.md
     - Debug one prediction: getting-started/debug-prediction.md
+    - Investigate shortcuts: getting-started/shortcut-investigation.md
     - getting-started/advanced-usage.md
     - getting-started/troubleshooting.md
   - Package Reference:

@@ -1,15 +1,17 @@
 ---
 name: torchcam-debug-prediction
-description: Debug one surprising 2D image-classification prediction in an existing PyTorch repository with TorchCAM. Use when an owner asks for predicted-versus-expected CAM evidence, a saved explanation bundle, GradCAM on a CNN, or LeGrad on a supported Vision Transformer. Reuse the repository's trusted model loader, checkpoint, class mapping, and preprocessing instead of inventing replacements.
+description: Debug surprising 2D image-classification predictions and investigate suspected shortcuts in an existing PyTorch repository with TorchCAM. Use for predicted-versus-expected CAM bundles, failures and successful controls, controlled cue checks, or bounded training/data experiments with independent repair verification. Reuse the owner's trusted checkpoint, preprocessing, labels, and training pipeline. Separate cue dependence, unresolved location evidence, and verified repair outcomes.
 compatibility: Requires local Python execution, PyTorch, Pillow, and torchcam>=0.5.0.
 metadata:
   author: frgfm
-  version: "1.0"
+  version: "1.1"
 ---
 
-# Debug one prediction with TorchCAM
+# Debug predictions and investigate shortcuts with TorchCAM
 
 Produce reproducible visual evidence for one surprising classifier prediction. CAMs show class-associated activation, not why the model decided, causal influence, correctness, or localization quality.
+
+For a suspected shortcut or repair request, also follow steps 6–9 and read [the investigation contract](references/shortcut-investigation.md) before recommending an intervention. The prerequisite experiment found **no CAM-guided repair advantage**; use this workflow for investigation and bounded experiments, with no promise of repair.
 
 ## 1. Discover the repository's inference path
 
@@ -19,6 +21,8 @@ Find and reuse the code that already defines:
 - evaluation preprocessing, including resize, crop, normalization, and color conversion;
 - the ordered class-name mapping;
 - the original image before normalization.
+
+Record the checkpoint hash, loader and preprocessing entry points, class ordering, runtime, and baseline logits on fixed examples. Check the diagnostic tensor against the owner's evaluation tensor before interpreting CAMs. Resolve a proven diagnostic preprocessing mismatch in the diagnostic helper, then rerun; preserve the trusted inference path. Keep the training entry point and configuration for a possible later experiment.
 
 Search the repository before writing code. Prefer its test or inference entry point over reconstructing the model. Load only checkpoints already trusted by the owner; TorchCAM does not load checkpoints or preprocessing.
 
@@ -57,12 +61,16 @@ For a ViT, also pass `method=LeGrad` and the explicit blocks. Use a new output d
 Treat `manifest.json` as the completion marker. Before reporting success:
 
 1. Parse it and require `schema_version == 1`.
-2. Read artifacts from `manifest["classes"][str(class_idx)]["artifacts"]`. Resolve every relative `map`, `heatmap`, and `overlay` path under the bundle directory and require each file to exist. Prediction and expected entries contain class references; logits and probabilities live in the corresponding class entry.
+2. `manifest["classes"]` is a dictionary keyed by string class index. Each class entry's `artifacts` is a **list** of per-layer dictionaries: iterate that list before reading `artifact["map"]`, `artifact["heatmap"]`, or `artifact["overlay"]`. Resolve every relative path under the bundle directory and require each file to exist. Prediction and expected entries contain class references; logits and probabilities live in the corresponding class entry.
 3. Load each `.npy` map with `allow_pickle=False`; require a finite two-dimensional `float32` array.
 4. Open every overlay and require its dimensions to match `manifest.json`'s `image_size`.
 5. Confirm the prediction and optional expected class indices match the repository's class ordering.
 
 No manifest means the bundle is incomplete, even if some images exist.
+
+Run the bundled validator with the owner's ordered labels, for example:
+`python <skill-directory>/scripts/validate_bundle.py <bundle-directory> --class-names vertical horizontal`.
+It reports each map's range and blank status; treat validation failures separately from extraction failures.
 
 ## 5. Report to the owner
 
@@ -78,3 +86,27 @@ Use language such as “the GradCAM map highlights…” or “activation differ
 Check each map's range before describing it. If it is constant or all zero, call it a blank map and do not claim it highlights a region or shows positive class-associated activation; a blank CAM is not proof that a feature is absent.
 
 If extraction fails, use the TorchCAM prediction-debugging guide and troubleshooting page before changing repository model code.
+
+## 6. Inspect failures with successful controls
+
+Freeze a discovery set containing failures and successes, with labels, sample IDs, and relevant group counts. Use comparable successful controls (same class/task, different suspected cue where available). Explain each image separately; preserve blank maps and extraction errors in the denominator. Check alignment with the model's actual crop before describing a region.
+
+## 7. Test a cue hypothesis
+
+Write a falsifiable hypothesis naming the suspected cue, expected score/error change, task-preserving edit, matched controls, and disconfirming result. A highlighted corner is a proposal. Confirm on separate validation examples with controlled edits, logging original and edited logits/probabilities, accuracy, groups, edit magnitude, and label preservation. Use training-only donors; keep test data out of selection.
+
+Distinguish observed cue sensitivity, supported location-specific findings, and unresolved evidence. Matched controls can change globally pooled cue evidence too; a failed location gate does not exclude cue dependence. Conversely, a blank map or a null check does not prove that no shortcut exists. Stop at an unresolved finding when edits cannot preserve labels or controls are inadequate.
+
+## 8. Choose a bounded experiment
+
+Check the owner's existing authorization for local training and data edits. When evidence supports an experiment, reuse the owner's trainer, labels, preprocessing, and approved data in a separate output directory. Freeze the change, seeds, step/example budget, validation selection rule, success criteria, and regression tolerances before scoring. Compare unchanged continuation and ordinary augmentation at the same training budget; include a no-shortcut control when available.
+
+Prefer the smallest experiment that tests the hypothesis. Mark a CAM-selected edit exploratory if confirmation is unresolved; do not recommend it as a supported repair. The reference notebook's provisional fallback is an experimental arm, not a default remediation policy. Do not broaden data collection, relabel data, replace the deployed checkpoint, or deploy a repair beyond the owner's authorized scope.
+
+## 9. Verify and report the outcome
+
+Freeze candidate selection before using independent, untouched evaluation data. Score the original checkpoint and every experiment arm on average, per-class, and relevant group/worst-group accuracy with counts; retain seed-level results, comparator differences, regressions, and failures. If evaluation informed further tuning, use fresh evaluation data and disclose that change.
+
+Verify the original inference tensor, logits, checkpoint, and code remain unchanged by investigation; candidate weights belong in separate artifacts. A prettier CAM or validation gain is not repair verification. Report a repair only against the frozen success criteria and comparators; otherwise report failed, unresolved, or improved without evidence of an intervention advantage.
+
+Save the investigation record described in the reference alongside schema-v1 explanation bundles. Return the hypothesis, evidence for/against it, authorization and budget, independent evaluation results, regressions, unsupported claims withheld, and artifact paths. Keep deployment a separate owner decision.

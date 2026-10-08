@@ -1,0 +1,28 @@
+{
+  "diagnosis": "cue_dependence",
+  "location_finding": "unresolved",
+  "recommend_training": "unchanged",
+  "recommendation_basis": "supported",
+  "inference_preserved": true,
+  "repair_outcome": "no_advantage",
+  "evaluation_artifact": "/workspace/shortcut-agent-evaluation/baseline/shortcut/experiment.json",
+  "guided_minus_unchanged": 0.0,
+  "worst_group_regression": false,
+  "evidence": [
+    "trusted.py delegates to the pinned notebook; diagnostics.py calls the same preprocessing. Reproduced all 256 validation examples: trusted and diagnostic logits are identical (maximum difference 0), accuracy 0.5, 128 failures and 128 successes. Model centers inputs internally; no preprocessing fix is justified.",
+    "audit.json reproduces the permitted top-left 8x8 red/blue swap: central 16x16 label pixels unchanged, prediction flip rate 1.0, mean absolute probability change 0.8742289543151855; accuracy remains 0.5. This supports border-color cue dependence of the pilot.",
+    "cam-failure/manifest.json: validation sample 0 predicts horizontal (1), probability 0.9226115942001343, logit 1.3556771278381348; expected vertical (0), probability 0.07738838344812393, logit -1.1226943731307983. cam-success/manifest.json records a successful control. Both GradCAM(features) bundles pass schema, class-order, finite float32 2D map, artifact-path, and 32x32 overlay checks; map ranges are in audit.json.",
+    "Notebook proposals reproduced on all 64 discovery images, including successes and failures; shortlist and matched confirmation reproduced in audit.json. Tile 0 neutralization excess 0.05945616960525513, descriptive 95% interval [-0.004078123555518686, 0.12277455423027277]; donor blend excess 0.029820982366800308, interval [-0.017373816622421146, 0.0769992960616946]. Neither passes the gate. Donor-blend accuracy falls from 0.5 to 0.4765625; neutralization remains 0.5.",
+    "Chosen bounded experiment: reproduce owner validation interventions and analyze frozen experiment.json continuation outcomes, without running training. For seeds 7,17,27 and both recorded regimes, unchanged, ordinary, and guided all reach average and worst-group accuracy 1.0, with seed SD 0.0; every label-by-cue group has n=256 and accuracy 1.0. All 18 runs have 576 steps and 36864 presentations, shared four-epoch pilot plus 32 continuation epochs.",
+    "Independent test uses offset 100000 with selection frozen before scoring. Guided-minus-unchanged and guided-minus-ordinary are 0.0 for every seed; no recorded final worst-group regression. Unchanged continuation is supported by the measured tie; no CAM-guided repair advantage is verified.",
+    "integrity.json hashes match trusted.py, checkpoint.pt and shortcut_repair.ipynb after diagnosis. diagnostics.py was already correct and remains unchanged."
+  ],
+  "limitations": [
+    "The matched location gate remains unresolved. Large response to the color swap establishes permitted-cue sensitivity; CAM activation and sensitivity do not establish exclusive spatial causation. Matched controls can introduce competing globally pooled color evidence.",
+    "Stored final continuation models differ from the current pilot checkpoint. Their perfect accuracy does not demonstrate cue-invariant probabilities or repair the current checkpoint without authorized follow-up training.",
+    "Independent results are existing synthetic measured artifacts, not newly run training. Reuse trusted.training_pipeline for the proposed unchanged continuation; no follow-up training was run.",
+    "All arms tie at an accuracy ceiling; three seeds, synthetic task, descriptive uncorrected image bootstrap intervals, and absent non-CAM targeted-selector comparator limit generalization and attribution of incremental CAM value.",
+    "Historical unsuccessful initial results are retained in shortcut_repair.ipynb; final protocol used a fresh test offset after development and was not preregistered."
+  ],
+  "tool_calls_used": 4
+}

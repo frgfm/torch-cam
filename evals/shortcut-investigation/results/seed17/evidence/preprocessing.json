@@ -1,0 +1,799 @@
+{
+  "provenance": {
+    "notebook_revision": "cb719ae40cd137e93cb9a16bdb59f1c03e4ee587",
+    "notebook_sha256": "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d",
+    "experiment_sha256": "863b3ebec8bd6bbad395258d44330e1e864136da2c031b05b8f04f1bc392cafc",
+    "runtime": {
+      "python": "3.11.16",
+      "torchcam_revision": "5a0bc4d439ad642a37ed301d94601048e8d32de8",
+      "torchcam": "0.6.0.dev0",
+      "cpu_threads": 2,
+      "torch": "2.14.1+cpu",
+      "numpy": "2.4.6",
+      "matplotlib": "3.11.2",
+      "Pillow": "12.3.0",
+      "nbformat": "5.10.4",
+      "nbclient": "0.10.2",
+      "ipykernel": "6.30.1"
+    },
+    "case_seed": 17
+  },
+  "owner_contract": "central 16x16 defines label; border editable; RGB float32 [0,1]; model centers",
+  "trusted_inference": {
+    "accuracy": 1.0,
+    "n": 256
+  },
+  "diagnostic_inference": {
+    "accuracy": 0.5,
+    "prediction_disagreement": 0.5
+  },
+  "successful_controls": 256,
+  "failures": 0,
+  "cue_check": {
+    "operator": "swap red and blue only in top-left 8x8; central label pixels unchanged",
+    "n": 256,
+    "original_accuracy": 1.0,
+    "edited_accuracy": 1.0,
+    "prediction_flip_rate": 0.0,
+    "mean_absolute_probability_change": 4.1603394492994994e-05,
+    "limit": "Sensitivity check on synthetic permitted pixels; not the matched location gate"
+  },
+  "pilot_location_checks": {
+    "regime": "no_shortcut",
+    "seed": 17,
+    "status": "unresolved",
+    "chosen": 6,
+    "confirmed": null,
+    "cam_scores": [
+      0.014680619930004468,
+      0.017964558004393893,
+      0.016632936273254018,
+      0.015418168081637873,
+      0.017147340015166712,
+      0.02548559353413893,
+      0.03238056143425183,
+      0.02244771508096388
+    ],
+    "probes": [
+      {
+        "sample": 0,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 1,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 2,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 3,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 4,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 5,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 6,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 7,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 8,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 9,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 10,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 11,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 12,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 13,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 14,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 15,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 16,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 17,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 18,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 19,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 20,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 21,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 22,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 23,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 24,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 25,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 26,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 27,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 28,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 29,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 30,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 31,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 32,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 33,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 34,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 35,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 36,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 37,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 38,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 39,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 40,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 41,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 42,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 43,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 44,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 45,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 46,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 47,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 48,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 49,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 50,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 51,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 52,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 53,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 54,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 55,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 56,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 57,
+        "status": "ok",
+        "correct": false
+      },
+      {
+        "sample": 58,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 59,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 60,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 61,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 62,
+        "status": "ok",
+        "correct": true
+      },
+      {
+        "sample": 63,
+        "status": "ok",
+        "correct": true
+      }
+    ],
+    "interventions": [
+      {
+        "tile": 6,
+        "edit": "neutralize",
+        "target_drop": 0.0,
+        "control_drop": -6.984919309616089e-10,
+        "excess": 6.984919309616089e-10,
+        "ci": [
+          -3.0326191335916516e-09,
+          4.889443516731262e-09
+        ],
+        "original_accuracy": 0.84375,
+        "edited_accuracy": 0.84375,
+        "supported": false
+      },
+      {
+        "tile": 6,
+        "edit": "donor_blend",
+        "target_drop": 0.0,
+        "control_drop": -6.984919309616089e-10,
+        "excess": 6.984919309616089e-10,
+        "ci": [
+          -3.0326191335916516e-09,
+          4.889443516731262e-09
+        ],
+        "original_accuracy": 0.84375,
+        "edited_accuracy": 0.84375,
+        "supported": false
+      },
+      {
+        "tile": 5,
+        "edit": "neutralize",
+        "target_drop": 0.0,
+        "control_drop": -6.984919309616089e-10,
+        "excess": 6.984919309616089e-10,
+        "ci": [
+          -3.0326191335916516e-09,
+          4.889443516731262e-09
+        ],
+        "original_accuracy": 0.84375,
+        "edited_accuracy": 0.84375,
+        "supported": false
+      },
+      {
+        "tile": 5,
+        "edit": "donor_blend",
+        "target_drop": 0.0,
+        "control_drop": -6.984919309616089e-10,
+        "excess": 6.984919309616089e-10,
+        "ci": [
+          -3.0326191335916516e-09,
+          4.889443516731262e-09
+        ],
+        "original_accuracy": 0.84375,
+        "edited_accuracy": 0.84375,
+        "supported": false
+      },
+      {
+        "tile": 7,
+        "edit": "neutralize",
+        "target_drop": 0.0,
+        "control_drop": -6.984919309616089e-10,
+        "excess": 6.984919309616089e-10,
+        "ci": [
+          -3.0326191335916516e-09,
+          4.889443516731262e-09
+        ],
+        "original_accuracy": 0.84375,
+        "edited_accuracy": 0.84375,
+        "supported": false
+      },
+      {
+        "tile": 7,
+        "edit": "donor_blend",
+        "target_drop": 0.0,
+        "control_drop": -6.984919309616089e-10,
+        "excess": 6.984919309616089e-10,
+        "ci": [
+          -3.0326191335916516e-09,
+          4.889443516731262e-09
+        ],
+        "original_accuracy": 0.84375,
+        "edited_accuracy": 0.84375,
+        "supported": false
+      }
+    ]
+  },
+  "independent_evaluation": {
+    "artifact": "experiment.json",
+    "test_offset": 100000,
+    "selection_frozen_before_test": true,
+    "runs": [
+      {
+        "regime": "no_shortcut",
+        "seed": 7,
+        "arm": "unchanged",
+        "final_hash": "feb2eb0cf65f320171808a8d26fd40f6a64b00d2f61a06fa22e93260917e5523",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 7,
+        "arm": "ordinary",
+        "final_hash": "215ee2b1137a4ef8356150182fad6efdbeb21f37fadbae67474817613572db8e",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 7,
+        "arm": "guided",
+        "final_hash": "f7c80c5ed5488f2db9f75844008a633ede80458b622c2e84c8b9a88effac7bad",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 17,
+        "arm": "unchanged",
+        "final_hash": "35304937cc06a4c9537d5059a215ff06a02ff281c531a4855cf3e6b266e4bf29",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 17,
+        "arm": "ordinary",
+        "final_hash": "e736ed362a138bd2db96538d20adf293536287e7f8a5adaabe10055b4eb26dab",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 17,
+        "arm": "guided",
+        "final_hash": "35304937cc06a4c9537d5059a215ff06a02ff281c531a4855cf3e6b266e4bf29",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 27,
+        "arm": "unchanged",
+        "final_hash": "d3cc9012b5904d58e66adff60e8d5674624452f5d4d709ebfabea6d86cdda9d1",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 27,
+        "arm": "ordinary",
+        "final_hash": "82bd463c7bdd75dee2d7fe0fa2df7e8d57e511d21e165dfa3bb9d4fd505b612d",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      },
+      {
+        "regime": "no_shortcut",
+        "seed": 27,
+        "arm": "guided",
+        "final_hash": "d3cc9012b5904d58e66adff60e8d5674624452f5d4d709ebfabea6d86cdda9d1",
+        "steps": 576,
+        "examples": 36864,
+        "accuracy": 1.0,
+        "worst_group": 1.0,
+        "groups": [
+          {
+            "label": 0,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 0,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 0,
+            "n": 256,
+            "accuracy": 1.0
+          },
+          {
+            "label": 1,
+            "cue": 1,
+            "n": 256,
+            "accuracy": 1.0
+          }
+        ]
+      }
+    ],
+    "limit": "All arms tie; no demonstrated CAM-guided advantage. Historical initial failures remain in notebook."
+  },
+  "scope_limit": "Pilot checks concern the pilot, not a final checkpoint's cue invariance"
+}

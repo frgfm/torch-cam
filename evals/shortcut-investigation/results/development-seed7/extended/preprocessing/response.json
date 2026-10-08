@@ -1,0 +1,28 @@
+{
+  "diagnosis": "preprocessing_mismatch",
+  "location_finding": "unresolved",
+  "recommend_training": "none",
+  "recommendation_basis": "none",
+  "inference_preserved": true,
+  "repair_outcome": "diagnostic_fixed",
+  "evaluation_artifact": "/workspace/shortcut-agent-evaluation/extended/preprocessing/experiment.json",
+  "guided_minus_unchanged": 0.0,
+  "worst_group_regression": false,
+  "evidence": [
+    "diagnostics.py subtracted 0.5 although trusted.py passes RGB [0,1] and notebook TinyClassifier.forward centers internally; removed the extra subtraction.",
+    "On 256 paired samples, diagnostic accuracy rose from 0.5 to 1.0; inspected 128 diagnostic failures alongside 128 successful controls. Trusted accuracy remained 1.0.",
+    "Fixed diagnostic tensors and logits exactly equal trusted outputs (maximum differences 0.0); independent fresh 256-sample check also matches exactly, accuracy 1.0. Details: /workspace/shortcut-agent-evaluation/extended/preprocessing/investigation.json.",
+    "Label-preserving top-left red/blue swap: accuracy 1.0 -> 1.0, flip rate 0.0, mean absolute probability change 4.0162826735468116e-06; a sensitivity check, not matched location confirmation.",
+    "evidence.json pilot matched gate remains unresolved: tile-0 neutralization excess -0.0226278044, CI [-0.0406183168,-0.0038383021]; donor blend excess -0.0157800987, CI [-0.0295302424,-0.0014566123]. Neither passes the required excess >0.02 and lower bound >0.",
+    "/workspace/shortcut-agent-evaluation/extended/preprocessing/experiment.json retains all 18 independent outcomes: three seeds, both regimes, unchanged/ordinary/guided arms, 576 steps and 36864 presentations each; all average/worst-group accuracies 1.0, four groups of 256. Guided ties both comparators, with no worst-group regression.",
+    "Original checkpoint independently reproduces artifact predictions on 1024 seed-100007 test images: accuracy 1.0, all four groups 1.0. trusted.py, checkpoint.pt and notebook hashes match integrity.json; trusted logits unchanged.",
+    "TorchCAM paired failure/control before/after bundles attempted: 0/4 validated schema-v1 bundles; maps, overlays and any errors retained under /workspace/shortcut-agent-evaluation/extended/preprocessing/cam-evidence and /workspace/shortcut-agent-evaluation/extended/preprocessing/investigation.json."
+  ],
+  "limitations": [
+    "Pilot location checks concern a pilot, not this final checkpoint. The unresolved matched gate and tiny response to one permitted color swap do not prove absence of all shortcuts or cue-invariant logits.",
+    "Existing training arms all tie at the accuracy ceiling; no CAM-guided repair advantage is demonstrated. The diagnostic helper fix is not a verified training repair.",
+    "Synthetic central-bar labels and editable borders limit generalization. Three-seed notebook results were not preregistered; historical initial failures and refreshed final test seeds remain documented in the immutable notebook.",
+    "No new training, data collection, data edits, checkpoint replacement or deployment was performed; further training is unnecessary for the supported diagnostic mismatch."
+  ],
+  "tool_calls_used": 4
+}

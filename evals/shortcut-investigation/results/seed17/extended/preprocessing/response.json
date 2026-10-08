@@ -1,0 +1,29 @@
+{
+  "diagnosis": "preprocessing_mismatch",
+  "location_finding": "unresolved",
+  "recommend_training": "none",
+  "recommendation_basis": "none",
+  "inference_preserved": true,
+  "repair_outcome": "diagnostic_fixed",
+  "evaluation_artifact": "/workspace/shortcut-agent-final/extended/preprocessing/experiment.json",
+  "guided_minus_unchanged": 0.0,
+  "worst_group_regression": false,
+  "evidence": [
+    "/workspace/shortcut-agent-final/extended/preprocessing/diagnostics.py originally subtracted 0.5 after trusted.preprocess; TinyClassifier.forward already subtracts 0.5. Removed the extra subtraction.",
+    "/workspace/shortcut-agent-final/extended/preprocessing/investigation/record.json: existing 256 examples had 128 diagnostic failures and 128 successes, accuracy 0.5; fixed accuracy 1.0; fixed tensors and logits exactly match trusted inference (maximum differences 0).",
+    "/workspace/shortcut-agent-final/extended/preprocessing/investigation/record.json: additional split seed 90217, n=256, fixed accuracy 1.0; fixed and trusted logits are bit-identical.",
+    "/workspace/shortcut-agent-final/extended/preprocessing/investigation/record.json: cue swap preserves central label pixels; edited accuracy 1.0, flip rate 0.0, mean absolute probability change 4.1603394492994994e-05.",
+    "/workspace/shortcut-agent-final/extended/preprocessing/evidence.json: pilot discovery retained 64 nonblank/error-free CAM probes, 56 successes and 8 failures; all six matched edits failed the gate; chosen tile 6 was provisional, confirmed=null.",
+    "/workspace/shortcut-agent-final/extended/preprocessing/experiment.json: seeds 7/17/27, unchanged/ordinary/guided arms each used 576 steps and 36864 presentations; independent offset 100000, n=1024/seed, 256 per label-cue group. All 18 runs reached 1.0 average and worst-group accuracy; guided ties both comparators, no observed regression.",
+    "/workspace/shortcut-agent-final/extended/preprocessing/investigation/record.json: trusted.py, checkpoint.pt, notebook, adapter, evidence and experiment hashes unchanged; original inference logits unchanged after CAM extraction.",
+    "/workspace/shortcut-agent-final/extended/preprocessing/investigation: 4 schema-v1 CAM bundles comparing a diagnostic failure and a successful control before/after correction; 0 extraction/validation errors retained."
+  ],
+  "limitations": [
+    "The null cue sensitivity result covers one permitted synthetic edit, not all potential shortcuts or cue-invariant logits.",
+    "Matched location evidence comes from a pilot checkpoint and remains unresolved; it cannot establish a final-checkpoint location effect.",
+    "The recorded training experiment reaches an accuracy ceiling with comparator ties; no demonstrated CAM-guided repair advantage or incremental CAM value.",
+    "Historical initial failed training outcomes remain in the pinned notebook; final test offset was refreshed after initial test viewing, so the experiment was not preregistered.",
+    "No training was run, no data or weights changed, and no deployment performed; the verified fix concerns the diagnostic helper only."
+  ],
+  "tool_calls_used": 4
+}

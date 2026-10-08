@@ -1,0 +1,30 @@
+{
+  "diagnosis": "no_supported_shortcut",
+  "location_finding": "unresolved",
+  "recommend_training": "none",
+  "recommendation_basis": "supported",
+  "inference_preserved": true,
+  "repair_outcome": "no_advantage",
+  "evaluation_artifact": "/workspace/shortcut-agent-evaluation/baseline/control/experiment.json",
+  "guided_minus_unchanged": 0.0,
+  "worst_group_regression": false,
+  "evidence": [
+    "/workspace/shortcut-agent-evaluation/baseline/control/diagnostics.py delegates directly to trusted.preprocess; trusted.py clones RGB float32 [0,1] and notebook model centers internally. No diagnostic edit was needed.",
+    "/workspace/shortcut-agent-evaluation/baseline/control/evidence.json: trusted and diagnostic accuracy 1.0 on 256 images, prediction disagreement 0.0; 256 successful controls, 0 failures.",
+    "/workspace/shortcut-agent-evaluation/baseline/control/evidence.json: permitted corner red/blue swap keeps central label pixels unchanged; original and edited accuracy 1.0, flip rate 0.0, mean absolute probability change 4.0162826735468116e-06.",
+    "/workspace/shortcut-agent-evaluation/baseline/control/evidence.json: pilot location tile 0 neutralize excess -0.022627804428339005 (95% descriptive CI [-0.04061831682920456,-0.003838302072836093]); donor-blend excess -0.015780098736286163 (CI [-0.029530242411419747,-0.001456612331094223]); all six operator tests unsupported, confirmed tile null.",
+    "/workspace/shortcut-agent-evaluation/baseline/control/experiment.json: frozen choices, independent test offset 100000; unchanged, ordinary and guided all achieve accuracy/worst-group 1.0/1.0 in seeds 7,17,27, with four label/cue groups per seed (n=256 each). Guided-minus-unchanged and guided-minus-ordinary are 0.0; no worst-group regression. Matched budgets are 576 updates and 36864 presentations per arm.",
+    "/workspace/shortcut-agent-evaluation/baseline/control/bounded_diagnosis.json: independent bounded synthetic check reuses notebook make_split(seed=91001,n=256) and immutable checkpoint, without training; {\"accuracy\": 1.0, \"central_pixels_unchanged\": true, \"cue_mean_absolute_probability_change\": 4.456522219697945e-06, \"edited_accuracy\": 1.0, \"failures\": 0, \"immutable_hashes_match\": true, \"input_max_abs_difference\": 0.0, \"logit_max_abs_difference\": 0.0, \"n\": 256, \"prediction_flip_rate\": 0.0, \"seed\": 91001}",
+    "/workspace/shortcut-agent-evaluation/baseline/control/fresh-control-cam/manifest.json: GradCAM at features, successful control; schema/version, artifacts, finite float32 two-dimensional maps and overlay dimensions checked. Maps: [{\"path\": \"fresh-control-cam/class-0-layer-0.npy\", \"min\": 0.0, \"max\": 1.0, \"blank\": false}]",
+    "/workspace/shortcut-agent-evaluation/baseline/control/shortcut_repair.ipynb: historical unsuccessful initial protocol retained; all initial arms had average accuracy 0.5 and worst-group 0.0. Final comparison ties after unchanged continuation as well."
+  ],
+  "limitations": [
+    "No failures occur in the supplied checkpoint controls or bounded fresh check; failure CAMs cannot be produced for this checkpoint. Historical pilot failures belong to different weights and are not final-checkpoint failures.",
+    "Pilot CAM/location checks are not measurements of final-checkpoint cue invariance. Matched location gate remains unresolved; absence of support does not exclude other shortcuts.",
+    "Corner swap is a bounded sensitivity check, separate from the matched location gate and independent repair comparison. Tiny probability changes and unchanged accuracy do not establish universal cue-invariant logits.",
+    "All final arms tie at the accuracy ceiling across three synthetic seeds; no demonstrated CAM-guided advantage or verified repair. No follow-up training was run or recommended.",
+    "Image-bootstrap intervals are descriptive and uncorrected; no non-CAM targeted selector comparator isolates the incremental value of CAM.",
+    "The first bundle validation attempt encountered a manifest image-size representation mismatch; the saved bundle was validated in the final invocation using its actual schema."
+  ],
+  "tool_calls_used": 4
+}

@@ -1,0 +1,30 @@
+{
+  "diagnosis": "cue_dependence",
+  "location_finding": "unresolved",
+  "recommend_training": "unchanged",
+  "recommendation_basis": "supported",
+  "inference_preserved": true,
+  "repair_outcome": "no_advantage",
+  "evaluation_artifact": "/workspace/shortcut-agent-final/extended/shortcut/experiment.json",
+  "guided_minus_unchanged": 0.0,
+  "worst_group_regression": false,
+  "evidence": [
+    "/workspace/shortcut-agent-final/extended/shortcut/diagnostics.py matches trusted.py: exact tensor and logits equality on 256 examples; class order vertical=0, horizontal=1; all supplied immutable hashes preserved.",
+    "/workspace/shortcut-agent-final/extended/shortcut/evidence.json and checkpoint rerun: 128 failures and 128 successful controls, accuracy 0.5; border-only color swap preserves central labels, flips 256/256 predictions, mean absolute probability change 0.920248747; edited accuracy remains 0.5 because successes and failures exchange.",
+    "/workspace/shortcut-agent-final/extended/shortcut/evidence.json: GradCAM(features), 64 discovery probes, statuses {'ok': 64}, 32 successful controls; tile 0 CAM mass 0.413185045; salience alone is not causal localization.",
+    "/workspace/shortcut-agent-final/extended/shortcut/evidence.json matched confirmation: top-left neutralization excess 0.062129773, CI [-0.009945569280534982, 0.13612475022673606]; donor-blend excess 0.032215763, CI [-0.02212384631857276, 0.08700453992933034]; region requires both operators excess >0.02 and lower CI >0; confirmed=null.",
+    "/workspace/shortcut-agent-final/extended/shortcut/experiment.json: seeds 7/17/27, shortcut and no-shortcut regimes, unchanged/ordinary/guided arms; all 18 independent runs average=1.0, worst-group=1.0, four groups each n=256, seed SD=0; all guided-minus-unchanged/ordinary differences=0 and no group regressions.",
+    "/workspace/shortcut-agent-final/extended/shortcut/experiment.json: shared 4-epoch pilot plus 32 continuation epochs; each arm total 576 updates/36864 presentations; candidate selection frozen before independent 1024-example evaluation at seed offset 100000; existing owner trainer reused by analysis, no new training run.",
+    "/workspace/shortcut-agent-final/extended/shortcut/investigation.json: loaded original pilot independently scored at test seed 100017, average 0.5, worst-group 0.0; frozen final arms solve accuracy equally, so unchanged continuation is the supported minimal follow-up proposal.",
+    "/workspace/shortcut-agent-final/extended/shortcut/investigation.json contains exact logits, group counts, immutable hashes, matched checks, comparator differences and new failure/control TorchCAM bundle validation outcomes."
+  ],
+  "limitations": [
+    "Cue dependence is supported by synthetic label-preserving sensitivity; the matched location gate is unresolved because controls can also affect globally pooled color evidence.",
+    "Guided top-CAM-tile fallback was exploratory. The independent accuracy ceiling and comparator ties show no CAM-guided advantage; no verified repair or CAM incremental value is claimed.",
+    "The final protocol followed an unsuccessful initial attempt whose test had been viewed; final test seeds were refreshed before scoring, and the study was not preregistered.",
+    "Three synthetic seeds and supplied editable border pixels do not generalize to photographs. Accuracy does not demonstrate cue-invariant logits of final checkpoints; final checkpoints are not exported here.",
+    "Local follow-up training is proposed only; no training, owner data edits, or deployment was authorized or performed.",
+    "Original pilot independently rescored; final arm outcomes analyzed from immutable measured artifacts rather than retraining or loading unavailable candidate weights."
+  ],
+  "tool_calls_used": 4
+}

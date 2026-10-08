@@ -1,0 +1,30 @@
+{
+  "diagnosis": "no_supported_shortcut",
+  "location_finding": "unresolved",
+  "recommend_training": "none",
+  "recommendation_basis": "supported",
+  "inference_preserved": true,
+  "repair_outcome": "no_advantage",
+  "evaluation_artifact": "/workspace/shortcut-agent-final/baseline/control/experiment.json",
+  "guided_minus_unchanged": 0.0,
+  "worst_group_regression": false,
+  "evidence": [
+    "trusted.py and diagnostics.py use the same RGB float32 [0,1] preprocessing; TinyClassifier.forward centers internally. Reconstructed 256-image validation: identical inputs, probability difference 0, accuracy 1.0, prediction disagreement 0.0.",
+    "Final checkpoint cue-swap sensitivity: {\"n\": 256, \"accuracy\": 1.0, \"flip_rate\": 0.0, \"mean_absolute_probability_change\": 4.1603394492994994e-05}; protected central pixels identical. This sensitivity check is separate from location confirmation.",
+    "evidence.json pilot probe records include 10 incorrect and 54 successful discovery predictions; pilot validation accuracy 0.84375, unchanged by both edits of tiles 6, 5, and 7. Matched excess 6.984919309616089e-10, CI [-3.0326191335916516e-09, 4.889443516731262e-09]; every gate unsupported.",
+    "investigation.json final-checkpoint matched gate reused notebook confirm, fixed pilot shortlist [6, 5, 7], both edits, seven controls with equal L1/L2 perturbation magnitude, original labels unchanged; confirmed location None.",
+    "investigation.json independent current-checkpoint recheck: {\"test_seed\": 100017, \"n\": 1024, \"accuracy\": 1.0, \"groups\": [{\"label\": 0, \"cue\": 0, \"n\": 256, \"accuracy\": 1.0}, {\"label\": 0, \"cue\": 1, \"n\": 256, \"accuracy\": 1.0}, {\"label\": 1, \"cue\": 0, \"n\": 256, \"accuracy\": 1.0}, {\"label\": 1, \"cue\": 1, \"n\": 256, \"accuracy\": 1.0}], \"worst_group\": 1.0}.",
+    "experiment.json independent held-out test uses offset 100000, 1024 images per seed with 256 per label/cue group, seeds 7/17/27, frozen pre-test selections; unchanged, ordinary, guided all accuracy 1.0 and worst-group 1.0. Guided minus unchanged 0.0; guided minus ordinary 0.0; no measured group regressions. Shared pilot, equal 576 optimizer steps and 36864 examples per arm; CAM diagnosis adds compute.",
+    "investigation.json contains validated GradCAM(features) manifests for 0 successful controls, original class scores/probabilities, float32 finite maps and matching 32x32 overlays; immutable file hashes preserved: True."
+  ],
+  "limitations": [
+    "No failures in supplied final checkpoint validation or rechecked independent split; historical pilot failures cannot be given fresh CAM explanations because the pilot checkpoint is not supplied.",
+    "Pilot proposal tile 6 is provisional: CAM activation and rank do not establish causal cue reliance. Final-checkpoint gate also fails; unresolved location is not proof that all possible shortcuts are absent.",
+    "Negative cue-swap and limited matched-border edits apply to this synthetic generator and tested samples; arbitrary shifts and real owner images were not tested.",
+    "Existing independent training arms tie at the performance ceiling; no guided advantage or verified repair is supported. No training was run and no training-code, data, or weights were edited.",
+    "Bootstrap intervals are descriptive and uncorrected for selection; diagnostic compute differs from training budget.",
+    "CAM control 0: TypeError: list indices must be integers or slices, not str",
+    "CAM control 1: TypeError: list indices must be integers or slices, not str"
+  ],
+  "tool_calls_used": 4
+}

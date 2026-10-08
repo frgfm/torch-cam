@@ -1,0 +1,29 @@
+{
+  "diagnosis": "cue_dependence",
+  "location_finding": "unresolved",
+  "recommend_training": "unchanged",
+  "recommendation_basis": "supported",
+  "inference_preserved": true,
+  "repair_outcome": "no_advantage",
+  "evaluation_artifact": "/workspace/shortcut-agent-final/baseline/shortcut/experiment.json",
+  "guided_minus_unchanged": 0.0,
+  "worst_group_regression": false,
+  "evidence": [
+    "trusted.py and diagnostics.py apply identical preprocessing. RGB float32 inputs remain in [0,1]; TinyClassifier.forward centers internally by 0.5. Evidence reports diagnostic prediction disagreement=0.0.",
+    "Replayed the owner's make_split(256,0.5,2017) and loaded the trusted checkpoint without training. There are 128 failures and 128 successful controls; accuracy=0.5.",
+    "The permitted top-left 8x8 red/blue swap preserves the central 16x16 exactly. Prediction flip rate=1.0 and mean absolute probability change=0.9202487468719482; overall accuracy remains 0.5. Original failures become successful predictions, while original successes become failures.",
+    "evidence.json pilot_location_checks: tile-0 CAM mass=0.4131850453559309. Matched neutralization excess=0.06212977319955826, interval=[-0.009945569280534982,0.13612475022673606]; donor-blend excess=0.03221576288342476, interval=[-0.02212384631857276,0.08700453992933034]. Both intervals cross zero; confirmed=null.",
+    "experiment.json independently evaluates frozen selections at test offset=100000 across seeds 7,17,27. Unchanged, ordinary, and guided arms all achieve accuracy=1.0 and worst-group accuracy=1.0, with 256 examples per label/cue group. Guided minus unchanged=0.0; no observed worst-group regression.",
+    "All training arms used 576 steps and 36864 examples. Guided training required additional diagnostic computation without a demonstrated independent advantage.",
+    "All immutable-file hashes in integrity.json were verified. No supplied owner files, preprocessing, weights, or training code were edited.",
+    "A predicted-versus-expected GradCAM explanation was generated for an original failure using the trusted model and target_layer=features, and saved under investigation/failure."
+  ],
+  "limitations": [
+    "Color-swap sensitivity does not pass the matched location gate or establish a verified repair. The swap exchanges failures and successes without improving aggregate accuracy.",
+    "CAM activation is associative evidence; it does not establish causation or localization quality. Matched location remains unresolved.",
+    "The checkpoint is a pilot. Independent final-arm accuracy and group results do not establish final-checkpoint cue invariance.",
+    "Comparator ties occur at the measured synthetic ceiling across three seeds; they do not establish universal equivalence or production generalization.",
+    "The fourth invocation stopped while parsing list-valued CAM artifact metadata. The failure bundle was not fully validated, the successful-control bundle was not generated, and response.json was not written before the four-invocation limit."
+  ],
+  "tool_calls_used": 4
+}

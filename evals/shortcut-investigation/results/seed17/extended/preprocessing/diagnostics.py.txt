@@ -1,0 +1,4 @@
+from trusted import preprocess
+
+def prepare_input(images):
+    return preprocess(images)

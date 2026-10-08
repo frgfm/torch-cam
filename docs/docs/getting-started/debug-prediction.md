@@ -6,6 +6,10 @@ TorchCAM deliberately does not load models, checkpoints, labels, or preprocessin
 
 Run the [prediction debugging notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb)) to compare classes, visualize overlays, and inspect a saved evidence bundle.
 
+For failures across multiple images, successful controls, controlled cue checks, and bounded training/data
+experiments, follow [shortcut investigation](shortcut-investigation.md). Its prerequisite experiment demonstrated
+no CAM-guided repair advantage; independent evaluation and comparator results determine what can be claimed.
+
 ## CNN example
 
 This complete example uses automatic CNN target-layer resolution and writes predicted-versus-expected evidence:
