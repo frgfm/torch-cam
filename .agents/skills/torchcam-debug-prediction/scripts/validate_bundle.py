@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 
 
-def validate_bundle(directory: Path, class_names: list[str]) -> dict:
+def validate_bundle(directory: Path, class_names: list[str]) -> dict:  # noqa: PLR0912
     """Return per-map ranges after verifying completion, paths, arrays, images and class ordering.
 
     Returns:
@@ -25,13 +25,24 @@ def validate_bundle(directory: Path, class_names: list[str]) -> dict:
     if manifest["schema_version"] != 1:
         raise ValueError("Expected schema_version 1")
     classes = manifest["classes"]
+    if not classes or not isinstance(manifest["prediction"], dict):
+        raise ValueError("Expected class artifacts and a prediction reference")
     for reference in (manifest["prediction"], manifest.get("expected")):
-        if reference is not None and str(reference["class_idx"]) not in classes:
-            raise ValueError("Prediction/expected class missing from classes")
+        if reference is not None:
+            index = reference["class_idx"]
+            if type(index) is not int or str(index) not in classes:
+                raise ValueError("Prediction/expected class missing from classes")
+            if reference["class_name"] != classes[str(index)]["class_name"]:
+                raise ValueError("Prediction/expected label differs from class entry")
     rows = []
     for key, entry in classes.items():
         index = entry["class_idx"]
-        if str(index) != key or not 0 <= index < len(class_names) or entry["class_name"] != class_names[index]:
+        if (
+            type(index) is not int
+            or str(index) != key
+            or not 0 <= index < len(class_names)
+            or entry["class_name"] != class_names[index]
+        ):
             raise ValueError("Class entry does not match the owner's ordered labels")
         if not entry["artifacts"]:
             raise ValueError("Class has no map artifacts")

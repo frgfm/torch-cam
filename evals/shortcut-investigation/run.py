@@ -10,6 +10,7 @@ import signal
 import subprocess  # noqa: S404
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 
 
@@ -104,15 +105,18 @@ def run_one(workspace: Path, prompt_path: Path, python: Path) -> dict:
             if calls > 4:
                 status = "tool_budget_exceeded"
                 break
-        if process.poll() is None:
+        with suppress(ProcessLookupError):
             os.killpg(process.pid, signal.SIGTERM)
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
             os.killpg(process.pid, signal.SIGKILL)
             process.wait()
-        trace.write(process.stdout.read().decode("utf-8", errors="replace"))
+        # The leader may have exited while a child still owns the pipe or workspace.
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
         selector.close()
+        process.stdout.close()
     if status == "completed" and (process.returncode != 0 or not (workspace / "response.json").exists()):
         status = "infrastructure_or_agent_failure"
     record = {

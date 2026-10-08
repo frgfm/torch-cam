@@ -8,6 +8,7 @@ import copy
 import hashlib
 import json
 import shutil
+import subprocess  # noqa: S404
 from collections.abc import Callable
 from pathlib import Path
 
@@ -16,6 +17,7 @@ import torch
 NOTEBOOK_REVISION = "cb719ae40cd137e93cb9a16bdb59f1c03e4ee587"
 NOTEBOOK_SHA256 = "ac97e6470f983d49120c1a97c429a8e60e42779124c1a1470084028b9317781d"
 ROOT = Path(__file__).resolve().parents[2]
+BASELINE_REVISION = "5a0bc4d439ad642a37ed301d94601048e8d32de8"
 
 
 def digest(path: Path) -> str:
@@ -124,7 +126,11 @@ def cue_check(namespace: dict, model: torch.nn.Module, view: dict) -> dict:
 
 
 def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
-    """Replay all training once; share its artifacts between both evaluation conditions."""
+    """Replay all training once; share its artifacts between both evaluation conditions.
+
+    Raises:
+        FileNotFoundError: If Git is unavailable for reading the frozen baseline skill.
+    """
     output.mkdir(parents=True, exist_ok=False)
     namespace = load_notebook(notebook, replay=True)
     report = namespace["report"]
@@ -137,6 +143,15 @@ def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
         "case_seed": case_seed,
     }
     baseline = ROOT / ".agents/skills/torchcam-debug-prediction"
+    if (git := shutil.which("git")) is None:
+        raise FileNotFoundError("Git is required to read the frozen baseline skill")
+    original_skill = subprocess.run(  # noqa: S603
+        [git, "show", f"{BASELINE_REVISION}:.agents/skills/torchcam-debug-prediction/SKILL.md"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
     trusted_hashes = {}
     for condition in ("baseline", "extended"):
         for case, regime, checkpoint in (
@@ -181,11 +196,6 @@ def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
                     "artifact": "experiment.json",
                     "test_offset": 100000,
                     "selection_frozen_before_test": True,
-                    "runs": [
-                        {k: v for k, v in r.items() if k != "predictions"}
-                        for r in report["runs"]
-                        if r["regime"] == regime
-                    ],
                     "limit": "All arms tie; no demonstrated CAM-guided advantage. Historical initial failures remain in notebook.",
                 },
                 "scope_limit": "Pilot checks concern the pilot, not a final checkpoint's cue invariance",
@@ -197,7 +207,7 @@ def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
                 shutil.copytree(baseline, skill_dir)
             else:
                 skill_dir.mkdir(parents=True)
-                shutil.copy2(Path(__file__).with_name("baseline-SKILL.md"), skill_dir / "SKILL.md")
+                (skill_dir / "SKILL.md").write_text(original_skill, encoding="utf-8")
             hashes = {
                 name: digest(target / name)
                 for name in (

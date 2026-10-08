@@ -6,9 +6,8 @@ TorchCAM deliberately does not load models, checkpoints, labels, or preprocessin
 
 Run the [prediction debugging notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb)) to compare classes, visualize overlays, and inspect a saved evidence bundle.
 
-For failures across multiple images, successful controls, controlled cue checks, and bounded training/data
-experiments, follow [shortcut investigation](shortcut-investigation.md). Its prerequisite experiment demonstrated
-no CAM-guided repair advantage; independent evaluation and comparator results determine what can be claimed.
+For multiple failures, successful controls, controlled cue checks, and training/data experiments, follow
+[shortcut investigation](#investigate-a-suspected-shortcut).
 
 ## CNN example
 
@@ -92,6 +91,26 @@ A distinct expected class gets a fresh model forward. If expected and predicted 
 - `class-<class_idx>-layer-<layer_idx>-overlay.png`: a full-size overlay matching the source image.
 
 It writes `manifest.json` last. Its presence marks a complete bundle. Schema version 1 contains `prediction`, optional `expected`, per-class logits/probabilities and relative artifact paths, the contributing `target_layers` for each map, `method`, all resolved target layers, `model`, `input_shape`, `versions`, `[width, height]` `image_size`, and `alpha`. A directory with artifacts but no manifest is incomplete.
+
+## Investigate a suspected shortcut
+
+The portable skill also supports failures and successful controls, separate confirmation data, and authorized
+training/data experiments. Its [investigation contract](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/references/shortcut-investigation.md)
+defines the evidence gates and records to retain. Start with this prompt inside the model owner's repository:
+
+> Reuse our trusted checkpoint, evaluation preprocessing, labels and trainer at `<paths>`. Check the diagnostic
+> input first. Compare failures and successful controls in `<discovery data>`, state a cue hypothesis, and test
+> task-preserving edits against matched controls on separate confirmation data. Distinguish cue sensitivity,
+> supported location evidence and unresolved findings. Within our authorization `<scope>`, freeze any proposed
+> experiment's change, budget, comparators and regression criteria. Evaluate frozen candidates on `<independent
+> data>`, preserve original inference, and report failed repairs, regressions and artifact paths.
+
+The completed [notebooks PR #21](https://github.com/frgfm/notebooks/pull/21) demonstrates **no CAM-guided repair
+advantage**: every final arm reaches 100% average/worst-group accuracy, guided-minus-comparator differences are
+zero, and all location gates remain unresolved. Use its trainer and artifacts for bounded investigation, with
+no promise of repair. Its provisional CAM fallback is an experimental arm, not a default intervention policy.
+The [paired agent evaluation](https://github.com/frgfm/torch-cam/tree/main/evals/shortcut-investigation) retains
+measured outcomes and limits. Diagnosis authorization does not itself authorize owner data changes or deployment.
 
 ## Boundaries and troubleshooting
 

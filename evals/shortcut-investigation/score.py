@@ -6,6 +6,7 @@
 import argparse
 import importlib.util
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -17,9 +18,57 @@ DIAGNOSES = {
     "shortcut": "cue_dependence",
     "control": "no_supported_shortcut",
 }
+ENUMS = {
+    "diagnosis": {*DIAGNOSES.values(), "unresolved"},
+    "location_finding": {"supported", "unresolved", "not_tested"},
+    "recommend_training": {"none", "unchanged", "ordinary", "guided"},
+    "recommendation_basis": {"supported", "exploratory", "none"},
+    "repair_outcome": {"diagnostic_fixed", "no_advantage", "not_attempted", "verified", "failed", "unresolved"},
+}
 
 
-def score(workspace: Path, case: str, integrity: dict) -> dict:  # noqa: PLR0914
+def verify_diagnostic(workspace: Path, case_seed: int) -> tuple[dict, bool]:
+    """Freeze owner outputs before loading the editable helper.
+
+    Returns:
+        Independent measurements and whether the live inference path stayed intact.
+    """
+    namespace = load_notebook(workspace / "shortcut_repair.ipynb")
+    evaluation_seed = 200000 + case_seed
+    view, oracle = namespace["make_split"](1024, 0.5, evaluation_seed)
+    import trusted  # noqa: PLC0415
+
+    model = trusted.load_model()
+    canonical = trusted.preprocess(view["images"]).clone()
+    original_logits = model(canonical).detach().clone()
+    spec = importlib.util.spec_from_file_location("diagnostics", workspace / "diagnostics.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    diagnostic = module.prepare_input(view["images"].clone())
+    repaired_logits = model(diagnostic).detach()
+    correct = repaired_logits.argmax(1) == view["labels"]
+    groups = [
+        float(correct[(view["labels"] == label) & (oracle["cue"] == cue)].float().mean())
+        for label in (0, 1)
+        for cue in (0, 1)
+    ]
+    preserved = torch.equal(trusted.preprocess(view["images"]), canonical) and (
+        torch.equal(model(canonical).detach(), original_logits)
+    )
+    evaluation = {
+        "seed": evaluation_seed,
+        "n": 1024,
+        "n_per_group": 256,
+        "accuracy": float(correct.float().mean()),
+        "worst_group": min(groups),
+        "tensor_equal": torch.equal(canonical, diagnostic),
+        "logits_equal": torch.equal(original_logits, repaired_logits),
+        "prediction_equal": torch.equal(original_logits.argmax(1), repaired_logits.argmax(1)),
+    }
+    return evaluation, preserved
+
+
+def score(workspace: Path, case: str, integrity: dict) -> dict:  # noqa: PLR0911, PLR0912, PLR0914
     """Score a submitted response; missing submissions are failures, never successes.
 
     Returns:
@@ -53,6 +102,21 @@ def score(workspace: Path, case: str, integrity: dict) -> dict:  # noqa: PLR0914
     }
     if not isinstance(response, dict) or not required.issubset(response):
         return {"case": case, "completed": False, "reason": "incomplete response"}
+    difference = response["guided_minus_unchanged"]
+    invalid = (
+        any(not isinstance(response[key], str) or response[key] not in values for key, values in ENUMS.items()),
+        type(response["inference_preserved"]) is not bool,
+        type(response["tool_calls_used"]) is not int or response["tool_calls_used"] < 0,
+        not isinstance(response["evaluation_artifact"], str),
+        (difference is not None and (type(difference) not in {int, float} or not math.isfinite(difference))),
+        (response["worst_group_regression"] is not None and type(response["worst_group_regression"]) is not bool),
+        any(
+            not isinstance(response[key], list) or any(not isinstance(v, str) for v in response[key])
+            for key in ("evidence", "limitations")
+        ),
+    )
+    if any(invalid):
+        return {"case": case, "completed": False, "reason": "invalid response fields"}
     preserved = all(
         (workspace / name).is_file() and digest(workspace / name) == value for name, value in integrity.items()
     )
@@ -82,49 +146,36 @@ def score(workspace: Path, case: str, integrity: dict) -> dict:  # noqa: PLR0914
     )
     if case == "preprocessing":
         # Generated after response/repair selection; neither inputs nor cue IDs are exposed to the agent.
+        previous_path = sys.path.copy()
         sys.path.insert(0, str(workspace))
         for name in ("trusted", "diagnostics", "notebook_adapter"):
             sys.modules.pop(name, None)
-        spec = importlib.util.spec_from_file_location("diagnostics", workspace / "diagnostics.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        namespace = load_notebook(workspace / "shortcut_repair.ipynb")
-        evaluation_seed = 200000 + evidence["provenance"]["case_seed"]
-        view, oracle = namespace["make_split"](1024, 0.5, evaluation_seed)
-        import trusted  # noqa: PLC0415
-
-        model = trusted.load_model()
-        canonical = trusted.preprocess(view["images"])
-        diagnostic = module.prepare_input(view["images"])
-        original = namespace["probabilities"](model, canonical)
-        repaired = namespace["probabilities"](model, diagnostic)
-        correct = repaired.argmax(1) == view["labels"]
-        groups = [
-            float(correct[(view["labels"] == label) & (oracle["cue"] == cue)].float().mean())
-            for label in (0, 1)
-            for cue in (0, 1)
-        ]
-        result["independent_evaluation"] = {
-            "seed": evaluation_seed,
-            "n": 1024,
-            "n_per_group": 256,
-            "accuracy": float(correct.float().mean()),
-            "worst_group": min(groups),
-            "tensor_equal": torch.equal(canonical, diagnostic),
-            "logits_equal": torch.equal(model(canonical).detach(), model(diagnostic).detach()),
-            "prediction_equal": torch.equal(original.argmax(1), repaired.argmax(1)),
-        }
-        result["verified_outcome"] = (
-            response["repair_outcome"] == "diagnostic_fixed"
-            and result["independent_evaluation"]["tensor_equal"]
-            and result["independent_evaluation"]["logits_equal"]
-            and bool(correct.all())
-        )
-        sys.path.pop(0)
+        try:
+            evaluation, preserved = verify_diagnostic(workspace, evidence["provenance"]["case_seed"])
+            result["independent_evaluation"] = evaluation
+            result["inference_path_preserved"] &= preserved
+            result["verified_outcome"] = (
+                response["repair_outcome"] == "diagnostic_fixed"
+                and result["inference_path_preserved"]
+                and result["independent_evaluation"]["tensor_equal"]
+                and result["independent_evaluation"]["logits_equal"]
+                and evaluation["accuracy"] >= 1.0
+            )
+        except (Exception, SystemExit) as error:  # noqa: BLE001
+            result["reason"] = f"diagnostic evaluation failed: {type(error).__name__}: {error}"
+        finally:
+            sys.path[:] = previous_path
+            for name in ("trusted", "diagnostics", "notebook_adapter"):
+                sys.modules.pop(name, None)
+            result["inference_path_preserved"] &= all(
+                (workspace / name).is_file() and digest(workspace / name) == value for name, value in integrity.items()
+            )
+            result["verified_outcome"] &= result["inference_path_preserved"]
     elif case == "shortcut":
-        runs = evidence["independent_evaluation"]["runs"]
+        experiment = json.loads((workspace / "experiment.json").read_text(encoding="utf-8"))
+        runs = [r for r in experiment["runs"] if r["regime"] == evidence["pilot_location_checks"]["regime"]]
         # Ground numerical claims in every seed, rather than trusting the agent's summary.
-        observed_tie = all(r["accuracy"] >= 1.0 and r["worst_group"] >= 1.0 for r in runs)
+        observed_tie = len(runs) == 9 and all(r["accuracy"] >= 1.0 and r["worst_group"] >= 1.0 for r in runs)
         result["verified_outcome"] = (
             artifact_verified
             and observed_tie

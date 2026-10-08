@@ -1,86 +1,55 @@
 # Shortcut investigation contract
 
-## Read the prerequisite before adapting it
+## Prerequisite and limits
 
-Use the completed [notebooks PR #21](https://github.com/frgfm/notebooks/pull/21) and
-[executed notebook at cb719ae](https://github.com/frgfm/notebooks/blob/cb719ae40cd137e93cb9a16bdb59f1c03e4ee587/torch-cam/shortcut_repair.ipynb).
-Reuse its functions and exported `experiment.json`; do not copy its trainer into another implementation.
-Its synthetic label is bar orientation in the central 16×16 pixels; only its supplied border is editable.
-Do not assume this permission or label-preservation contract applies to an owner's photographs.
+Read [notebooks PR #21](https://github.com/frgfm/notebooks/pull/21) and its
+[executed notebook](https://github.com/frgfm/notebooks/blob/cb719ae40cd137e93cb9a16bdb59f1c03e4ee587/torch-cam/shortcut_repair.ipynb).
+Reuse its functions and exported `experiment.json`; do not copy its trainer.
+Its central 16×16 pixels define bar orientation; only the supplied border is editable.
+Do not assume that authorization or label-preservation contract applies to owner photographs.
 
-The three seeds (7/17/27) share a four-epoch pilot, then 32 epochs per arm: unchanged continuation,
-ordinary border erasing, and provisional CAM-guided erasing. Each arm observes 576 optimizer steps
-and 36,864 training presentations. Training has 1,024 examples, discovery 64, confirmation 256,
-and independent test 1,024 (256 per label × cue group). The no-shortcut regime removes the injected
-training correlation. CAM and confirmation compute are extra.
+Seeds 7/17/27 compare unchanged continuation, ordinary erasing and provisional CAM-guided erasing:
+shared four-epoch pilot, 32 continuation epochs, 576 updates and 36,864 presentations per arm.
+Train/discovery/confirmation/test sizes are 1,024/64/256/1,024; test groups have 256 examples each.
+CAM and confirmation compute are extra; the no-shortcut regime removes the injected training correlation.
 
-All 18 final outcomes reach 100% average/worst-group accuracy, with zero sample SD and zero
-guided-minus-comparator differences. All six location diagnoses remain unresolved, even though the
-shortcut pilots rank the injected corner first. The notebook intentionally tests a **provisional**
-fallback despite unresolved confirmation. It does not validate a supported location repair policy.
-The initial attempt's 18 failed outcomes and 24 interventions remain in its historical tables.
-Final test seeds were refreshed after initial tests had been viewed; the study was not preregistered.
+All 18 final outcomes reach 100% average/worst-group accuracy, zero seed SD, and zero guided advantage.
+All six location gates remain unresolved. The notebook tests a **provisional** CAM fallback despite that
+uncertainty. It validates protocol integrity, not a supported repair policy, CAM's incremental value,
+cue-invariant logits, or general bias detection. Historical failed attempts remain visible; final test
+seeds were refreshed after initial tests were viewed, and the study was not preregistered.
 
-Use the validated split, artifact, and comparison mechanics. Do not claim repeatable repair benefit,
-CAM's incremental value, general bias detection, or cue-invariant logits from these results.
+## Decisions
 
-## Controlled checks and decisions
+Freeze proposals on discovery; confirm on separate validation examples; keep independent tests out of
+selection. In this notebook both neutralization and training-donor blending must show excess predicted-class
+probability drop >0.02 over matched controls and bootstrap lower bound >0. Area and per-image L1/L2 changes
+match; label pixels remain untouched. Define and justify another task's criteria before confirmation.
 
-Keep discovery, confirmation, and final evaluation separate. Freeze a shortlist on discovery, then
-test on confirmation. In the notebook, both neutralization and training-donor blending must yield
-excess predicted-class probability drop >0.02 over matched controls and a descriptive bootstrap lower
-bound >0. Area and per-image L1/L2 change match; central label pixels are untouched. These thresholds
-are specific to this example. For another task, define its criteria before confirmation and justify them.
+- Proven preprocessing mismatch: fix the diagnostic helper and rerun controls before cue interpretation.
+- CAM salience alone, invalid edits or inadequate controls: retain a hypothesis and stop unresolved.
+- Cue dependence with unresolved location: report both; any authorized targeted experiment stays exploratory.
+- Supported task-preserving checks: consider a bounded experiment through the owner's existing trainer.
+- Independent gain with comparator ties or regressions: retain every outcome; do not claim CAM advantage or a
+  verified repair that violates frozen regression criteria.
+- No supported dependence: retain negative evidence and limits; do not prescribe shortcut-specific training.
 
-Retain every rejected edit, blank map, and extraction error. Record sensitivity to label-preserving
-cue changes separately from the location gate: controls can introduce globally pooled color evidence.
-Do not promote a proposal to supported because one operator passes or because the top CAM tile
-matches a known benchmark cue. Do not declare no shortcut from an unresolved gate.
+Controls can introduce globally pooled cue evidence; an unresolved location gate cannot exclude dependence.
+Do not promote a region because one operator passes or its CAM matches a known benchmark cue. Preserve blank
+maps and extraction errors. Continue within existing authorization; request only necessary additional scope
+for owner data or deployment actions, with a concrete proposal.
 
-| Evidence | Next action |
-| --- | --- |
-| Diagnostic preprocessing differs from trusted evaluation | Fix the diagnostic helper; rerun controls before cue interpretation |
-| Only CAM salience or an invalid edit | Report a hypothesis; improve controls or stop unresolved |
-| Cue dependence observed, location gate unresolved | Report both; consider an authorized bounded baseline/data experiment, label any targeted arm exploratory |
-| Task-preserving checks support the intervention | Run a frozen, budget-matched experiment through the owner's trainer |
-| Independent gain with regression or comparator tie | Report all outcomes; do not attribute gain to CAM or call a regressing candidate a verified repair |
-| No supported cue dependence | Retain negative evidence and limits; do not prescribe shortcut-specific training |
+## Records
 
-Check whether authorization already covers local experiments. Continue within it. If a necessary
-data or deployment action exceeds it, prepare the concrete proposal and request only that additional
-authorization. Investigation permission alone does not authorize production replacement.
+Keep schema-v1 explanation manifests unchanged and validate them using skill step 4. They contain activation
+artifacts, not training provenance. The notebook's separate **unversioned** `experiment.json` retains protocol,
+runtime, all diagnoses/probes/interventions, observed budgets, final model/test hashes, predictions, group
+counts/scores, summaries and fault probes. It exports to a fresh temporary directory; checkpoints and explanation
+bundles must be captured separately. Acceptance checks require integrity, not improvement.
 
-## Artifact contracts
-
-Keep TorchCAM's schema-v1 `manifest.json` contract unchanged. It is the completion marker for
-per-image maps, heatmaps, overlays, scores, method, layers, image dimensions, and runtime.
-Validate it using step 4 of the skill. It does not contain training provenance or repair verification.
-
-The notebook's **separate, unversioned** `experiment.json` contains:
-
-- `protocol`: seeds, regimes, arms, split sizes, epochs, batch, optimizer, centering, tiles,
-  edit probability, selection gate, bootstrap, seed offsets, cue agreement, diagnostic budget;
-- `runtime`: dependency pins, Python, TorchCAM source revision and version, CPU threads;
-- `diagnoses`: regime/seed, `status`, provisional `chosen`, `confirmed`, CAM tile scores,
-  all per-image `probes` (`ok`/`blank`/`error`, correctness/error) and tested `interventions`;
-- `runs`: regime/seed/arm, weight hash, observed steps/presentations, test predictions,
-  average/worst-group accuracy and all four groups with counts;
-- `summary`, `test_hashes`, and retained blank/error `fault_checks`.
-
-It exports to a fresh temporary directory and does **not** export checkpoints or schema-v1 bundles.
-Capture those separately when adapting it; retain the source revision and hash of the notebook and
-JSON. Check split separation, predictions/group counts, budgets, all arms and seeds, finite metrics,
-and fault probes. Acceptance checks validate integrity, not improvement.
-
-For an owner's investigation, write a separate JSON record with:
-
-- trusted loader/preprocess/trainer paths and config, checkpoint/class-order/input hashes,
-  runtime, original logits, authorization scope;
-- discovery/confirmation/evaluation sample IDs or hashes, labels, group counts, and bundle paths;
-- frozen hypothesis, edit/control recipes, donors, magnitude/label checks, decision criteria;
-- per-sample original/edited scores, correctness, blank/error statuses, supported/unresolved findings;
-- experiment arms, seed/checkpoint hashes, observed budgets, selection rules and criteria;
-- independent evaluation predictions, average/class/group metrics, seed differences, regressions,
-  failed repairs, inference-preservation checks, and limitations.
-
-Use the owner's existing record format if one exists. This record is not a new TorchCAM API schema.
+Use the owner's record format if one exists. Otherwise retain loader/preprocessor/trainer paths and config,
+checkpoint/class-order/input hashes, original logits, runtime and authorization; split IDs/hashes and labels;
+frozen hypothesis, edits/controls/donors, magnitude and label checks, decision criteria; per-sample scores,
+blank/error statuses and supported/unresolved findings; candidate hashes, seeds, observed budgets and selection;
+independent predictions and average/class/group metrics with counts, comparator differences, regressions,
+failed repairs and inference-preservation checks. This is not a new TorchCAM API schema.

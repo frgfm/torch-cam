@@ -39,7 +39,19 @@ def test_validator_reads_real_artifact_list_and_blank_maps(bundle):
     assert any(row["blank"] for row in result["maps"])
 
 
-@pytest.mark.parametrize("fault", ["missing_manifest", "outside_path", "labels", "nonfinite", "overlay_size"])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing_manifest",
+        "outside_path",
+        "labels",
+        "nonfinite",
+        "overlay_size",
+        "missing_prediction",
+        "empty_classes",
+        "prediction_label",
+    ],
+)
 def test_validator_rejects_incomplete_or_misleading_evidence(bundle, tmp_path, fault):
     path = bundle / "manifest.json"
     manifest = json.loads(path.read_text())
@@ -55,7 +67,15 @@ def test_validator_rejects_incomplete_or_misleading_evidence(bundle, tmp_path, f
         labels.reverse()
     elif fault == "nonfinite":
         np.save(bundle / artifact["map"], np.full((2, 2), np.nan, dtype=np.float32))
-    else:
+    elif fault == "overlay_size":
         Image.new("RGB", (8, 8)).save(bundle / artifact["overlay"])
+    else:
+        if fault == "missing_prediction":
+            manifest["prediction"] = None
+        elif fault == "empty_classes":
+            manifest["classes"] = {}
+        else:
+            manifest["prediction"]["class_name"] = "WRONG LABEL"
+        path.write_text(json.dumps(manifest))
     with pytest.raises((ValueError, FileNotFoundError)):
         VALIDATOR.validate_bundle(bundle, labels)
