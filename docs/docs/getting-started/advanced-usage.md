@@ -447,6 +447,67 @@ weights instead of materializing image-token logits for the entire vocabulary. I
 from the [paper](https://arxiv.org/abs/2506.23270), without the reference application's text rendering or joint
 image/text normalization. Its maps are estimates of visual relevance, not proof of a causal explanation.
 
+### DEX-AR for generated tokens and answers
+
+[`DEXAR`](../reference/methods.md#torchcam.methods.DEXAR) differentiates each selected decoder layer's **own**
+next-token logit with respect to that layer's post-softmax attention probabilities. Heads with stronger positive
+visual than textual gradients contribute to the token map. Token maps are normalized individually, then combined
+using visual relevance weights to explain the answer. This follows the [DEX-AR paper](https://arxiv.org/abs/2603.06302),
+equations (4)–(6), with positive gradients as in Appendix G.1.
+
+The extractor has no model hooks or Transformers dependency. The caller supplies logits for the actual target ID
+and attention tensors from the same forward, plus an explicit spatial grid and visual-key mask:
+
+```python
+from torchcam.methods import DEXAR
+
+extractor = DEXAR(grid_shape=(height, width))  # rectangular grids are supported
+token_map, token_weight = extractor(
+    scores=layer_token_logits,  # list of (batch,) logits for the selected vocabulary token
+    attentions=layer_attentions,  # matching (batch, heads, queries, keys) probability tensors
+    visual_mask=image_key_mask,  # boolean (keys,); visual keys in spatial order
+)
+# Stack outputs over generated tokens, retaining the batch dimension.
+sequence_map = extractor.aggregate(token_maps, token_weights)  # (batch, tokens, H, W), (batch, tokens)
+```
+
+Explain token `t` from the prefix containing the prompt and tokens **before** `t`; its last state predicts `t`.
+Append the token only after attributing it. Preserve the original generated IDs rather than retokenizing decoded
+text. Layer logits must use the appropriate final norm and vocabulary projection; apply the final norm only once.
+The returned attention must participate in the logit computation: detached, averaged or unused attention copies
+cannot be attributed. Unpadded prefixes and a shared visual-key layout across the batch are required. Every
+nonvisual key, including special tokens, participates in the textual relevance comparison. Results accumulate in
+float32 (float64 for double attention); all-zero weights and constant maps give finite zero maps.
+
+The optional [Qwen2.5-VL example](https://github.com/frgfm/torch-cam/blob/main/scripts/dexar_example.py) targets
+**Transformers 4.51.3**, batch size one, one still image, eager attention and an unquantized linear head:
+
+```shell
+uv pip install 'transformers==4.51.3'
+python scripts/dexar_example.py --image /path/to/image.jpg --output /tmp/dexar-demo \
+  --model Qwen/Qwen2.5-VL-3B-Instruct --dtype bfloat16
+```
+
+It generates an answer greedily, then replays those IDs with gradients enabled and caching disabled. Qwen's
+`image_grid_thw / spatial_merge_size` defines the rectangular language-model grid; its vision encoder restores
+spatial order after window attention. The example saves the input image, all token overlays, a sequence overlay,
+and a JSON report containing the answer, IDs, weights, model revision, settings and separate loading, generation,
+attribution-forward, DEX-AR and TAM timings. It calls the actual TorchCAM `TAM` for comparison, using its documented
+context-state convention. TAM timing excludes shared forwards. A single example is a demonstration, not an accuracy
+benchmark, and these implementations do not establish that DEX-AR is superior to TAM.
+
+The [official code at `07830a1`](https://github.com/WalBouss/DEX-AR/blob/07830a1e435eacde0acc68b31467681a236dc3a7/dexar/wrapper.py)
+differs from the main paper equations: it applies ReLU to gradients (supported by Appendix G.1), globally normalizes
+gradients before head weighting, and combines **raw** filtered gradient maps at sequence level. Here we omit the
+global normalization and use **per-token normalized maps** in equation (6), so raw token-map amplitudes do not
+implicitly add another sequence weight. Constant-map normalization is guarded against division by zero. The
+example also selects actual image placeholder IDs instead of assuming 576 image tokens or skipping the first
+nonvisual key after the image, and respects Qwen's already-normalized final hidden state.
+
+Other models require their own extraction of connected attention, layer logits and spatial layout. This example
+does not support newer Transformers model layouts, multi-image prompts, videos, padding, quantization, Flash
+Attention or SDPA. Maps are gradient sensitivity explanations, not object masks or proof of causal grounding.
+
 ## Using CAM during or after training
 
 CAM methods are **post-hoc**: run them on a trained model in `eval()` mode to interpret its predictions — they

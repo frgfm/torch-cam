@@ -56,3 +56,9 @@ states and a linear vocabulary head directly; it does not use the class CAM hook
         heading_level: 3
         show_root_heading: true
         members: [__call__]
+
+::: torchcam.methods.DEXAR
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__, aggregate]
