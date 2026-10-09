@@ -15,14 +15,10 @@ class EntropyGradient:
     """Extract the map primitive from
     ["Entropy-Gradient Grounding"](https://arxiv.org/abs/2604.08456), equations (1)-(4).
 
-    Differentiate the Shannon entropy of the full next-token distribution with respect to projected visual
-    embeddings entering the language model, then take the gradient's L2 norm over embedding channels.
-    This measures sensitivity of predictive uncertainty, rather than support for a particular generated word.
-    Region selection, smoothing, cropping and iterative refinement are outside this extractor's scope.
-
-    Like TAM, this extractor consumes an existing forward, installs no hooks and returns a single tensor.
-    The caller supplies the exact downstream-used embeddings and their spatial order; final language-model
-    states, detached copies and slices created after the forward are not interchangeable with those inputs.
+    Take the channel L2 norm of next-token Shannon entropy gradients with respect to projected visual
+    embeddings entering the language model. This measures uncertainty sensitivity, not word attribution.
+    Region selection and crop-and-refine are excluded. The caller supplies tensors from an existing
+    differentiable forward and their spatial order; this extractor installs no hooks.
 
     Args:
         grid_shape: explicit visual grid ``(height, width)``, including rectangular grids
@@ -52,29 +48,26 @@ class EntropyGradient:
         """Map uncertainty sensitivity at one caller-selected decoding step.
 
         Args:
-            logits: full vocabulary logits shaped ``(N, vocabulary)``; select the next-token query, e.g.
-                ``output.logits[:, -1]`` for an unpadded prefix. No temperature or sampling filters are applied.
-            embeddings: exact projected visual embeddings shaped ``(N, tokens, channels)`` used by the forward,
-                or the mixed visual/text input embeddings with ``visual_tokens`` selecting image positions
-            visual_tokens: optional one-dimensional boolean mask of length ``tokens``, or unique int32/int64
-                indices in row-major spatial order, shared across the batch. If omitted, all tokens are visual.
-            normalized: whether to min-max normalize each image to [0, 1]; constant maps become zero
-            retain_graph: whether to retain the forward graph for another attribution or backward pass.
-                The default releases it; reusing it then requires a new forward.
+            logits: full vocabulary logits ``(N, vocabulary)`` at the chosen query, e.g. ``output.logits[:, -1]``
+                for an unpadded prefix; no temperature or sampling filters are applied
+            embeddings: exact projected or mixed visual/text input embeddings ``(N, tokens, channels)`` used
+                by the forward; final hidden states and post-forward slices/copies are not valid substitutes
+            visual_tokens: optional boolean mask ``(tokens,)`` or unique int32/int64 indices in row-major
+                order, shared across the batch; omitted means all tokens are visual
+            normalized: min-max normalize each image to [0, 1]; constant maps become zero
+            retain_graph: keep the graph for another attribution/backward; default releases it
 
         Returns:
-            detached maps shaped ``(N, height, width)`` on the embeddings' device. Entropy and channel norms
-            accumulate in float32, or float64 if either input is double precision. Entropy uses natural logs.
+            detached ``(N, height, width)`` maps on the embeddings' device; accumulation uses float32 or
+            float64 if either input is double precision. Entropy uses natural logs.
 
         Raises:
-            ValueError: if shapes, devices, dtypes, finite values or visual-token selection are incompatible
-            RuntimeError: if gradient tracking is disabled, inputs are not differentiable, the logits are
-                disconnected from the embeddings, or their forward graph has already been released
+            ValueError: if shapes, devices, dtypes, finite values or token selection are incompatible
+            RuntimeError: if autograd is disabled, inputs are disconnected/non-differentiable, or the graph is freed
 
         Note:
-            The batch objective is the sum of sample entropies, assuming samples do not interact in the model.
-            ``autograd.grad`` leaves model parameter gradients intact. Accumulation cannot recover gradients
-            already rounded to zero by a low-precision forward or backward.
+            Sample entropies are summed, assuming independent samples. Parameter gradients are preserved.
+            Accumulation cannot recover gradients already lost inside a low-precision model.
         """
         if not torch.is_grad_enabled() or torch.is_inference_mode_enabled():
             raise RuntimeError("EntropyGradient requires a forward and attribution with gradient tracking enabled")
