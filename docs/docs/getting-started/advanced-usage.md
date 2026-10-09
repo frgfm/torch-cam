@@ -473,9 +473,9 @@ uv pip install 'transformers==4.51.3'
 python scripts/dexar_example.py --image /path/to/image.jpg --output /tmp/dexar-demo
 ```
 
-It saves the generated answer/IDs, input, token/sequence overlays and separate loading, generation and attribution
-timings. No accuracy or superiority claim; other models, newer Transformers layouts, video, padding and multiple
-images need their own extraction.
+It saves the generated answer/IDs, input, token/sequence overlays labelled with token text, ID and answer position,
+and separate loading, generation and attribution timings. Tokens may be subwords. No accuracy or superiority claim;
+other models, newer Transformers layouts, video, padding and multiple images need their own extraction.
 
 We follow [paper equations (4)-(6) and Appendix G.1](https://arxiv.org/abs/2603.06302): positive gradients and
 individually normalized token maps for sequence aggregation. The [reference at `07830a1`](https://github.com/WalBouss/DEX-AR/blob/07830a1e435eacde0acc68b31467681a236dc3a7/dexar/wrapper.py)

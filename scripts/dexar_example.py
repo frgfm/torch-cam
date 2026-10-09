@@ -120,9 +120,9 @@ def save_overlays(image, answer, tokens, maps, weights, sequence, output_dir):
     axes[0].set_title("Input image")
     axes[1].imshow(overlay_mask(image, Image.fromarray(sequence[0].cpu().numpy(), mode="F")))
     axes[1].set_title("DEX-AR sequence")
-    for idx, token in enumerate(tokens):
+    for idx, (token_id, text) in enumerate(tokens):
         axes[idx + 2].imshow(overlay_mask(image, Image.fromarray(maps[0, idx].float().cpu().numpy(), mode="F")))
-        axes[idx + 2].set_title(f"{idx}: {token!r}\nweight={float(weights[0, idx]):.3g}")
+        axes[idx + 2].set_title(f"Token {idx + 1}: {text!r} (ID {token_id})\nweight={float(weights[0, idx]):.3g}")
     for axis in axes.flat:
         axis.axis("off")
     fig.tight_layout(rect=(0, 0, 1, 0.97))
@@ -164,7 +164,7 @@ def main(args):
         answer_ids = answer_ids[:, :-1]
     maps, weights, sequence, attribution = explain_qwen(model, inputs, answer_ids)
     answer = processor.tokenizer.decode(answer_ids[0], skip_special_tokens=True)
-    tokens = [processor.tokenizer.decode([int(token)]) for token in answer_ids[0]]
+    tokens = [(int(token), processor.tokenizer.decode([int(token)])) for token in answer_ids[0]]
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
     save_overlays(image, answer, tokens, maps, weights, sequence, output_dir)
@@ -176,6 +176,7 @@ def main(args):
         "answer": answer,
         "generated_ids": generated[0, inputs["input_ids"].shape[1] :].tolist(),
         "explained_ids": answer_ids[0].tolist(),
+        "token_text": [text for _, text in tokens],
         "token_weights": weights[0].tolist(),
         "grid_shape": list(maps.shape[-2:]),
         "layers": len(model.model.layers),
