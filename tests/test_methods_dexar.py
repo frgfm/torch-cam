@@ -98,6 +98,47 @@ def test_dexar_disconnected_returned_attention():
         DEXAR((1, 2))([score], [disconnected], torch.tensor([False, True, True]))
 
 
+@pytest.mark.parametrize("grid", [None, (0, 2), (True, 2)])
+def test_dexar_invalid_grid(grid):
+    with pytest.raises(ValueError, match="grid_shape"):
+        DEXAR(grid)
+
+
+@pytest.mark.parametrize(
+    ("argument", "value", "error"),
+    [
+        ("scores", [], ValueError),
+        ("attentions", [torch.empty(1, 0, 1, 3)], ValueError),
+        ("visual_mask", torch.ones(3), ValueError),
+        ("visual_mask", torch.tensor([False, False, True]), ValueError),
+        ("scores", [torch.zeros(1, 1)], ValueError),
+        ("scores", [torch.zeros(1, device="meta")], ValueError),
+        ("scores", [torch.zeros(1, dtype=torch.int64)], ValueError),
+        ("scores", [torch.zeros(1)], RuntimeError),
+    ],
+)
+def test_dexar_invalid_inputs(argument, value, error):
+    score, attention = _layer([[[0, 2, 1]]])
+    inputs = {"scores": [score], "attentions": [attention], "visual_mask": torch.tensor([False, True, True])}
+    inputs[argument] = value
+    with pytest.raises(error):
+        DEXAR((1, 2))(**inputs)
+
+
+@pytest.mark.parametrize(
+    ("maps", "weights"),
+    [
+        (torch.ones(1, 1, 2), torch.ones(1, 1)),
+        (torch.ones(1, 1, 1, 2, dtype=torch.int64), torch.ones(1, 1)),
+        (torch.ones(1, 1, 1, 2), torch.tensor([[-1.0]])),
+        (torch.ones(1, 1, 1, 2), torch.tensor([[float("nan")]])),
+    ],
+)
+def test_dexar_invalid_aggregation(maps, weights):
+    with pytest.raises(ValueError):
+        DEXAR((1, 2)).aggregate(maps, weights)
+
+
 @pytest.mark.parametrize("mode", [torch.no_grad, torch.inference_mode])
 def test_dexar_requires_autograd(mode):
     score, attention = _layer([[[0, 2, 1]]])

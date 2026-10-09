@@ -77,7 +77,7 @@ def test_qwen_token_alignment_intermediate_logits_and_hook_cleanup(qwen_inputs, 
     monkeypatch.setattr(DEXAR, "__call__", check_logits)
     handle = model.register_forward_hook(capture, with_kwargs=True)
     try:
-        maps, weights, sequence, tam_maps, timings = dexar_example.explain_qwen(model, inputs, answer, [28, 29, 30, 31])
+        maps, weights, sequence, timings = dexar_example.explain_qwen(model, inputs, answer)
     finally:
         handle.remove()
     for step, prefix in enumerate(prefixes):
@@ -85,7 +85,6 @@ def test_qwen_token_alignment_intermediate_logits_and_hook_cleanup(qwen_inputs, 
     assert maps.shape == (1, 3, 2, 3)
     assert weights.shape == (1, 3)
     assert sequence.shape == (1, 2, 3)
-    assert tam_maps.shape == maps.shape
     assert sequence.isfinite().all()
     assert all(value >= 0 for value in timings.values())
     assert inputs["input_ids"].shape[1] == 10
@@ -103,7 +102,7 @@ def test_qwen_hook_cleanup_on_failed_forward(qwen_inputs, monkeypatch):
 
     monkeypatch.setattr(model, "forward", fail)
     with pytest.raises(RuntimeError, match="failed forward"):
-        dexar_example.explain_qwen(model, inputs, torch.tensor([[4]]), [])
+        dexar_example.explain_qwen(model, inputs, torch.tensor([[4]]))
     assert not model.get_input_embeddings()._forward_hooks
     assert not model.lm_head._forward_pre_hooks
 
@@ -112,4 +111,4 @@ def test_qwen_rejects_multiple_frames(qwen_inputs):
     model, inputs = qwen_inputs
     inputs["image_grid_thw"][0, 0] = 2
     with pytest.raises(ValueError, match="still image"):
-        dexar_example.explain_qwen(model, inputs, torch.tensor([[4]]), [])
+        dexar_example.explain_qwen(model, inputs, torch.tensor([[4]]))

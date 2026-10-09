@@ -16,7 +16,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
-from torchcam.methods import DEXAR, TAM
+from torchcam.methods import DEXAR
 from torchcam.utils import overlay_mask
 
 
@@ -33,16 +33,7 @@ def timer(timings, key, device):
         timings[key] = timings.get(key, 0) + time.perf_counter() - started
 
 
-@torch.enable_grad()
-def explain_qwen(model, inputs, answer_ids, special_ids):  # noqa: PLR0915
-    """Replay the actual generated IDs; each prefix excludes the token currently being explained.
-
-    Returns:
-        token maps, relevance weights, sequence map, TAM token maps, and separate attribution timings
-
-    Raises:
-        ValueError: if the model or inputs fall outside this example's supported configuration
-    """
+def visual_grid(model, inputs):
     if model.training or model.config._attn_implementation != "eager":  # noqa: SLF001
         raise ValueError("use eval mode and attn_implementation='eager'")
     ids = inputs["input_ids"]
@@ -55,20 +46,34 @@ def explain_qwen(model, inputs, answer_ids, special_ids):  # noqa: PLR0915
         or "pixel_values_videos" in inputs
     ):
         raise ValueError("this example requires batch size one and one unpadded still image")
-    if answer_ids.ndim != 2 or answer_ids.shape[0] != 1 or answer_ids.shape[1] == 0:
-        raise ValueError("provide at least one generated token, shaped (1, tokens)")
-    decoder = model.model  # Transformers 4.51.3 Qwen2.5-VL layout.
-    num_layers = len(decoder.layers)
     merge = model.config.vision_config.spatial_merge_size
     height, width = (int(dim) // merge for dim in grid[0, 1:])
     image_mask = ids[0] == model.config.image_token_id
     if int(image_mask.sum()) != height * width:
         raise ValueError("image placeholders must match the merged visual grid")
+    return height, width
+
+
+@torch.enable_grad()
+def explain_qwen(model, inputs, answer_ids):
+    """Replay generated IDs; each prefix excludes the token currently being explained.
+
+    Returns:
+        token maps, relevance weights, sequence map, and separate attribution timings
+
+    Raises:
+        ValueError: if the model or inputs fall outside this example's supported configuration
+    """
+    height, width = visual_grid(model, inputs)
+    if answer_ids.ndim != 2 or answer_ids.shape[0] != 1 or answer_ids.shape[1] == 0:
+        raise ValueError("provide at least one generated token, shaped (1, tokens)")
+    ids = inputs["input_ids"]
+    decoder = model.model  # Transformers 4.51.3 Qwen2.5-VL layout.
+    num_layers = len(decoder.layers)
     head = model.get_output_embeddings()
-    extractor, tam = DEXAR((height, width)), TAM(head)
-    text_mask = ~image_mask & ~torch.isin(ids[0], torch.tensor(special_ids, device=ids.device))
+    extractor = DEXAR((height, width))
     prefix = dict(inputs)
-    maps, weights, tam_maps = [], [], []
+    maps, weights = [], []
     timings = {}
     # Differentiate frozen embeddings; avoid projecting every prefix position onto the full vocabulary.
     handles = [
@@ -93,15 +98,6 @@ def explain_qwen(model, inputs, answer_ids, special_ids):  # noqa: PLR0915
             maps.append(token_map)
             weights.append(weight)
 
-            with timer(timings, "tam", ids.device):
-                final_states = output.hidden_states[-1].detach()
-                if step == 0:
-                    visual = final_states[:, image_mask].reshape(1, height, width, final_states.shape[-1])
-                    context, context_ids = final_states[:, text_mask], ids[:, text_mask]
-                tam_maps.append(tam(token_id, visual, context, context_ids))
-                # TorchCAM TAM pairs earlier IDs with the final states that predicted them.
-                context = torch.cat([context, final_states[:, -1:]], dim=1)
-                context_ids = torch.cat([context_ids, answer_ids[:, step : step + 1]], dim=1)
             # Append only after attributing this token.
             prefix["input_ids"] = torch.cat([prefix["input_ids"], answer_ids[:, step : step + 1]], dim=1)
             prefix["attention_mask"] = torch.ones_like(prefix["input_ids"])
@@ -112,25 +108,24 @@ def explain_qwen(model, inputs, answer_ids, special_ids):  # noqa: PLR0915
     maps, weights = torch.stack(maps, dim=1), torch.stack(weights, dim=1)
     with timer(timings, "dexar", ids.device):
         sequence = extractor.aggregate(maps, weights)
-    return maps, weights, sequence, torch.stack(tam_maps, dim=1), timings
+    return maps, weights, sequence, timings
 
 
-def save_overlays(image, tokens, maps, weights, sequence, tam_maps, output_dir):
-    fig, axes = plt.subplots(len(tokens) + 1, 2, figsize=(8, 2.5 * (len(tokens) + 1)), squeeze=False)
-    axes[0, 0].imshow(image)
-    axes[0, 0].set_title("Input image")
-    axes[0, 1].imshow(overlay_mask(image, Image.fromarray(sequence[0].cpu().numpy(), mode="F")))
-    axes[0, 1].set_title("DEX-AR sequence")
+def save_overlays(image, answer, tokens, maps, weights, sequence, output_dir):
+    rows = (len(tokens) + 3) // 2
+    fig, axes = plt.subplots(rows, 2, figsize=(8, 2.5 * rows), squeeze=False)
+    fig.suptitle(f"Generated answer: {answer}", wrap=True)
+    axes = axes.ravel()
+    axes[0].imshow(image)
+    axes[0].set_title("Input image")
+    axes[1].imshow(overlay_mask(image, Image.fromarray(sequence[0].cpu().numpy(), mode="F")))
+    axes[1].set_title("DEX-AR sequence")
     for idx, token in enumerate(tokens):
-        for column, (method, heatmaps) in enumerate((("DEX-AR", maps), ("TorchCAM TAM", tam_maps))):
-            axes[idx + 1, column].imshow(
-                overlay_mask(image, Image.fromarray(heatmaps[0, idx].float().cpu().numpy(), mode="F"))
-            )
-            suffix = f"; weight={float(weights[0, idx]):.3g}" if column == 0 else ""
-            axes[idx + 1, column].set_title(f"{idx}: {token!r} — {method}{suffix}")
+        axes[idx + 2].imshow(overlay_mask(image, Image.fromarray(maps[0, idx].float().cpu().numpy(), mode="F")))
+        axes[idx + 2].set_title(f"{idx}: {token!r}\nweight={float(weights[0, idx]):.3g}")
     for axis in axes.flat:
         axis.axis("off")
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(output_dir / "overlays.png", dpi=120)
     plt.close(fig)
     image.save(output_dir / "input.png")
@@ -167,14 +162,12 @@ def main(args):
     eos_terminated = bool(answer_ids.shape[1] and int(answer_ids[0, -1]) in eos)
     if eos_terminated:
         answer_ids = answer_ids[:, :-1]
-    maps, weights, sequence, tam_maps, attribution = explain_qwen(
-        model, inputs, answer_ids, processor.tokenizer.all_special_ids
-    )
+    maps, weights, sequence, attribution = explain_qwen(model, inputs, answer_ids)
     answer = processor.tokenizer.decode(answer_ids[0], skip_special_tokens=True)
     tokens = [processor.tokenizer.decode([int(token)]) for token in answer_ids[0]]
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
-    save_overlays(image, tokens, maps, weights, sequence, tam_maps, output_dir)
+    save_overlays(image, answer, tokens, maps, weights, sequence, output_dir)
     report = {
         **vars(args),
         "revision": model.config._commit_hash,  # noqa: SLF001
@@ -189,7 +182,7 @@ def main(args):
         "eos_terminated": eos_terminated,
         "inference": {"attention": "eager", "do_sample": False, "generation_cache": True, "attribution_cache": False},
         "seconds": {**timings, **attribution, "attribution": attribution["forward"] + attribution["dexar"]},
-        "note": "One demonstration, not an accuracy benchmark. TAM timing excludes shared prefix forwards.",
+        "note": "One demonstration, not an accuracy benchmark or a comparison with TAM.",
     }
     (output_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
