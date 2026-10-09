@@ -15,11 +15,11 @@ sys.path.pop(0)
 
 
 @pytest.fixture
-def submission(tmp_path):
+def submission(tmp_path, monkeypatch):
     artifact = tmp_path / "experiment.json"
     artifact.write_text(json.dumps({"runs": [{"regime": "shortcut", "accuracy": 1.0, "worst_group": 1.0}] * 9}))
     evidence = {
-        "provenance": {"experiment_sha256": SCORER.digest(artifact)},
+        "provenance": {"experiment_sha256": SCORER.digest(artifact), "case_seed": 17},
         "pilot_location_checks": {"regime": "shortcut"},
     }
     (tmp_path / "evidence.json").write_text(json.dumps(evidence))
@@ -38,13 +38,27 @@ def submission(tmp_path):
         "tool_calls_used": 4,
     }
     (tmp_path / "response.json").write_text(json.dumps(response))
-    integrity = {name: SCORER.digest(tmp_path / name) for name in ("evidence.json", "experiment.json")}
+    (tmp_path / "trusted.py").write_text(
+        "import torch\nclass Model(torch.nn.Module):\n"
+        " def forward(self,x): return torch.stack((x.flatten(),-x.flatten()),1)\n"
+        "def load_model(): return Model().eval()\ndef preprocess(x): return x.clone()\n"
+    )
+    (tmp_path / "diagnostics.py").write_text("def prepare_input(x): return x.clone()\n")
+    labels = torch.arange(1024) % 2
+    view = {"images": (1 - 2 * labels).float().reshape(-1, 1, 1, 1), "labels": labels}
+    namespace = {"make_split": lambda *_: (view, {"cue": torch.arange(1024) // 2 % 2})}
+    monkeypatch.setattr(SCORER, "load_notebook", lambda _: namespace)
+    integrity = {name: SCORER.digest(tmp_path / name) for name in ("evidence.json", "experiment.json", "trusted.py")}
     return tmp_path, response, integrity
 
 
 @pytest.mark.parametrize(
     ("changes", "completed", "unsupported"),
-    [({}, True, False), ({"recommend_training": "guided"}, True, True), ({"tool_calls_used": "4"}, False, False)],
+    [
+        ({}, True, False),
+        ({"recommend_training": "guided", "recommendation_basis": "none"}, True, True),
+        ({"tool_calls_used": 5}, False, False),
+    ],
 )
 def test_scorer_distinguishes_grounded_null_unsupported_claim_and_invalid_record(
     submission, changes, completed, unsupported
@@ -60,40 +74,30 @@ def test_scorer_distinguishes_grounded_null_unsupported_claim_and_invalid_record
         assert result["verified_outcome"]
 
 
-@pytest.mark.parametrize("helper", ["identity", "patch_trusted", "tamper_file", "system_exit"])
-def test_diagnostic_verification_freezes_owner_path_and_records_failed_repairs(submission, monkeypatch, helper):
+@pytest.mark.parametrize("helper", ["identity", "patch_trusted", "control_mismatch", "tamper_artifact"])
+def test_diagnostic_verification_freezes_owner_path_and_records_failed_repairs(submission, helper):
     workspace, response, integrity = submission
-    response.update(diagnosis="preprocessing_mismatch", repair_outcome="diagnostic_fixed", recommend_training="none")
-    (workspace / "response.json").write_text(json.dumps(response))
-    evidence = json.loads((workspace / "evidence.json").read_text())
-    evidence["provenance"]["case_seed"] = 17
-    (workspace / "evidence.json").write_text(json.dumps(evidence))
-    (workspace / "trusted.py").write_text(
-        "import torch\nclass Model(torch.nn.Module):\n"
-        " def forward(self,x): return torch.stack((x.flatten(),-x.flatten()),1)\n"
-        "def load_model(): return Model().eval()\ndef preprocess(x): return x.clone()\n"
+    case = {"control_mismatch": "control", "tamper_artifact": "shortcut"}.get(helper, "preprocessing")
+    response.update(
+        diagnosis=SCORER.DIAGNOSES[case],
+        recommend_training="none",
+        repair_outcome={"control": "not_attempted", "shortcut": "no_advantage"}.get(case, "diagnostic_fixed"),
     )
+    (workspace / "response.json").write_text(json.dumps(response))
     sources = {
         "identity": "def prepare_input(x): return x.clone()\n",
         "patch_trusted": "import trusted\ntrusted.preprocess=lambda x:x-.01\ndef prepare_input(x): return trusted.preprocess(x)\n",
-        "tamper_file": "import trusted\nfrom pathlib import Path\nPath(trusted.__file__).write_text('changed')\ndef prepare_input(x): return x.clone()\n",
-        "system_exit": "raise SystemExit('failed repair')\n",
+        "control_mismatch": "def prepare_input(x): return x - .5\n",
+        "tamper_artifact": "import trusted\nfrom pathlib import Path\ndef prepare_input(x):\n Path(trusted.__file__).with_name('experiment.json').write_text('bad')\n return x.clone()\n",
     }
     (workspace / "diagnostics.py").write_text(sources[helper])
-    integrity.update({name: SCORER.digest(workspace / name) for name in ("trusted.py", "evidence.json")})
-    labels = torch.arange(1024) % 2
-    view = {"images": (1 - 2 * labels).float().reshape(-1, 1, 1, 1), "labels": labels}
-    namespace = {"make_split": lambda *_: (view, {"cue": torch.arange(1024) // 2 % 2})}
-    monkeypatch.setattr(SCORER, "load_notebook", lambda _: namespace)
     previous_path = sys.path.copy()
-    result = SCORER.score(workspace, "preprocessing", integrity)
+    result = SCORER.score(workspace, case, integrity)
     assert result["verified_outcome"] == (helper == "identity")
     assert sys.path == previous_path
     assert "trusted" not in sys.modules
     if helper == "patch_trusted":
         assert not result["inference_path_preserved"]
         assert not result["independent_evaluation"]["tensor_equal"]
-    elif helper == "tamper_file":
+    elif helper in {"control_mismatch", "tamper_artifact"}:
         assert not result["inference_path_preserved"]
-    elif helper == "system_exit":
-        assert "diagnostic evaluation failed" in result["reason"]

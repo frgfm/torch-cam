@@ -20,9 +20,9 @@ Each agent gets the same [prompt](prompt.txt), four tool invocations and a 180-s
 and new investigation artifacts may change; training is proposed, not run. The CLI runner retains traces and
 rejects endpoint/budget failures; it requires Bash, jq, GNU timeout and setsid. Never reuse repaired workspaces.
 
-The scorer checks diagnosis, unsupported recommendations, trusted-file integrity and outcomes. A diagnostic
-fix must exactly reproduce trusted tensors/logits and score 100% worst-group on 1,024 images generated after
-submission (256/group). Null training outcomes require the independent artifact, comparator ties, no regression
+The scorer checks diagnosis, unsupported recommendations, trusted-file integrity and outcomes. All cases must
+preserve trusted tensors/logits on 1,024 images generated after submission (256/group); diagnostic fixes also
+require 100% worst-group accuracy. Null training outcomes require the independent artifact, comparator ties, no regression
 and unresolved location evidence. Missing/invalid submissions stay failures; “verified outcome” includes honest
 null reporting and does not establish a trained repair.
 

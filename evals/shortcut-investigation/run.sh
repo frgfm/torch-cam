@@ -11,7 +11,8 @@ python=$(realpath "$2")
 prompt=$(realpath "$(dirname "${BASH_SOURCE[0]}")/prompt.txt")
 [[ -x "$python" ]]
 for workspace in "$root"/{baseline,extended}/{preprocessing,shortcut,control}; do
-    [[ -d "$workspace" && ! -e "$workspace/response.json" ]] || {
+    [[ -d "$workspace" && ! -e "$workspace/response.json" && ! -e "$workspace/trace.jsonl" &&
+        ! -e "$workspace/execution.json" && ! -e "$workspace/stderr.log" ]] || {
         echo "Use fresh prepared workspaces: $workspace" >&2; exit 2;
     }
 done
@@ -27,15 +28,17 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 count_calls() {
-    jq -Rn '[inputs | fromjson? | select(.type == "item.started") |
-        .item.type | select(. == "command_execution" or . == "mcp_tool_call" or . == "web_search")] | length' "$1"
+    jq -Rn '[inputs | fromjson? | select(
+        (.type == "item.started" and (.item.type == "command_execution" or
+            .item.type == "mcp_tool_call" or .item.type == "web_search")) or
+        (.type == "item.completed" and .item.type == "file_change"))] | length' "$1"
 }
 
 for case in preprocessing shortcut control; do
     for condition in baseline extended; do
         workspace="$root/$condition/$case"
         command=(codex exec --ignore-user-config --ephemeral --skip-git-repo-check
-            --sandbox workspace-write -c 'approval_policy="never"' --json -C "$workspace" -)
+            --sandbox workspace-write -c 'approval_policy="never"' -c 'features.multi_agent=false' --json -C "$workspace" -)
         started=$SECONDS
         status=completed
         : >"$workspace/trace.jsonl"
