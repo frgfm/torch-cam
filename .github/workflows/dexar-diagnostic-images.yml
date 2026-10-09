@@ -1,0 +1,32 @@
+name: DEX-AR diagnostic comparison images
+on:
+  push:
+    branches: [tmp/dexar-diagnostic-images-20261009]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv pip install --system --torch-backend cpu -e . 'torch==2.14.1'
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: dexar-attribution-diagnostic
+          run-id: 38000575217
+          github-token: ${{ github.token }}
+          path: dexar-diagnostic-results
+      - run: python .github/dexar_render_diagnostic.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dexar-diagnostic-comparison-images
+          path: dexar-diagnostic-results/
+          retention-days: 30
