@@ -55,7 +55,7 @@ def visual_grid(model, inputs):
 
 
 @torch.enable_grad()
-def explain_qwen(model, inputs, answer_ids):
+def explain_qwen(model, inputs, answer_ids, *, use_cache=True):
     """Replay generated IDs; each prefix excludes the token currently being explained.
 
     Returns:
@@ -74,6 +74,7 @@ def explain_qwen(model, inputs, answer_ids):
     extractor = DEXAR((height, width))
     prefix = dict(inputs)
     maps, weights = [], []
+    past = None
     timings = {}
     # Differentiate frozen embeddings; avoid projecting every prefix position onto the full vocabulary.
     handles = [
@@ -84,7 +85,15 @@ def explain_qwen(model, inputs, answer_ids):
         for step in range(answer_ids.shape[1]):
             token_id = int(answer_ids[0, step])
             with timer(timings, "forward", ids.device):
-                output = model(**prefix, output_attentions=True, output_hidden_states=True, use_cache=False)
+                cache_position = torch.arange(
+                    0 if past is None else prefix["input_ids"].shape[1] - 1,
+                    prefix["input_ids"].shape[1],
+                    device=ids.device,
+                )
+                replay = model.prepare_inputs_for_generation(
+                    **prefix, past_key_values=past, cache_position=cache_position, use_cache=use_cache
+                )
+                output = model(**replay, output_attentions=True, output_hidden_states=True)
             with timer(timings, "dexar", ids.device):
                 layer_scores = []
                 for layer in range(num_layers):
@@ -97,6 +106,11 @@ def explain_qwen(model, inputs, answer_ids):
                 token_map, weight = extractor(layer_scores, output.attentions, mask)
             maps.append(token_map)
             weights.append(weight)
+            # Earlier K/V values are constants for each score's own-layer, current-query gradient.
+            past = output.past_key_values
+            if past is not None:
+                past.key_cache = [value.detach() for value in past.key_cache]
+                past.value_cache = [value.detach() for value in past.value_cache]
 
             # Append only after attributing this token.
             prefix["input_ids"] = torch.cat([prefix["input_ids"], answer_ids[:, step : step + 1]], dim=1)
@@ -181,7 +195,7 @@ def main(args):
         "grid_shape": list(maps.shape[-2:]),
         "layers": len(model.model.layers),
         "eos_terminated": eos_terminated,
-        "inference": {"attention": "eager", "do_sample": False, "generation_cache": True, "attribution_cache": False},
+        "inference": {"attention": "eager", "do_sample": False, "generation_cache": True, "attribution_cache": True},
         "seconds": {**timings, **attribution, "attribution": attribution["forward"] + attribution["dexar"]},
         "note": "One demonstration, not an accuracy benchmark or a comparison with TAM.",
     }

@@ -62,8 +62,14 @@ def test_qwen_token_alignment_intermediate_logits_and_hook_cleanup(qwen_inputs, 
     def capture(_module, _args, kwargs, output):
         nonlocal current
         prefixes.append(kwargs["input_ids"].clone())
+        assert output.attentions[0].shape[-1] == inputs["input_ids"].shape[1] + len(prefixes) - 1
         assert output.logits.shape == (1, 1, 32)  # Replay projects only the predicting state.
         current = output
+
+    def check_cache(_module, _args, kwargs):
+        past = kwargs.get("past_key_values")
+        if past is not None:
+            assert all(value.grad_fn is None for value in past.key_cache + past.value_cache)
 
     original_call = DEXAR.__call__
 
@@ -75,13 +81,17 @@ def test_qwen_token_alignment_intermediate_logits_and_hook_cleanup(qwen_inputs, 
         return original_call(self, scores, attentions, visual_mask, **kwargs)
 
     monkeypatch.setattr(DEXAR, "__call__", check_logits)
-    handle = model.register_forward_hook(capture, with_kwargs=True)
+    handles = [
+        model.register_forward_hook(capture, with_kwargs=True),
+        model.register_forward_pre_hook(check_cache, with_kwargs=True),
+    ]
     try:
         maps, weights, sequence, timings = dexar_example.explain_qwen(model, inputs, answer)
     finally:
-        handle.remove()
+        for handle in handles:
+            handle.remove()
     for step, prefix in enumerate(prefixes):
-        torch.testing.assert_close(prefix, torch.cat([inputs["input_ids"], answer[:, :step]], dim=1))
+        torch.testing.assert_close(prefix, inputs["input_ids"] if step == 0 else answer[:, step - 1 : step])
     assert maps.shape == (1, 3, 2, 3)
     assert weights.shape == (1, 3)
     assert sequence.shape == (1, 2, 3)
@@ -92,6 +102,16 @@ def test_qwen_token_alignment_intermediate_logits_and_hook_cleanup(qwen_inputs, 
     assert not model.lm_head._forward_pre_hooks
     assert all(parameter.grad is None for parameter in model.parameters())
     assert all(not parameter.requires_grad for parameter in model.parameters())
+
+
+def test_qwen_cached_replay_matches_full_prefix(qwen_inputs):
+    model, inputs = qwen_inputs
+    answer = torch.tensor([[4, 5, 4, 10, 12, 18, 3, 4, 5, 4]])
+    full = dexar_example.explain_qwen(model, inputs, answer, use_cache=False)
+    cached = dexar_example.explain_qwen(model, inputs, answer)
+    assert (full[1] > 0).any()
+    for reference, actual in zip(full[:3], cached[:3], strict=True):
+        torch.testing.assert_close(actual, reference, rtol=5e-5, atol=1e-6)
 
 
 def test_qwen_hook_cleanup_on_failed_forward(qwen_inputs, monkeypatch):

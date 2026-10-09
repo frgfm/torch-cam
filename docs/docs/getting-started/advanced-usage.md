@@ -466,7 +466,8 @@ ID. Apply the final norm once; preserve generated IDs rather than retokenizing t
 shapes. Model extraction stays outside the core; Transformers is optional.
 
 The [Qwen2.5-VL example](https://github.com/frgfm/torch-cam/blob/main/scripts/dexar_example.py) targets Transformers
-4.51.3, eager attention, batch size one, one still image and an unquantized head:
+4.51.3, eager attention, batch size one, one still image and an unquantized head. Replay caches preceding
+keys and values; a regression test checks it against full-prefix attribution:
 
 ```shell
 uv pip install 'transformers==4.51.3'
