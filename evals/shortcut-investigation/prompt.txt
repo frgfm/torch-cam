@@ -4,6 +4,8 @@ diagnostics.py, and evidence.json. The pinned notebook and experiment.json are t
 training pipeline and measured artifacts. Reuse them; do not duplicate training code.
 Public train/discovery/validation tensors and labels are available from trusted.views().
 Diagnostic answers and group oracles are withheld. Compute your own observations.
+Shared API clarification: each explanation manifest class entry's artifacts is a list
+of per-layer dictionaries. Iterate it before reading map/heatmap/overlay paths.
 
 Determine whether the evidence supports a preprocessing mismatch, cue dependence, or no
 supported shortcut. Inspect failures alongside successful controls. Distinguish sensitivity

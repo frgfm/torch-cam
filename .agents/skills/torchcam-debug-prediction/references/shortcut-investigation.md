@@ -13,6 +13,8 @@ shortlist, per-image rows, tile scores and mean map. Run `confirm(model, validat
 for training-only donors and matched edits; it returns the supported tile or `None` and every check's excess,
 bootstrap interval and accuracies. These functions use the actual supplied checkpoint. Historical pilot
 diagnoses in `experiment.json` cannot substitute for investigating a different or final checkpoint.
+Notebook functions are compiled from cells: read the cell source instead of using `inspect.getsource()`.
+Save computed observations before optional metadata inspection so an inspection error cannot erase the record.
 
 Seeds 7/17/27 compare unchanged continuation, ordinary erasing and provisional CAM-guided erasing:
 shared four-epoch pilot, 32 continuation epochs, 576 updates and 36,864 presentations per arm.
