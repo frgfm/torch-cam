@@ -16,6 +16,7 @@ sys.path.pop(0)
 
 @pytest.fixture
 def submission(tmp_path, monkeypatch):
+    (tmp_path / "execution.json").write_text(json.dumps({"status": "completed", "tool_calls": 4}))
     artifact = tmp_path / "experiment.json"
     artifact.write_text(json.dumps({"runs": [{"regime": "shortcut", "accuracy": 1.0, "worst_group": 1.0}] * 9}))
     evidence = {
