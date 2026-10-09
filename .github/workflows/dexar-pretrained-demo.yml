@@ -1,0 +1,36 @@
+name: DEX-AR pretrained visual demo
+
+on:
+  push:
+    branches: [tmp/dexar-pretrained-demo-20261009]
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      OMP_NUM_THREADS: '4'
+      MKL_NUM_THREADS: '4'
+      HF_HUB_DISABLE_XET: '1'
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Install CPU inference dependencies
+        run: uv pip install --system --torch-backend cpu -e . 'torch==2.14.1' 'transformers==4.51.3' torchvision
+      - name: Generate the pretrained answer and DEX-AR maps
+        run: python -u .github/dexar_pretrained_demo.py
+      - name: Save generated answer, maps and overlays
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dexar-pretrained-visual-demo
+          path: dexar-demo-results/
+          retention-days: 30
+          if-no-files-found: warn
