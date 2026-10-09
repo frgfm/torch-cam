@@ -159,11 +159,19 @@ def main(args):
         )
         model = (
             Qwen2_5_VLForConditionalGeneration
-            .from_pretrained(args.model, revision=args.revision, torch_dtype=dtype, attn_implementation="eager")
+            .from_pretrained(
+                args.model,
+                revision=args.revision,
+                torch_dtype=torch.bfloat16 if device.type == "cpu" else dtype,
+                attn_implementation={"vision_config": "sdpa"} if device.type == "cpu" else "eager",
+            )
             .to(device)
             .eval()
             .requires_grad_(False)
         )
+        if device.type == "cpu":
+            model.model.to(dtype=dtype)
+            model.lm_head.to(dtype=dtype)
     messages = [{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": args.prompt}]}]
     prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = processor(text=[prompt], images=[image], return_tensors="pt").to(device)
@@ -195,7 +203,14 @@ def main(args):
         "grid_shape": list(maps.shape[-2:]),
         "layers": len(model.model.layers),
         "eos_terminated": eos_terminated,
-        "inference": {"attention": "eager", "do_sample": False, "generation_cache": True, "attribution_cache": True},
+        "inference": {
+            "attention": "eager",
+            "vision_attention": model.config.vision_config._attn_implementation,  # noqa: SLF001
+            "vision_dtype": str(model.visual.dtype).removeprefix("torch."),
+            "do_sample": False,
+            "generation_cache": True,
+            "attribution_cache": True,
+        },
         "seconds": {**timings, **attribution, "attribution": attribution["forward"] + attribution["dexar"]},
         "note": "One demonstration, not an accuracy benchmark or a comparison with TAM.",
     }
@@ -210,7 +225,11 @@ if __name__ == "__main__":
     parser.add_argument("--model", default="Qwen/Qwen2.5-VL-3B-Instruct")
     parser.add_argument("--revision", default="main")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    parser.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), default="bfloat16")
+    parser.add_argument(
+        "--dtype",
+        choices=("float32", "float16", "bfloat16"),
+        default="bfloat16" if torch.cuda.is_available() else "float32",
+    )
     parser.add_argument("--prompt", default="Describe the image in one short sentence.")
     parser.add_argument("--max-pixels", type=int, default=256 * 28 * 28)
     parser.add_argument("--max-new-tokens", type=int, default=24)

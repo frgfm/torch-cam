@@ -5,8 +5,8 @@ from scripts import dexar_example
 from torchcam.methods import DEXAR
 
 
-@pytest.fixture
-def qwen_inputs():
+@pytest.fixture(params=[False, True], ids=["eager", "cpu"])
+def qwen_inputs(request):
     # Optional architectural check: tiny random weights, no downloads, and no mandatory Transformers dependency.
     transformers = pytest.importorskip("transformers")
     if transformers.__version__ != "4.51.3":
@@ -35,12 +35,14 @@ def qwen_inputs():
             "window_size": 8,
             "fullatt_block_indexes": [0],
         },
-        attn_implementation="eager",
+        attn_implementation={"vision_config": "sdpa"} if request.param else "eager",
     )
     with torch.random.fork_rng():
         torch.manual_seed(0)
         model = transformers.Qwen2_5_VLForConditionalGeneration(config).eval().requires_grad_(False)
         pixels = torch.randn(24, 24)
+    if request.param:
+        model.visual.bfloat16()
     # Nonuniform final norm weights expose accidental double normalization.
     model.model.norm.weight.copy_(torch.linspace(0.5, 1.5, 24))
     ids = torch.tensor([[1, 28, 29, 29, 29, 29, 29, 29, 30, 3]])

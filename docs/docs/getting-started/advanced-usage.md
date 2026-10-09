@@ -466,7 +466,7 @@ ID. Apply the final norm once; preserve generated IDs rather than retokenizing t
 shapes. Model extraction stays outside the core; Transformers is optional.
 
 The [Qwen2.5-VL example](https://github.com/frgfm/torch-cam/blob/main/scripts/dexar_example.py) targets Transformers
-4.51.3, eager attention, batch size one, one still image and an unquantized head. Replay caches preceding
+4.51.3, eager language attention, batch size one, one still image and an unquantized head. Replay caches preceding
 keys and values; a regression test checks it against full-prefix attribution:
 
 ```shell
@@ -475,7 +475,8 @@ python scripts/dexar_example.py --image /path/to/image.jpg --output /tmp/dexar-d
 ```
 
 It saves the generated answer/IDs, input, token/sequence overlays labelled with token text, ID and answer position,
-and separate loading, generation and attribution timings. Tokens may be subwords. No accuracy or superiority claim;
+and separate loading, generation and attribution timings. CPU defaults to float32 language layers and a frozen
+bfloat16/SDPA vision encoder. Tokens may be subwords. No accuracy or superiority claim;
 other models, newer Transformers layouts, video, padding and multiple images need their own extraction.
 
 We follow [paper equations (4)-(6) and Appendix G.1](https://arxiv.org/abs/2603.06302): positive gradients and
