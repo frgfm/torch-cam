@@ -228,22 +228,24 @@ class DEXAR:
         if count != self.grid_shape[0] * self.grid_shape[1] or count == visual_mask.numel():
             raise ValueError("visual keys must match `grid_shape` and leave at least one textual key")
         for score, attention in zip(scores, attentions, strict=True):
-            if (
-                attention.ndim != 4
-                or any(dim == 0 for dim in attention.shape)
-                or attention.shape[0] != first.shape[0]
-                or attention.shape[-1] != first.shape[-1]
-                or score.shape != (first.shape[0],)
-            ):
-                raise ValueError(
-                    "layer scores must have shape (N,) and attention layers must share batch and key counts"
-                )
-            if any(tensor.device != first.device for tensor in (score, attention, visual_mask)):
-                raise ValueError("scores, attention probabilities and visual mask must be on the same device")
-            if not score.is_floating_point() or not attention.is_floating_point():
-                raise ValueError("scores and attention probabilities must be floating-point tensors")
-            if not score.requires_grad or not attention.requires_grad:
-                raise RuntimeError("DEXAR requires differentiable scores and attention probabilities")
+            self._validate_layer(score, attention, first, visual_mask)
+
+    @staticmethod
+    def _validate_layer(score: Tensor, attention: Tensor, first: Tensor, visual_mask: Tensor) -> None:
+        if (
+            attention.ndim != 4
+            or any(dim == 0 for dim in attention.shape)
+            or attention.shape[0] != first.shape[0]
+            or attention.shape[-1] != first.shape[-1]
+            or score.shape != (first.shape[0],)
+        ):
+            raise ValueError("layer scores must have shape (N,) and attention layers must share batch and key counts")
+        if any(tensor.device != first.device for tensor in (score, attention, visual_mask)):
+            raise ValueError("scores, attention probabilities and visual mask must be on the same device")
+        if not score.is_floating_point() or not attention.is_floating_point():
+            raise ValueError("scores and attention probabilities must be floating-point tensors")
+        if not score.requires_grad or not attention.requires_grad:
+            raise RuntimeError("DEXAR requires differentiable scores and attention probabilities")
 
     @torch.no_grad()
     def aggregate(self, maps: Tensor, weights: Tensor) -> Tensor:
