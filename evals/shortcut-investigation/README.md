@@ -40,6 +40,8 @@ Each condition receives identical owner inputs, the same [prompt](prompt.txt), f
 180 seconds; only the skill differs. The Bash runner requires jq, GNU timeout and setsid, retains traces,
 and rejects endpoint/budget failures. Never reuse repaired workspaces. Missing/invalid submissions remain
 failures in the denominator. Keep generated data, weights and results outside the repository.
+`budget_verified` requires runner execution metadata; native trials without it only establish reported
+tool compliance. Their investigation scores are provisional and cannot verify the primary budget condition.
 
 The previous answer-supplied seed-17 comparison gave both conditions 3/3 correct final-answer diagnoses,
 zero unsupported recommendations and one verified diagnostic fix. Persisted records were 2/3 versus 3/3;

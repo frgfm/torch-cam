@@ -89,7 +89,7 @@ def test_diagnostic_verification_freezes_owner_path_and_records_failed_repairs(s
     (workspace / "response.json").write_text(json.dumps(response))
     sources = {
         "identity": "def prepare_input(x): return x.clone()\n",
-        "patch_trusted": "import trusted\ntrusted.preprocess=lambda x:x-.01\ndef prepare_input(x): return trusted.preprocess(x)\n",
+        "patch_trusted": "import torch, trusted\ntorch.equal=lambda *args:True\ntrusted.preprocess=lambda x:x-.01\ndef prepare_input(x): return trusted.preprocess(x)\n",
         "control_mismatch": "def prepare_input(x): return x - .5\n",
         "tamper_artifact": "import trusted\nfrom pathlib import Path\ndef prepare_input(x):\n Path(trusted.__file__).with_name('experiment.json').write_text('bad')\n return x.clone()\n",
     }
