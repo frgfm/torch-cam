@@ -2,6 +2,8 @@ Investigate this owner's surprising classifier predictions with TorchCAM. Read t
 .agents/skills/torchcam-debug-prediction/SKILL.md and its applicable references, trusted.py,
 diagnostics.py, and evidence.json. The pinned notebook and experiment.json are the owner's
 training pipeline and measured artifacts. Reuse them; do not duplicate training code.
+Public train/discovery/validation tensors and labels are available from trusted.views().
+Diagnostic answers and group oracles are withheld. Compute your own observations.
 
 Determine whether the evidence supports a preprocessing mismatch, cue dependence, or no
 supported shortcut. Inspect failures alongside successful controls. Distinguish sensitivity
@@ -33,6 +35,23 @@ worst_group_regression: boolean or null
 evidence: list of concrete observations, numeric results, and file paths
 limitations: list of unresolved findings and scope limits
 tool_calls_used: integer
+measurements: dictionary with these reproducible observations:
+  trusted_accuracy, diagnostic_accuracy_before, tensor_max_abs_error_before:
+    on all 256 validation images, before fixing the diagnostic helper
+  cue_flip_rate, cue_probability_delta:
+    on validation, swap red/blue channels only in the top-left 8x8; compare trusted
+    predictions and mean absolute softmax difference; preserve central label pixels
+  cam_successes, cam_failures, cam_unusable:
+    counts from the notebook's 64-image discovery CAM pass; retain blank/error rows;
+    a control with zero failures must report that coverage limit
+  matched_excess, matched_ci_low, location_supported:
+    excess drop and bootstrap lower bound for neutralizing the highest-ranked CAM
+    tile using notebook matched controls; location_supported is the full two-edit gate
+
+Correct labels alone do not count as a resolved investigation. Measurements must match
+independent reproduction (absolute tolerance 1e-5, relative 1e-4). The primary metric also
+requires a grounded decision, inference preservation, and no unsupported intervention
+or false repair claim. A null comparator result is not a successful model repair.
 
 Return the same JSON as your final response. Do not call an intervention a verified repair
 unless independent evidence and comparators support that statement.

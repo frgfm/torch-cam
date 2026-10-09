@@ -8,6 +8,12 @@ Reuse its functions and exported `experiment.json`; do not copy its trainer.
 Its central 16×16 pixels define bar orientation; only the supplied border is editable.
 Do not assume that authorization or label-preservation contract applies to owner photographs.
 
+Reuse `probabilities(model, images)` for batched evaluation, then `proposals(model, discovery)` for the
+shortlist, per-image rows, tile scores and mean map. Run `confirm(model, validation, training, shortlist, seed)`
+for training-only donors and matched edits; it returns the supported tile or `None` and every check's excess,
+bootstrap interval and accuracies. These functions use the actual supplied checkpoint. Historical pilot
+diagnoses in `experiment.json` cannot substitute for investigating a different or final checkpoint.
+
 Seeds 7/17/27 compare unchanged continuation, ordinary erasing and provisional CAM-guided erasing:
 shared four-epoch pilot, 32 continuation epochs, 576 updates and 36,864 presentations per arm.
 Train/discovery/confirmation/test sizes are 1,024/64/256/1,024; test groups have 256 examples each.

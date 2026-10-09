@@ -86,6 +86,7 @@ If extraction fails, use the TorchCAM prediction-debugging guide and troubleshoo
 ## 6. Inspect failures with successful controls
 
 Freeze a discovery set containing failures and successes, with labels, sample IDs, and relevant group counts. Use comparable successful controls (same class/task, different suspected cue where available). Explain each image separately; preserve blank maps and extraction errors in the denominator. Check alignment with the model's actual crop before describing a region.
+If the supplied set has no failures, report that coverage limit; do not manufacture failures by changing preprocessing. Reuse the owner's batch investigation functions where available, while retaining per-image outcomes.
 
 ## 7. Test a cue hypothesis
 
@@ -106,3 +107,4 @@ Freeze candidate selection before using independent, untouched evaluation data. 
 Verify the original inference tensor, logits, checkpoint, and code remain unchanged by investigation; candidate weights belong in separate artifacts. A prettier CAM or validation gain is not repair verification. Report a repair only against the frozen success criteria and comparators; otherwise report failed, unresolved, or improved without evidence of an intervention advantage.
 
 Save the investigation record described in the reference alongside schema-v1 explanation bundles. Return the hypothesis, evidence for/against it, authorization and budget, independent evaluation results, regressions, unsupported claims withheld, and artifact paths. Keep deployment a separate owner decision.
+Under a tool/time budget, batch inference parity, control measurements and artifact summaries; reserve the last invocation to save and validate the record. Measure investigation completion separately from diagnostic fixes and model repair gains. An accurate diagnosis without reproducible checks is incomplete; an honest null training result is not a verified repair.

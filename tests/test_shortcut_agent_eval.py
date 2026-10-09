@@ -20,7 +20,6 @@ def submission(tmp_path, monkeypatch):
     artifact.write_text(json.dumps({"runs": [{"regime": "shortcut", "accuracy": 1.0, "worst_group": 1.0}] * 9}))
     evidence = {
         "provenance": {"experiment_sha256": SCORER.digest(artifact), "case_seed": 17},
-        "pilot_location_checks": {"regime": "shortcut"},
     }
     (tmp_path / "evidence.json").write_text(json.dumps(evidence))
     response = {
@@ -36,6 +35,7 @@ def submission(tmp_path, monkeypatch):
         "evidence": [],
         "limitations": [],
         "tool_calls_used": 4,
+        "measurements": {"cue_probability_delta": 0.9202487, "location_supported": False},
     }
     (tmp_path / "response.json").write_text(json.dumps(response))
     (tmp_path / "trusted.py").write_text(
@@ -49,13 +49,14 @@ def submission(tmp_path, monkeypatch):
     namespace = {"make_split": lambda *_: (view, {"cue": torch.arange(1024) // 2 % 2})}
     monkeypatch.setattr(SCORER, "load_notebook", lambda _: namespace)
     integrity = {name: SCORER.digest(tmp_path / name) for name in ("evidence.json", "experiment.json", "trusted.py")}
-    return tmp_path, response, integrity
+    return tmp_path, response, integrity, response["measurements"].copy()
 
 
 @pytest.mark.parametrize(
     ("changes", "completed", "unsupported"),
     [
         ({}, True, False),
+        ({"measurements": {"cue_probability_delta": 0, "location_supported": False}}, True, False),
         ({"recommend_training": "guided", "recommendation_basis": "none"}, True, True),
         ({"tool_calls_used": 5}, False, False),
     ],
@@ -63,20 +64,22 @@ def submission(tmp_path, monkeypatch):
 def test_scorer_distinguishes_grounded_null_unsupported_claim_and_invalid_record(
     submission, changes, completed, unsupported
 ):
-    workspace, response, integrity = submission
+    workspace, response, integrity, expected = submission
     response.update(changes)
     (workspace / "response.json").write_text(json.dumps(response))
-    result = SCORER.score(workspace, "shortcut", integrity)
+    result = SCORER.score(workspace, "shortcut", integrity, expected)
     assert result["completed"] is completed
     if completed:
         assert result["correct_diagnosis"]
         assert result["unsupported_intervention"] is unsupported
-        assert result["verified_outcome"]
+        assert result["decision_grounded"]
+        assert not result["diagnostic_fix_verified"]
+        assert result["evidence_backed_resolution"] == (not changes)
 
 
 @pytest.mark.parametrize("helper", ["identity", "patch_trusted", "control_mismatch", "tamper_artifact"])
 def test_diagnostic_verification_freezes_owner_path_and_records_failed_repairs(submission, helper):
-    workspace, response, integrity = submission
+    workspace, response, integrity, expected = submission
     case = {"control_mismatch": "control", "tamper_artifact": "shortcut"}.get(helper, "preprocessing")
     response.update(
         diagnosis=SCORER.DIAGNOSES[case],
@@ -92,8 +95,9 @@ def test_diagnostic_verification_freezes_owner_path_and_records_failed_repairs(s
     }
     (workspace / "diagnostics.py").write_text(sources[helper])
     previous_path = sys.path.copy()
-    result = SCORER.score(workspace, case, integrity)
-    assert result["verified_outcome"] == (helper == "identity")
+    result = SCORER.score(workspace, case, integrity, expected)
+    assert result["diagnostic_fix_verified"] == (helper == "identity")
+    assert result["evidence_backed_resolution"] == (helper == "identity")
     assert sys.path == previous_path
     assert "trusted" not in sys.modules
     if helper == "patch_trusted":

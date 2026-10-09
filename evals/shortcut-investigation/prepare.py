@@ -7,6 +7,7 @@ import argparse
 import copy
 import hashlib
 import json
+import random
 import shutil
 import subprocess  # noqa: S404
 from collections.abc import Callable
@@ -89,6 +90,9 @@ def load_model():
 
 def training_pipeline():
     return N["train"]  # Reuse owner code, labels and configuration.
+
+def views():
+    return torch.load(ROOT / "views.pt", weights_only=True)
 """
 
 DIAGNOSTICS = """from trusted import preprocess
@@ -125,7 +129,36 @@ def cue_check(namespace: dict, model: torch.nn.Module, view: dict) -> dict:
     }
 
 
-def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
+def measurements(namespace: dict, model: torch.nn.Module, views: dict, extra: float, seed: int) -> dict:
+    """Compute the hidden rubric from owner functions, before any agent submission.
+
+    Returns:
+        Numeric checks of inference parity, CAM coverage, cue sensitivity and matched controls.
+    """
+    validation = views["validation"]
+    labels = validation["labels"]
+    trusted = namespace["probabilities"](model, validation["images"])
+    diagnostic = namespace["probabilities"](model, validation["images"] - extra)
+    shortlist, rows, _, _ = namespace["proposals"](model, views["discovery"])
+    supported, checks = namespace["confirm"](model, validation, views["train"], shortlist, seed)
+    first = checks[0]  # Highest-ranked CAM tile, neutralization with matched border controls.
+    cue = cue_check(namespace, model, validation)
+    return {
+        "trusted_accuracy": float((trusted.argmax(1) == labels).float().mean()),
+        "diagnostic_accuracy_before": float((diagnostic.argmax(1) == labels).float().mean()),
+        "tensor_max_abs_error_before": extra,
+        "cue_flip_rate": cue["prediction_flip_rate"],
+        "cue_probability_delta": cue["mean_absolute_probability_change"],
+        "cam_successes": sum(row["correct"] for row in rows),
+        "cam_failures": sum(not row["correct"] for row in rows),
+        "cam_unusable": sum(row["status"] != "ok" for row in rows),
+        "matched_excess": first["excess"],
+        "matched_ci_low": first["ci"][0],
+        "location_supported": supported is not None,
+    }
+
+
+def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:  # noqa: PLR0914
     """Replay all training once; share its artifacts between both evaluation conditions.
 
     Raises:
@@ -152,17 +185,23 @@ def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
         capture_output=True,
         text=True,
     ).stdout
-    trusted_hashes = {}
+    trusted_hashes, expected = {}, {}
+    cases = ["preprocessing", "shortcut", "control"]
+    random.Random(case_seed).shuffle(cases)  # noqa: S311 - reproducible identifiers, not cryptographic secrecy
+    case_map = dict(zip("abc", cases, strict=True))
+    adapter = Path(__file__).read_text(encoding="utf-8").split("\nTRUSTED =", 1)[0]
     for condition in ("baseline", "extended"):
-        for case, regime, checkpoint in (
-            ("preprocessing", "no_shortcut", namespace["models"]["no_shortcut", case_seed, "unchanged"].state_dict()),
-            ("shortcut", "shortcut", namespace["pilots"]["shortcut", case_seed]),
-            ("control", "no_shortcut", namespace["models"]["no_shortcut", case_seed, "unchanged"].state_dict()),
-        ):
-            target = output / condition / case
+        for identifier, case in case_map.items():
+            regime = "shortcut" if case == "shortcut" else "no_shortcut"
+            checkpoint = (
+                namespace["pilots"][regime, case_seed]
+                if case == "shortcut"
+                else namespace["models"][regime, case_seed, "unchanged"].state_dict()
+            )
+            target = output / condition / identifier
             target.mkdir(parents=True)
             shutil.copy2(notebook, target / "shortcut_repair.ipynb")
-            shutil.copy2(Path(__file__), target / "notebook_adapter.py")
+            (target / "notebook_adapter.py").write_text(adapter)
             (target / "trusted.py").write_text(TRUSTED)
             (target / "diagnostics.py").write_text(
                 DIAGNOSTICS.format(extra=" - 0.5" if case == "preprocessing" else "")
@@ -171,34 +210,18 @@ def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
             model = namespace["TinyClassifier"]()
             model.load_state_dict(checkpoint)
             model.eval()
-            view = namespace["make_split"](256, 0.5, case_seed + 2000)[0]
-            correct = namespace["probabilities"](model, view["images"]).argmax(1) == view["labels"]
-            diagnostic = namespace["probabilities"](
-                model, view["images"] - (0.5 if case == "preprocessing" else 0)
-            ).argmax(1)
+            views = {
+                "train": namespace["make_split"](1024, 0.95 if regime == "shortcut" else 0.5, case_seed)[0],
+                "discovery": namespace["make_split"](64, 0.5, case_seed + 1000)[0],
+                "validation": namespace["make_split"](256, 0.5, case_seed + 2000)[0],
+            }
+            torch.save(views, target / "views.pt")
+            if case not in expected:
+                expected[case] = measurements(namespace, model, views, 0.5 if case == "preprocessing" else 0, case_seed)
             evidence = {
                 "provenance": provenance,
                 "owner_contract": "central 16x16 defines label; border editable; RGB float32 [0,1]; model centers",
-                "trusted_inference": {"accuracy": float(correct.float().mean()), "n": len(correct)},
-                "diagnostic_inference": {
-                    "accuracy": float((diagnostic == view["labels"]).float().mean()),
-                    "prediction_disagreement": float(
-                        (diagnostic != namespace["probabilities"](model, view["images"]).argmax(1)).float().mean()
-                    ),
-                },
-                "successful_controls": int(correct.sum()),
-                "failures": int((~correct).sum()),
-                "cue_check": cue_check(namespace, model, view),
-                "pilot_location_checks": next(
-                    d for d in report["diagnoses"] if d["regime"] == regime and d["seed"] == case_seed
-                ),
-                "independent_evaluation": {
-                    "artifact": "experiment.json",
-                    "test_offset": 100000,
-                    "selection_frozen_before_test": True,
-                    "limit": "All arms tie; no demonstrated CAM-guided advantage. Historical initial failures remain in notebook.",
-                },
-                "scope_limit": "Pilot checks concern the pilot, not a final checkpoint's cue invariance",
+                "views": "trusted.views(): public train/discovery/validation; no group oracle or supplied diagnostic results",
             }
             (target / "evidence.json").write_text(json.dumps(evidence, indent=2, allow_nan=False) + "\n")
             shutil.copy2(output / "experiment.json", target / "experiment.json")
@@ -213,6 +236,7 @@ def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
                 for name in (
                     "trusted.py",
                     "checkpoint.pt",
+                    "views.pt",
                     "shortcut_repair.ipynb",
                     "notebook_adapter.py",
                     "evidence.json",
@@ -220,9 +244,11 @@ def prepare(notebook: Path, output: Path, case_seed: int = 17) -> None:
                 )
             }
             (target / "integrity.json").write_text(json.dumps(hashes, indent=2) + "\n")
-            trusted_hashes[f"{condition}/{case}"] = hashes
+            trusted_hashes[f"{condition}/{identifier}"] = hashes
     (output / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     (output / "trusted-hashes.json").write_text(json.dumps(trusted_hashes, indent=2) + "\n")
+    (output / "case-map.json").write_text(json.dumps(case_map, indent=2) + "\n")
+    (output / "expected.json").write_text(json.dumps(expected, indent=2, allow_nan=False) + "\n")
 
 
 if __name__ == "__main__":

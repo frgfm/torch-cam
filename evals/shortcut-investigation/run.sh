@@ -10,7 +10,7 @@ root=$(realpath "$1")
 python=$(realpath "$2")
 prompt=$(realpath "$(dirname "${BASH_SOURCE[0]}")/prompt.txt")
 [[ -x "$python" ]]
-for workspace in "$root"/{baseline,extended}/{preprocessing,shortcut,control}; do
+for workspace in "$root"/{baseline,extended}/{a,b,c}; do
     [[ -d "$workspace" && ! -e "$workspace/response.json" && ! -e "$workspace/trace.jsonl" &&
         ! -e "$workspace/execution.json" && ! -e "$workspace/stderr.log" ]] || {
         echo "Use fresh prepared workspaces: $workspace" >&2; exit 2;
@@ -34,7 +34,7 @@ count_calls() {
         (.type == "item.completed" and .item.type == "file_change"))] | length' "$1"
 }
 
-for case in preprocessing shortcut control; do
+for case in a b c; do
     for condition in baseline extended; do
         workspace="$root/$condition/$case"
         command=(codex exec --ignore-user-config --ephemeral --skip-git-repo-check
