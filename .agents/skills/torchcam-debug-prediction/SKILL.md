@@ -61,16 +61,12 @@ For a ViT, also pass `method=LeGrad` and the explicit blocks. Use a new output d
 Treat `manifest.json` as the completion marker. Before reporting success:
 
 1. Parse it and require `schema_version == 1`.
-2. `manifest["classes"]` is a dictionary keyed by string class index. Each class entry's `artifacts` is a **list** of per-layer dictionaries: iterate that list before reading `artifact["map"]`, `artifact["heatmap"]`, or `artifact["overlay"]`. Resolve every relative path under the bundle directory and require each file to exist. Prediction and expected entries contain class references; logits and probabilities live in the corresponding class entry.
+2. Require a prediction reference and nonempty `manifest["classes"]`, a dictionary keyed by string class index. Each class entry's `artifacts` is a nonempty **list** of per-layer dictionaries: iterate that list before reading `artifact["map"]`, `artifact["heatmap"]`, or `artifact["overlay"]`. Resolve every relative path under the bundle directory and require each file to exist. Prediction and expected entries contain class references; logits and probabilities live in the corresponding class entry.
 3. Load each `.npy` map with `allow_pickle=False`; require a finite two-dimensional `float32` array.
 4. Open every overlay and require its dimensions to match `manifest.json`'s `image_size`.
-5. Confirm the prediction and optional expected class indices match the repository's class ordering.
+5. Confirm the prediction and optional expected references match the corresponding class entries and the repository's ordered labels.
 
 No manifest means the bundle is incomplete, even if some images exist.
-
-Run the bundled validator with the owner's ordered labels, for example:
-`python <skill-directory>/scripts/validate_bundle.py <bundle-directory> --class-names vertical horizontal`.
-It reports each map's range and blank status; treat validation failures separately from extraction failures.
 
 ## 5. Report to the owner
 

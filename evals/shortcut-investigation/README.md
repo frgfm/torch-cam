@@ -8,7 +8,7 @@ Use the notebook's pinned Linux Python 3.11 environment and a fresh output direc
 
 ```sh
 MPLBACKEND=Agg python evals/shortcut-investigation/prepare.py /path/to/shortcut_repair.ipynb /tmp/shortcut-eval
-python evals/shortcut-investigation/run.py /tmp/shortcut-eval --python /path/to/environment/bin/python
+bash evals/shortcut-investigation/run.sh /tmp/shortcut-eval /path/to/environment/bin/python
 python evals/shortcut-investigation/score.py /tmp/shortcut-eval /tmp/shortcut-scores.json
 ```
 
@@ -18,7 +18,7 @@ dependency/source pins in a disposable environment before preparation; importing
 fresh process. The original skill comes from TorchCAM commit `5a0bc4d439ad642a37ed301d94601048e8d32de8`.
 Each agent gets the same [prompt](prompt.txt), four tool invocations and a 180-second target. Only diagnostics
 and new investigation artifacts may change; training is proposed, not run. The CLI runner retains traces and
-rejects endpoint/budget failures. Never reuse repaired workspaces between comparisons.
+rejects endpoint/budget failures; it requires Bash, jq, GNU timeout and setsid. Never reuse repaired workspaces.
 
 The scorer checks diagnosis, unsupported recommendations, trusted-file integrity and outcomes. A diagnostic
 fix must exactly reproduce trusted tensors/logits and score 100% worst-group on 1,024 images generated after
@@ -38,8 +38,8 @@ artifact-list parsing exhausted its budget before saving `response.json`; persis
 therefore 2/3. Both training comparators tie guided training: **no CAM repair advantage**. Two full notebook
 replays produced identical JSON. The seed-7 development round, failed completion and raw submissions remain in
 [results.json.gz](results.json.gz), alongside one full notebook record, provenance, checks and integrity audit.
-Inspect with `python -m gzip -dc evals/shortcut-investigation/results.json.gz`; `measured_revision` identifies the
-original harness. Repeated evidence already present in the notebook record is referenced by regime/seed.
+Inspect with `gzip -dc evals/shortcut-investigation/results.json.gz`; `measured_revision` pins the evaluated
+skill and harness. Repeated evidence already present in the notebook record is referenced by regime/seed.
 
 Measurements used fresh native agents with inherited defaults; the exact backend snapshot was unavailable.
 All reported four invocations; native time/boundary limits were instructed, not isolated. Saved records arrived
