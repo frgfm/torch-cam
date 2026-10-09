@@ -52,13 +52,27 @@ def test_entropy_gradient_mixed_precision():
     torch.testing.assert_close(maps, expected, atol=2e-3, rtol=2e-2)
 
 
+def test_entropy_gradient_ignores_caller_autocast():
+    embeddings = torch.zeros(1, 6, 1, requires_grad=True)
+    weights = (torch.arange(1, 7)[:, None] * 1000.0).expand(6, 3).clone()
+    weights[:, 0] += torch.arange(6, 0, -1)
+    logits = embeddings.flatten(1) @ weights + torch.tensor([1.0, -1.0, 0.0])
+    extractor = EntropyGradient((2, 3))
+    expected = extractor(logits, embeddings, normalized=False, retain_graph=True)
+    with torch.autocast("cpu", dtype=torch.bfloat16):
+        actual = extractor(logits, embeddings, normalized=False)
+    torch.testing.assert_close(actual, expected)
+
+
 @pytest.mark.parametrize("offset", [0.0, 10000.0])
 def test_entropy_gradient_uniform_and_saturated_distributions(offset):
     embeddings = torch.zeros(1, 6, 2, requires_grad=True)
-    score = embeddings.sum((1, 2)) + offset
-    logits = torch.stack([score, torch.zeros_like(score)], dim=-1)
-    maps = EntropyGradient((2, 3))(logits, embeddings)
-    torch.testing.assert_close(maps, torch.zeros(1, 2, 3))
+    score = (embeddings * torch.arange(1, 13).reshape(6, 2)).sum((1, 2))
+    logits = torch.stack([score + offset, 2 * score, 3 * score], dim=-1)
+    extractor = EntropyGradient((2, 3))
+    raw = extractor(logits, embeddings, normalized=False, retain_graph=True)
+    torch.testing.assert_close(raw, torch.zeros(1, 2, 3), atol=0, rtol=0)
+    torch.testing.assert_close(extractor(logits, embeddings), raw, atol=0, rtol=0)
 
 
 def test_entropy_gradient_preserves_parameter_gradients_and_controls_retention():

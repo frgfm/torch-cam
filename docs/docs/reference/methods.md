@@ -66,6 +66,7 @@ maps = EntropyGradient((height, width))(
 Supply the exact embeddings entering the language model, not final hidden states or post-forward copies/slices.
 `visual_tokens` is an optional boolean mask or ordered integer indices; omit it for an all-visual input.
 Samples must be independent and share a row-major grid and selection. Both forward and attribution need autograd.
+Checkpointed forwards require `use_reentrant=False`.
 `retain_graph=True` permits graph reuse; `normalized=False` retains raw norms. Parameter gradients are preserved.
 Entropy and norms accumulate in float32/float64; they cannot recover gradients lost inside a low-precision model.
 The caller owns model extraction and spatial layout; no automatic VLM adapter or Transformers dependency is added.

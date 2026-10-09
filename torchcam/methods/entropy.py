@@ -3,6 +3,8 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
+from contextlib import nullcontext
+
 import torch
 from torch import Tensor
 
@@ -68,6 +70,7 @@ class EntropyGradient:
         Note:
             Sample entropies are summed, assuming independent samples. Parameter gradients are preserved.
             Accumulation cannot recover gradients already lost inside a low-precision model.
+            Checkpointed forwards must use ``use_reentrant=False`` (required by ``autograd.grad``).
         """
         if not torch.is_grad_enabled() or torch.is_inference_mode_enabled():
             raise RuntimeError("EntropyGradient requires a forward and attribution with gradient tracking enabled")
@@ -77,10 +80,20 @@ class EntropyGradient:
         dtype = torch.float64 if torch.float64 in {logits.dtype, embeddings.dtype} else torch.float32
         log_probs = logits.to(dtype).log_softmax(-1)
         probs = log_probs.exp()
-        # Zero-probability terms contribute zero, including finite extreme logits whose subtraction overflows.
-        entropy = -(probs * log_probs.masked_fill(probs == 0, 0)).sum(-1)
+        # For first derivatives, sum(p * d(log p)) = sum(dp) = 0. Center detached coefficients
+        # so uniform logits yield exact zero gradients; mask zero probabilities for finite extreme logits.
+        offset = log_probs.detach().amax(-1, keepdim=True)
+        centered_log_probs = (log_probs.detach() - offset).masked_fill(probs == 0, 0)
+        entropy = -(probs * centered_log_probs).sum(-1) - offset.squeeze(-1)
         # Differentiate the original tensor, then select tokens: a post-forward slice is not a graph ancestor.
-        grad = torch.autograd.grad(entropy.sum(), embeddings, retain_graph=retain_graph, allow_unused=True)[0]
+        device_type = embeddings.device.type
+        autocast = (
+            torch.autocast(device_type=device_type, enabled=False)
+            if torch.amp.is_autocast_available(device_type)
+            else nullcontext()
+        )
+        with autocast:
+            grad = torch.autograd.grad(entropy.sum(), embeddings, retain_graph=retain_graph, allow_unused=True)[0]
         if grad is None:
             raise RuntimeError("logits are disconnected from `embeddings`; pass the exact tensor used by the forward")
         grad = grad.detach().to(dtype)
