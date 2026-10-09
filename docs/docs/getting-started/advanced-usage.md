@@ -476,8 +476,9 @@ python scripts/dexar_example.py --image /path/to/image.jpg --output /tmp/dexar-d
 
 It saves the generated answer/IDs, input, token/sequence overlays labelled with token text, ID and answer position,
 and separate loading, generation and attribution timings. CPU defaults to float32 language layers and a frozen
-bfloat16/SDPA vision encoder. Tokens may be subwords. No accuracy or superiority claim;
-other models, newer Transformers layouts, video, padding and multiple images need their own extraction.
+bfloat16/SDPA vision encoder. Tokens may be subwords. This Qwen adaptation has no localization benchmark;
+the paper evaluates other architectures. Coarse grids and contextual evidence can yield diffuse or misplaced
+highlights. Other models, newer Transformers layouts, video, padding and multiple images need their own extraction.
 
 We follow [paper equations (4)-(6) and Appendix G.1](https://arxiv.org/abs/2603.06302): positive gradients and
 individually normalized token maps for sequence aggregation. The [reference at `07830a1`](https://github.com/WalBouss/DEX-AR/blob/07830a1e435eacde0acc68b31467681a236dc3a7/dexar/wrapper.py)
