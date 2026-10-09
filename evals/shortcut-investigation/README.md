@@ -35,11 +35,12 @@ null reporting and does not establish a trained repair.
 
 Both diagnostic fixes reach 100% average/worst-group accuracy. The baseline shortcut answer was correct but
 artifact-list parsing exhausted its budget before saving `response.json`; persisted-record scorer counts are
-therefore 2/3. Both training comparators tie guided training: **no CAM repair advantage**. Two full notebook
-replays produced identical JSON. The seed-7 development round, failed completion and raw submissions remain in
-[results.json.gz](results.json.gz), alongside one full notebook record, provenance, checks and integrity audit.
-Inspect with `gzip -dc evals/shortcut-investigation/results.json.gz`; `measured_revision` pins the evaluated
-skill and harness. Repeated evidence already present in the notebook record is referenced by regime/seed.
+therefore 2/3. All 18 final notebook outcomes tie at 100% average/worst-group accuracy across seeds 7/17/27:
+**no CAM repair advantage**; all six location gates remain unresolved. Two full notebook replays matched.
+The seed-7 development round completed and verified 3/3 records in both conditions, with no unsupported
+recommendations. The [evaluated skill](https://github.com/frgfm/torch-cam/blob/d6e3ac94fa578be10722cb2711e00853d78e98ab/.agents/skills/torchcam-debug-prediction/SKILL.md)
+predates later harness simplification; grader hardening preserves the final totals. Keep generated artifacts
+in the external evaluation output directory.
 
 Measurements used fresh native agents with inherited defaults; the exact backend snapshot was unavailable.
 All reported four invocations; native time/boundary limits were instructed, not isolated. Saved records arrived
