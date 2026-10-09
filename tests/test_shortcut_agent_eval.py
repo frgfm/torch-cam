@@ -98,6 +98,7 @@ def test_diagnostic_verification_freezes_owner_path_and_records_failed_repairs(s
     result = SCORER.score(workspace, case, integrity, expected)
     assert result["diagnostic_fix_verified"] == (helper == "identity")
     assert result["evidence_backed_resolution"] == (helper == "identity")
+    assert result["false_repair_claim"] == (helper == "patch_trusted")
     assert sys.path == previous_path
     assert "trusted" not in sys.modules
     if helper == "patch_trusted":
