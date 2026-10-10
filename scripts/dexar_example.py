@@ -1,0 +1,236 @@
+# Copyright (C) 2020-2026, François-Guillaume Fernandez.
+
+# This program is licensed under the Apache License 2.0.
+# See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
+
+"""Qwen2.5-VL example: install Transformers 4.51.3, then pass --image and --output (outside Git)."""
+
+import argparse
+import json
+import time
+from contextlib import contextmanager
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import torch
+import torch.nn.functional as F
+from PIL import Image
+
+from torchcam.methods import DEXAR
+from torchcam.utils import overlay_mask
+
+
+@contextmanager
+def timer(timings, key, device):
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    started = time.perf_counter()
+    try:
+        yield
+    finally:
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        timings[key] = timings.get(key, 0) + time.perf_counter() - started
+
+
+def visual_grid(model, inputs):
+    if model.training or model.config._attn_implementation != "eager":  # noqa: SLF001
+        raise ValueError("use eval mode and attn_implementation='eager'")
+    ids = inputs["input_ids"]
+    grid = inputs["image_grid_thw"]
+    if (
+        ids.shape[0] != 1
+        or grid.shape != (1, 3)
+        or int(grid[0, 0]) != 1
+        or not inputs["attention_mask"].all()
+        or "pixel_values_videos" in inputs
+    ):
+        raise ValueError("this example requires batch size one and one unpadded still image")
+    merge = model.config.vision_config.spatial_merge_size
+    height, width = (int(dim) // merge for dim in grid[0, 1:])
+    image_mask = ids[0] == model.config.image_token_id
+    if int(image_mask.sum()) != height * width:
+        raise ValueError("image placeholders must match the merged visual grid")
+    return height, width
+
+
+@torch.enable_grad()
+def explain_qwen(model, inputs, answer_ids, *, use_cache=True):
+    """Replay generated IDs; each prefix excludes the token currently being explained.
+
+    Returns:
+        token maps, relevance weights, sequence map, and separate attribution timings
+
+    Raises:
+        ValueError: if the model or inputs fall outside this example's supported configuration
+    """
+    height, width = visual_grid(model, inputs)
+    if answer_ids.ndim != 2 or answer_ids.shape[0] != 1 or answer_ids.shape[1] == 0:
+        raise ValueError("provide at least one generated token, shaped (1, tokens)")
+    ids = inputs["input_ids"]
+    decoder = model.model  # Transformers 4.51.3 Qwen2.5-VL layout.
+    num_layers = len(decoder.layers)
+    head = model.get_output_embeddings()
+    extractor = DEXAR((height, width))
+    prefix = dict(inputs)
+    maps, weights = [], []
+    past = None
+    timings = {}
+    # Differentiate frozen embeddings; avoid projecting every prefix position onto the full vocabulary.
+    handles = [
+        model.get_input_embeddings().register_forward_hook(lambda _module, _args, output: output.requires_grad_()),
+        head.register_forward_pre_hook(lambda _module, args: (args[0][:, -1:] if args[0].ndim == 3 else args[0],)),
+    ]
+    try:
+        for step in range(answer_ids.shape[1]):
+            token_id = int(answer_ids[0, step])
+            with timer(timings, "forward", ids.device):
+                cache_position = torch.arange(
+                    0 if past is None else prefix["input_ids"].shape[1] - 1,
+                    prefix["input_ids"].shape[1],
+                    device=ids.device,
+                )
+                replay = model.prepare_inputs_for_generation(
+                    **prefix, past_key_values=past, cache_position=cache_position, use_cache=use_cache
+                )
+                output = model(**replay, output_attentions=True, output_hidden_states=True)
+            with timer(timings, "dexar", ids.device):
+                layer_scores = []
+                for layer in range(num_layers):
+                    state = output.hidden_states[layer + 1][:, -1]
+                    if layer < num_layers - 1:  # Final returned state already includes decoder.norm.
+                        state = decoder.norm(state)
+                    bias = None if head.bias is None else head.bias[token_id : token_id + 1]
+                    layer_scores.append(F.linear(state, head.weight[token_id : token_id + 1], bias).squeeze(-1))
+                mask = prefix["input_ids"][0] == model.config.image_token_id
+                token_map, weight = extractor(layer_scores, output.attentions, mask)
+            maps.append(token_map)
+            weights.append(weight)
+            # Earlier K/V values are constants for each score's own-layer, current-query gradient.
+            past = output.past_key_values
+            if past is not None:
+                past.key_cache = [value.detach() for value in past.key_cache]
+                past.value_cache = [value.detach() for value in past.value_cache]
+
+            # Append only after attributing this token.
+            prefix["input_ids"] = torch.cat([prefix["input_ids"], answer_ids[:, step : step + 1]], dim=1)
+            prefix["attention_mask"] = torch.ones_like(prefix["input_ids"])
+            del output, layer_scores, state
+    finally:
+        for handle in handles:
+            handle.remove()
+    maps, weights = torch.stack(maps, dim=1), torch.stack(weights, dim=1)
+    with timer(timings, "dexar", ids.device):
+        sequence = extractor.aggregate(maps, weights)
+    return maps, weights, sequence, timings
+
+
+def save_overlays(image, answer, tokens, maps, weights, sequence, output_dir):
+    rows = (len(tokens) + 3) // 2
+    fig, axes = plt.subplots(rows, 2, figsize=(8, 2.5 * rows), squeeze=False)
+    fig.suptitle(f"Generated answer: {answer}", wrap=True)
+    axes = axes.ravel()
+    axes[0].imshow(image)
+    axes[0].set_title("Input image")
+    axes[1].imshow(overlay_mask(image, Image.fromarray(sequence[0].cpu().numpy(), mode="F")))
+    axes[1].set_title("DEX-AR sequence")
+    for idx, (token_id, text) in enumerate(tokens):
+        axes[idx + 2].imshow(overlay_mask(image, Image.fromarray(maps[0, idx].float().cpu().numpy(), mode="F")))
+        axes[idx + 2].set_title(f"Token {idx + 1}: {text!r} (ID {token_id})\nweight={float(weights[0, idx]):.3g}")
+    for axis in axes.flat:
+        axis.axis("off")
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.savefig(output_dir / "overlays.png", dpi=120)
+    plt.close(fig)
+    image.save(output_dir / "input.png")
+
+
+def main(args):
+    import transformers  # noqa: PLC0415
+    from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration  # noqa: PLC0415
+
+    device = torch.device(args.device)
+    dtype = getattr(torch, args.dtype)
+    image = Image.open(args.image).convert("RGB")
+    timings = {}
+    with timer(timings, "load", device):
+        processor = AutoProcessor.from_pretrained(
+            args.model, revision=args.revision, min_pixels=4 * 28 * 28, max_pixels=args.max_pixels
+        )
+        model = (
+            Qwen2_5_VLForConditionalGeneration
+            .from_pretrained(
+                args.model,
+                revision=args.revision,
+                torch_dtype=torch.bfloat16 if device.type == "cpu" else dtype,
+                attn_implementation={"vision_config": "sdpa"} if device.type == "cpu" else "eager",
+            )
+            .to(device)
+            .eval()
+            .requires_grad_(False)
+        )
+        if device.type == "cpu":
+            model.model.to(dtype=dtype)
+            model.lm_head.to(dtype=dtype)
+    messages = [{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": args.prompt}]}]
+    prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=[prompt], images=[image], return_tensors="pt").to(device)
+    with timer(timings, "generation", device), torch.no_grad():
+        generated = model.generate(**inputs, max_new_tokens=args.max_new_tokens, do_sample=False, use_cache=True)
+    answer_ids = generated[:, inputs["input_ids"].shape[1] :]
+    # Retain original generated IDs; never decode and retokenize an answer for attribution.
+    eos = model.generation_config.eos_token_id
+    eos = [eos] if isinstance(eos, int) else eos or []
+    eos_terminated = bool(answer_ids.shape[1] and int(answer_ids[0, -1]) in eos)
+    if eos_terminated:
+        answer_ids = answer_ids[:, :-1]
+    maps, weights, sequence, attribution = explain_qwen(model, inputs, answer_ids)
+    answer = processor.tokenizer.decode(answer_ids[0], skip_special_tokens=True)
+    tokens = [(int(token), processor.tokenizer.decode([int(token)])) for token in answer_ids[0]]
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    save_overlays(image, answer, tokens, maps, weights, sequence, output_dir)
+    report = {
+        **vars(args),
+        "revision": model.config._commit_hash,  # noqa: SLF001
+        "transformers": transformers.__version__,
+        "torch": torch.__version__,
+        "answer": answer,
+        "generated_ids": generated[0, inputs["input_ids"].shape[1] :].tolist(),
+        "explained_ids": answer_ids[0].tolist(),
+        "token_text": [text for _, text in tokens],
+        "token_weights": weights[0].tolist(),
+        "grid_shape": list(maps.shape[-2:]),
+        "layers": len(model.model.layers),
+        "eos_terminated": eos_terminated,
+        "inference": {
+            "attention": "eager",
+            "vision_attention": model.config.vision_config._attn_implementation,  # noqa: SLF001
+            "vision_dtype": str(model.visual.dtype).removeprefix("torch."),
+            "do_sample": False,
+            "generation_cache": True,
+            "attribution_cache": True,
+        },
+        "seconds": {**timings, **attribution, "attribution": attribution["forward"] + attribution["dexar"]},
+        "note": "One demonstration, not an accuracy benchmark or a comparison with TAM.",
+    }
+    (output_dir / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--image", required=True)
+    parser.add_argument("--output", required=True, help="artifact directory outside the repository")
+    parser.add_argument("--model", default="Qwen/Qwen2.5-VL-3B-Instruct")
+    parser.add_argument("--revision", default="main")
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument(
+        "--dtype",
+        choices=("float32", "float16", "bfloat16"),
+        default="bfloat16" if torch.cuda.is_available() else "float32",
+    )
+    parser.add_argument("--prompt", default="Describe the image in one short sentence.")
+    parser.add_argument("--max-pixels", type=int, default=256 * 28 * 28)
+    parser.add_argument("--max-new-tokens", type=int, default=24)
+    main(parser.parse_args())

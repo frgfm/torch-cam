@@ -447,6 +447,45 @@ weights instead of materializing image-token logits for the entire vocabulary. I
 from the [paper](https://arxiv.org/abs/2506.23270), without the reference application's text rendering or joint
 image/text normalization. Its maps are estimates of visual relevance, not proof of a causal explanation.
 
+### DEX-AR for generated tokens and answers
+
+[`DEXAR`](../reference/methods.md#torchcam.methods.DEXAR) differentiates each layer's own token logit against its
+post-softmax attention. Heads with stronger positive visual than textual gradients contribute to token maps;
+visual relevance weights combine normalized token maps into an answer map.
+
+```python
+from torchcam.methods import DEXAR
+
+extractor = DEXAR((height, width))  # rectangular grids supported
+maps, weights = extractor(layer_logits, layer_attentions, visual_mask)
+sequence = extractor.aggregate(token_maps, token_weights)  # (N, tokens, H, W), (N, tokens)
+```
+
+Supply connected attention tensors and selected logits from an unpadded prefix **before** appending the target
+ID. Apply the final norm once; preserve generated IDs rather than retokenizing text. The API documents tensor
+shapes. Model extraction stays outside the core; Transformers is optional.
+
+The [Qwen2.5-VL example](https://github.com/frgfm/torch-cam/blob/main/scripts/dexar_example.py) targets Transformers
+4.51.3, eager language attention, batch size one, one still image and an unquantized head. Replay caches preceding
+keys and values; a regression test checks it against full-prefix attribution:
+
+```shell
+uv pip install 'transformers==4.51.3'
+python scripts/dexar_example.py --image /path/to/image.jpg --output /tmp/dexar-demo
+```
+
+It saves the generated answer/IDs, input, token/sequence overlays labelled with token text, ID and answer position,
+and separate loading, generation and attribution timings. CPU defaults to float32 language layers and a frozen
+bfloat16/SDPA vision encoder. Tokens may be subwords. This Qwen adaptation remains experimental: pretrained
+demonstrations showed inconsistent localization and deletion responses; the paper evaluates other architectures.
+Other models, newer Transformers layouts, video, padding and multiple images need their own extraction.
+
+We follow [paper equations (4)-(6) and Appendix G.1](https://arxiv.org/abs/2603.06302): positive gradients and
+individually normalized token maps for sequence aggregation. The [reference at `07830a1`](https://github.com/WalBouss/DEX-AR/blob/07830a1e435eacde0acc68b31467681a236dc3a7/dexar/wrapper.py)
+instead globally normalizes gradients and aggregates raw token maps. Omitting that global normalization and
+using equation (6) avoids adding raw-map amplitudes to token relevance weights. All nonvisual keys, including
+special tokens, participate in textual relevance; constant maps and zero weights yield finite zeros.
+
 ## Using CAM during or after training
 
 CAM methods are **post-hoc**: run them on a trained model in `eval()` mode to interpret its predictions — they

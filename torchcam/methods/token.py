@@ -3,6 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
+from collections.abc import Sequence
 from contextlib import nullcontext
 
 import torch
@@ -10,7 +11,7 @@ from torch import Tensor, nn
 
 from .core import _CAM
 
-__all__ = ["TAM"]
+__all__ = ["DEXAR", "TAM"]
 
 
 class TAM:
@@ -141,3 +142,144 @@ class TAM:
         ranks = torch.arange(self.kernel_size**2, device=maps.device) - self.kernel_size**2 // 2
         weights = torch.exp(-ranks.square() / (2 * variation.square().unsqueeze(-1)).clamp_min(1e-8))
         return (windows * weights).sum(-1) / weights.sum(-1)
+
+
+class DEXAR:
+    """Token and sequence attribution from [DEX-AR](https://arxiv.org/abs/2603.06302), equations (4)-(6).
+
+    Differentiate each layer's own token logit against its attention. Weight positive visual gradients by
+    each head's positive visual-minus-text maximum. Aggregate normalized token maps by visual relevance.
+    Model extraction stays with the caller; no hooks are installed.
+
+    Args:
+        grid_shape: explicit visual grid ``(height, width)``, including rectangular grids
+
+    Raises:
+        ValueError: if the grid is not a pair of positive integers
+    """
+
+    def __init__(self, grid_shape: tuple[int, int]) -> None:
+        if (
+            not isinstance(grid_shape, tuple)
+            or len(grid_shape) != 2
+            or any(not isinstance(dim, int) or isinstance(dim, bool) or dim <= 0 for dim in grid_shape)
+        ):
+            raise ValueError("`grid_shape` must be a tuple of two positive integers")
+        self.grid_shape = grid_shape
+
+    def __call__(
+        self,
+        scores: Sequence[Tensor],
+        attentions: Sequence[Tensor],
+        visual_mask: Tensor,
+        *,
+        retain_graph: bool = False,
+    ) -> tuple[Tensor, Tensor]:
+        """Explain a token from the prefix that predicts it, before appending that token.
+
+        Args:
+            scores: each layer's selected vocabulary logits ``(N,)`` from the last query state, with the
+                model's final norm applied once. Use raw logits, not probabilities.
+            attentions: matching downstream-used post-softmax tensors ``(N, heads, queries, keys)``
+            visual_mask: boolean ``(keys,)``, shared across the batch, selecting visual keys in spatial order.
+                Use unpadded prefixes; other keys, including special tokens, are textual context.
+            retain_graph: whether to keep the graph for another attribution on the same forward
+
+        Returns:
+            detached normalized maps ``(N, height, width)`` and weights ``(N,)`` on the attention device,
+            accumulated in float32 (float64 for double attention)
+
+        Raises:
+            ValueError: if layer tensors, scores, visual keys or grid shapes are incompatible
+            RuntimeError: if autograd is disabled or the logits are disconnected from their attention tensors
+        """  # noqa: DOC502
+        if not torch.is_grad_enabled() or torch.is_inference_mode_enabled():
+            raise RuntimeError("DEXAR requires a forward and attribution with gradient tracking enabled")
+        self._validate_inputs(scores, attentions, visual_mask)
+        dtype = torch.float64 if attentions[0].dtype == torch.float64 else torch.float32
+        maps, image_scores, text_scores = [], [], []
+        for idx, (score, attention) in enumerate(zip(scores, attentions, strict=True)):
+            try:
+                grad = torch.autograd.grad(score.sum(), attention, retain_graph=retain_graph or idx < len(scores) - 1)[
+                    0
+                ]
+            except RuntimeError as exc:
+                raise RuntimeError(f"layer {idx} token logit is not connected to its attention probabilities") from exc
+            # ReLU follows the official implementation and the paper's Appendix G.1.
+            row = grad[:, :, -1].detach().to(dtype).relu()
+            visual = row[:, :, visual_mask]
+            image, text = visual.amax(-1), row[:, :, ~visual_mask].amax(-1)
+            maps.append((visual * (image - text).relu().unsqueeze(-1)).sum(1))
+            image_scores.append(image.amax(1))
+            text_scores.append(text.amax(1))
+        maps = torch.stack(maps).sum(0).reshape(scores[0].shape[0], *self.grid_shape)
+        weights = (torch.stack(image_scores).amax(0) - torch.stack(text_scores).amax(0)).relu()
+        return self._normalize(maps), weights
+
+    def _validate_inputs(self, scores: Sequence[Tensor], attentions: Sequence[Tensor], visual_mask: Tensor) -> None:
+        if not scores or len(scores) != len(attentions):
+            raise ValueError("provide one selected token logit for each attention layer, with at least one layer")
+        first = attentions[0]
+        if first.ndim != 4 or any(dim == 0 for dim in first.shape):
+            raise ValueError("attention probabilities must have non-empty shape (N, heads, queries, keys)")
+        if visual_mask.ndim != 1 or visual_mask.shape[0] != first.shape[-1] or visual_mask.dtype != torch.bool:
+            raise ValueError("`visual_mask` must be a boolean tensor shaped (keys,)")
+        count = int(visual_mask.sum())
+        if count != self.grid_shape[0] * self.grid_shape[1] or count == visual_mask.numel():
+            raise ValueError("visual keys must match `grid_shape` and leave at least one textual key")
+        for score, attention in zip(scores, attentions, strict=True):
+            self._validate_layer(score, attention, first, visual_mask)
+
+    @staticmethod
+    def _validate_layer(score: Tensor, attention: Tensor, first: Tensor, visual_mask: Tensor) -> None:
+        if (
+            attention.ndim != 4
+            or any(dim == 0 for dim in attention.shape)
+            or attention.shape[0] != first.shape[0]
+            or attention.shape[-1] != first.shape[-1]
+            or score.shape != (first.shape[0],)
+        ):
+            raise ValueError("layer scores must have shape (N,) and attention layers must share batch and key counts")
+        if any(tensor.device != first.device for tensor in (score, attention, visual_mask)):
+            raise ValueError("scores, attention probabilities and visual mask must be on the same device")
+        if not score.is_floating_point() or not attention.is_floating_point():
+            raise ValueError("scores and attention probabilities must be floating-point tensors")
+        if not score.requires_grad or not attention.requires_grad:
+            raise RuntimeError("DEXAR requires differentiable scores and attention probabilities")
+
+    @torch.no_grad()
+    def aggregate(self, maps: Tensor, weights: Tensor) -> Tensor:
+        """Combine individually normalized token maps, following paper equation (6).
+
+        Args:
+            maps: token maps shaped ``(N, tokens, height, width)``; min-max normalized per token before weighting
+            weights: non-negative token relevance weights shaped ``(N, tokens)`` from ``__call__``
+
+        Returns:
+            detached maps ``(N, height, width)``; constant maps and all-zero weights yield zeros
+
+        Raises:
+            ValueError: if shapes, devices, dtypes or finite non-negative values are incompatible
+        """
+        if (
+            maps.ndim != 4
+            or any(dim == 0 for dim in maps.shape)
+            or maps.shape[-2:] != self.grid_shape
+            or weights.shape != maps.shape[:2]
+        ):
+            raise ValueError("`maps` must have shape (N, tokens, height, width) and `weights` shape (N, tokens)")
+        if maps.device != weights.device or not maps.is_floating_point() or not weights.is_floating_point():
+            raise ValueError("maps and weights must be floating-point tensors on the same device")
+        if not maps.isfinite().all() or not weights.isfinite().all() or (maps < 0).any() or (weights < 0).any():
+            raise ValueError("maps and weights must be finite and non-negative")
+        dtype = torch.float64 if torch.float64 in {maps.dtype, weights.dtype} else torch.float32
+        normalized = self._normalize(maps.to(dtype).clone())
+        weights = weights.to(dtype).clone()
+        weights.masked_fill_(normalized.amax((-2, -1)) == 0, 0)
+        weights /= weights.amax(1, keepdim=True).clamp_min(torch.finfo(dtype).tiny)
+        return self._normalize((normalized * weights[..., None, None]).sum(1))
+
+    @staticmethod
+    def _normalize(maps: Tensor) -> Tensor:
+        # Gradient products can be very small; a fixed epsilon would erase their contrast.
+        return _CAM._normalize(maps, spatial_dims=2, eps=torch.finfo(maps.dtype).tiny)  # noqa: SLF001
