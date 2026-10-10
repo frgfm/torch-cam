@@ -1,0 +1,29 @@
+name: DEX-AR original token logit investigation
+on:
+  push:
+    branches: [tmp/dexar-original-logits-20261010]
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: '4'
+      MKL_NUM_THREADS: '4'
+      HF_HUB_DISABLE_XET: '1'
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv pip install --system --torch-backend cpu -e . 'torch==2.14.1' 'transformers==4.51.3' torchvision
+      - run: python -u .github/dexar_original_logits.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: dexar-original-logit-investigation
+          path: dexar-review-results/
+          retention-days: 30
