@@ -13,9 +13,111 @@ from torch import Tensor, nn
 
 from .core import _CAM, OutputTarget, _resolve_targets, _target_scores
 
-__all__ = ["CAM", "ISCAM", "SSCAM", "ScoreCAM"]
+__all__ = ["CAM", "ISCAM", "SSCAM", "EigenCAM", "ScoreCAM"]
 
 logger = logging.getLogger(__name__)
+
+
+class EigenCAM(_CAM):
+    r"""Extract a class-independent map using the first principal component of spatial features.
+
+    Implements the projection from ["Eigen-CAM: Class Activation Map using Principal
+    Components"](https://arxiv.org/abs/2008.00299). Spatial features are centered per channel before
+    reduced SVD, following the [pytorch-grad-cam reference implementation](https://github.com/jacobgil/pytorch-grad-cam/blob/master/pytorch_grad_cam/utils/svd_on_activations.py).
+    For each sample, the centered spatial-by-channel matrix $A$ is projected onto its first right
+    singular vector $v_1$, giving $L = ReLU(A v_1)$.
+
+    SVD vectors have an arbitrary sign. Here, the largest-magnitude channel loading is made positive
+    before projection. Repeated largest singular values can still yield different principal directions.
+    No classifier weights, scores, backward pass or additional model forward are needed. ``class_idx``
+    may be omitted; valid class indices are accepted for API compatibility but do not change the map.
+    Callable output targets are unsupported because the map is not class-discriminative.
+
+    Half-precision features are promoted to float32 for SVD and projection; float64 is preserved.
+    Maps stay on the activation device. On MPS versions without SVD, only the decomposition runs on CPU.
+    Constant spatial features produce zero maps, including when normalization is disabled.
+
+    Example:
+        ```python
+        from torchcam.methods import EigenCAM
+        with EigenCAM(model, target_layer="layer4") as extractor:
+            with torch.inference_mode():
+                model(input_tensor)
+                cams = extractor()
+        ```
+
+    Args:
+        model: input model
+        target_layer: target layer or its name, or a list of layers or names
+        input_shape: expected input shape excluding the batch dimension
+        enable_hooks: whether hooks are enabled by default
+        reshape_transform: optional transform mapping hooked features to spatial tensors
+    """
+
+    def _precheck(
+        self,
+        class_idx: int | list[int] | None,
+        scores: Any = None,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+    ) -> None:
+        # Reuse the hook and optional class-index checks without requiring a class for this method.
+        super()._precheck(0 if class_idx is None and targets is None else class_idx, scores, targets)
+
+    @torch.no_grad()
+    def _get_weights(self, class_idx: int | list[int], *_: Any, **kwargs: Any) -> list[Tensor]:  # noqa: ARG002
+        """Compute each sample's first principal direction."""  # noqa: DOC201, DOC501
+        weights = []
+        for activation in cast(list[Tensor], self.hook_a):
+            if activation.ndim < 3 or any(dim == 0 for dim in activation.shape):
+                raise ValueError("EigenCAM requires non-empty spatial activations of shape (N, C, ...)")
+            if not activation.is_floating_point() or not activation.isfinite().all():
+                raise ValueError("EigenCAM requires finite floating-point activations")
+            dtype = torch.float64 if activation.dtype == torch.float64 else torch.float32
+            features = activation.to(dtype).flatten(2).transpose(1, 2)
+            centered_features = features - features.mean(dim=1, keepdim=True)
+            try:
+                _, _, right_vectors = torch.linalg.svd(centered_features, full_matrices=False)
+            except NotImplementedError:
+                if features.device.type != "mps":
+                    raise
+                _, _, right_vectors = torch.linalg.svd(centered_features.cpu(), full_matrices=False)
+                right_vectors = right_vectors.to(features.device)
+            direction = right_vectors[:, 0, :]
+            pivot = direction.gather(1, direction.abs().argmax(dim=1, keepdim=True))
+            weights.append(direction * pivot.sign())
+        return weights
+
+    @torch.no_grad()
+    def compute_cams(
+        self,
+        class_idx: int | list[int] | None = None,
+        scores: Any = None,
+        normalized: bool = True,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+        **kwargs: Any,
+    ) -> list[Tensor]:
+        """Project centered activations onto their first principal directions.
+
+        Args:
+            class_idx: optional class indices, ignored by this class-independent method
+            scores: optional model output, ignored by this method
+            normalized: min-max normalize each map to [0, 1] after ReLU
+            targets: unsupported scalar output targets
+            kwargs: keyword arguments passed to `_get_weights`
+
+        Returns:
+            detached maps of shape (N, ...), one per target layer, in float32 or float64
+        """
+        self._precheck(class_idx, scores, targets)
+        weights = self._get_weights(cast(int | list[int], class_idx), scores, **kwargs)
+        cams = []
+        for weight, activation in zip(weights, cast(list[Tensor], self.hook_a), strict=True):
+            features = activation.to(weight.dtype)
+            centered_features = features - features.mean(dim=tuple(range(2, features.ndim)), keepdim=True)
+            cam = (centered_features * weight[(...,) + (None,) * (features.ndim - 2)]).sum(dim=1).relu_()
+            cams.append(self._normalize(cam) if normalized else cam)
+        return cams
 
 
 class CAM(_CAM):
