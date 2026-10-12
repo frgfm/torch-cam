@@ -102,6 +102,7 @@ jobs:
           git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
           mkdir -p "${space_dir}/src"
           cp demo/app.py "${space_dir}/src/streamlit_app.py"
+          cp demo/inference.py "${space_dir}/src/inference.py"
           printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
             "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" \
             >"${space_dir}/requirements.txt"

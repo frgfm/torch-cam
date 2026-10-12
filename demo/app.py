@@ -3,19 +3,21 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
+import html
+import json
 import logging
 import struct
 import warnings
 from contextlib import contextmanager
 from io import BytesIO
-from threading import Lock
 from time import perf_counter
 
 import streamlit as st
 import torch
+from inference import DECISION_MODELS, explain_answer_token, explain_decision, generate_answer, load_resource
 from matplotlib import colormaps
 from PIL import Image, ImageOps
-from torchvision.models import get_model, get_model_weights
+from torchvision.models import get_model_weights
 from torchvision.transforms.functional import to_pil_image
 
 from torchcam import methods
@@ -111,10 +113,9 @@ def preprocess_image(image, weights):
     return input_tensor, model_input
 
 
-@st.cache_resource(show_spinner=False, max_entries=2)
 def load_model(model_name, device):
-    weights = get_model_weights(model_name).DEFAULT
-    return get_model(model_name, weights=weights).eval().to(device), Lock()
+    model, _, lock = load_resource("image", model_name, device)
+    return model, lock
 
 
 @contextmanager
@@ -296,9 +297,7 @@ def render_comparison(selected_image):
     )
 
 
-def main():
-    st.set_page_config(page_title="TorchCAM Explorer", page_icon="🔎", layout="wide")
-    st.title("TorchCAM Explorer")
+def image_page():
     st.caption("Compare class activation maps from pretrained torchvision models.")
 
     with st.sidebar:
@@ -386,6 +385,154 @@ def main():
             st.session_state["result"] = result
 
     render_comparison(selected_image)
+
+
+def token_heatmap(text, offsets, contributions):
+    # Use Python character offsets and escape the complete input, including unhighlighted gaps.
+    values = [0.0] * len(text)
+    for (start, end), contribution in zip(offsets, contributions, strict=True):
+        if not 0 <= start <= end <= len(text):
+            raise ValueError("Token offsets must lie within the original ticket")
+        for index in range(start, end):
+            values[index] += max(float(contribution), 0)
+    maximum = max(values, default=0) or 1
+    pieces = []
+    for character, value in zip(text, values, strict=True):
+        opacity = value / maximum * 0.5
+        pieces.append(f'<span style="background-color:rgba(6,182,212,{opacity:.4f})">{html.escape(character)}</span>')
+    return '<div style="white-space:pre-wrap;line-height:1.9">' + "".join(pieces) + "</div>"
+
+
+def decision_page():
+    st.caption("See which ticket tokens support each routing decision.")
+    with st.sidebar:
+        model_name = st.selectbox("Decision model", tuple(DECISION_MODELS), format_func=DECISION_MODELS.__getitem__)
+    text = st.text_area(
+        "Support ticket",
+        value="Customer: Alex Johnson. I was charged twice for the same order. Please refund the duplicate payment.",
+        height=120,
+        max_chars=2000,
+        key="ticket-input",
+    )
+    st.caption("Routing options: Billing · Account access · Delivery")
+    request = (model_name, text)
+    if st.button("Explain decision", type="primary", disabled=not text.strip()):
+        st.session_state.pop("decision_result", None)
+        try:
+            with st.spinner("Loading the model and checking token contributions…"):
+                result = explain_decision(text, model_name, "cuda" if torch.cuda.is_available() else "cpu")
+        except ValueError as exc:
+            st.error(str(exc))
+        except Exception:
+            LOGGER.exception("Decision explanation failed")
+            st.error("The decision could not be explained. Check model availability and available memory, then retry.")
+        else:
+            st.session_state["decision_result"] = {**result, "request": request}
+    result = st.session_state.get("decision_result")
+    if not result or result["request"] != request:
+        return
+    st.caption(f"{result['model']} · Integrated Gradients on class scores · {result['elapsed']:.2f} s")
+    st.caption("Highlights show positive support relative to a zero-embedding baseline, scaled within each decision.")
+    for label, probability, offsets, scores in zip(
+        result["labels"],
+        result["probabilities"],
+        result["offsets"],
+        result["attributions"],
+        strict=True,
+    ):
+        st.markdown(f"**{label} · {probability:.1%}**")
+        st.html(token_heatmap(result["text"], offsets, scores))
+    report = {key: value for key, value in result.items() if key != "request"}
+    st.download_button(
+        "Download signed contributions",
+        json.dumps(report, ensure_ascii=False, indent=2),
+        file_name="torchcam-ticket-attribution.json",
+        mime="application/json",
+    )
+
+
+def vlm_page():
+    st.caption("Generate an answer and explore visual activation for one answer token.")
+    with st.sidebar:
+        st.markdown("**SmolVLM-256M**")
+        uploaded = st.file_uploader("Input image", type=("png", "jpg", "jpeg"), key="vlm-image")
+    try:
+        image = read_image(uploaded) if uploaded is not None else None
+    except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        st.error("This image cannot be opened safely. Choose a valid PNG or JPEG file.")
+        return
+    prompt = st.text_input("Prompt", value="Describe this image in one sentence.", max_chars=500)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    request = (uploaded.getvalue() if uploaded is not None else None, prompt)
+    if st.button("Generate answer", type="primary", disabled=image is None or not prompt.strip()):
+        st.session_state.pop("vlm_result", None)
+        st.session_state.pop("vlm_map", None)
+        st.session_state.pop("vlm-token", None)
+        try:
+            with st.spinner("Loading SmolVLM and generating an answer…"):
+                result = generate_answer(image, prompt, device)
+        except Exception:
+            LOGGER.exception("VLM generation failed")
+            st.error("The answer could not be generated. Check model availability and available memory, then retry.")
+        else:
+            st.session_state["vlm_result"] = {**result, "request": request}
+    result = st.session_state.get("vlm_result")
+    if not result or result["request"] != request:
+        if image is not None:
+            st.image(image, width=400)
+        return
+    st.markdown("**Answer**")
+    st.write(result["answer"])
+    token_index = st.selectbox(
+        "Answer token",
+        result["choices"],
+        format_func=result["token_labels"].__getitem__,
+        key="vlm-token",
+    )
+    current_map = st.session_state.get("vlm_map")
+    if current_map is None or current_map["index"] != token_index:
+        try:
+            with st.spinner("Computing the token activation map…"):
+                cam, probability = explain_answer_token(result, token_index, device)
+        except Exception:
+            LOGGER.exception("VLM attribution failed")
+            st.error("The visual map could not be computed for this token.")
+            return
+        current_map = {"index": token_index, "cam": cam, "probability": probability}
+        st.session_state["vlm_map"] = current_map
+    cam = current_map["cam"]
+    st.caption(f"TAM · selected token probability {current_map['probability']:.1%}")
+    st.caption("Visual relevance estimate for this token. The model uses the square crop shown below.")
+    columns = st.columns(3)
+    for column, label, display in zip(
+        columns,
+        ("Model input", "Token activation", "Overlay"),
+        (
+            result["input_image"],
+            colorize_cam(cam),
+            overlay_mask(result["input_image"], to_pil_image(cam, mode="F"), alpha=0.5),
+        ),
+        strict=True,
+    ):
+        column.markdown(f"#### {label}")
+        column.image(display, width="stretch")
+    st.download_button(
+        "Download token map",
+        tensor_bytes(cam),
+        file_name="torchcam-vlm-token.pt",
+        mime="application/octet-stream",
+    )
+
+
+def main():
+    st.set_page_config(page_title="TorchCAM Explorer", page_icon="🔎", layout="wide")
+    st.title("TorchCAM Explorer")
+    st.caption("Explore what supports a model's output: image regions, visual tokens, or text tokens.")
+    tabs = st.tabs(("Image classifiers", "VLMs", "Decision models"), key="explorer", on_change="rerun")
+    for tab, page in zip(tabs, (image_page, vlm_page, decision_page), strict=True):
+        if tab.open:
+            with tab:
+                page()
 
 
 if __name__ == "__main__":

@@ -259,11 +259,18 @@ The full package documentation is available [here](https://frgfm.github.io/torch
 
 ### Playground app
 
-A minimal demo app is provided for you to play with the supported CAM methods! Feel free to check out the live demo on [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam)
+The Streamlit explorer has three tabs, with models loaded only when you request an explanation:
 
-The demo accepts JPEG and PNG uploads.
+- **Image classifiers**: pretrained torchvision models, class probabilities, CAMs and overlays.
+- **VLMs**: [SmolVLM-256M](https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct) answers an image prompt; select an answer token to view its TAM and next-token probability.
+- **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya) and [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) route support tickets, with one probability and token heatmap per option. Download signed contributions and numerical checks as JSON.
 
-If you prefer running the demo by yourself, you will need an extra dependency ([Streamlit](https://streamlit.io/)) for the app to run:
+The image tabs accept JPEG and PNG uploads. A shared cache retains one model at a time, and inference on each cached
+model is serialized. The VLM uses one square crop, displayed alongside its map. Decision maps explain logits relative
+to zero ticket embeddings; Laya's probabilities retain its native calibration, while MiniLM uses zero-shot entailment
+scores normalized across the three routing options. Maps are estimates of relevance, not proof of bias.
+
+Install the optional demo dependencies ([Streamlit](https://streamlit.io/), Transformers and Laya) to run it locally:
 
 ```
 pip install -e ".[demo]"
@@ -274,6 +281,11 @@ You can then easily run your app in your default browser by running:
 ```
 streamlit run demo/app.py
 ```
+
+The first computation downloads the selected pretrained checkpoint; later computations use the local model cache.
+For offline verification, `python demo/smoke.py` checks navigation, UI state, input alignment and native model adapters
+using small random-weight fixtures. These fixtures are only tests; the app always requests pretrained checkpoints.
+The deployed version is available on [Hugging Face Spaces](https://huggingface.co/spaces/frgfm/torch-cam).
 
 ![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/torchcam_demo.png)
 
