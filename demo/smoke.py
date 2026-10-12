@@ -42,6 +42,17 @@ from transformers import (
 
 import app
 
+TEXT_CONFIG = {
+    "vocab_size": 256,
+    "hidden_size": 32,
+    "intermediate_size": 64,
+    "num_hidden_layers": 2,
+    "num_attention_heads": 4,
+    "pad_token_id": 0,
+    "bos_token_id": 1,
+    "eos_token_id": 2,
+}
+
 
 def check(condition, message):
     if not condition:
@@ -178,22 +189,8 @@ def check_decision_adapters():
     torch.manual_seed(19)
     tokenizer = fixture_tokenizer()
     text = "Customer José: charged twice refund duplicate payment."
-    model = (
-        RobertaForSequenceClassification(
-            RobertaConfig(
-                vocab_size=256,
-                hidden_size=32,
-                intermediate_size=64,
-                num_hidden_layers=2,
-                num_attention_heads=4,
-                max_position_embeddings=256,
-                pad_token_id=0,
-                num_labels=3,
-            )
-        )
-        .eval()
-        .requires_grad_(False)
-    )
+    config = RobertaConfig(**TEXT_CONFIG, max_position_embeddings=256, num_labels=3)
+    model = RobertaForSequenceClassification(config).eval().requires_grad_(False)
     result, maps, offsets, probabilities, _ = inference.explain_minilm(model, tokenizer, text)
     check(len(maps) == len(offsets) == len(probabilities) == 3, "MiniLM routing rows do not align")
     check(abs(sum(probabilities) - 1) < 1e-6, "MiniLM probabilities do not sum to one")
@@ -213,19 +210,12 @@ def check_decision_adapters():
         with tempfile.TemporaryDirectory(prefix="torchcam-laya-") as directory:
             path = Path(directory)
             config = ModernBertConfig(
-                vocab_size=256,
-                hidden_size=32,
-                intermediate_size=64,
-                num_hidden_layers=2,
-                num_attention_heads=4,
+                **TEXT_CONFIG,
                 max_position_embeddings=512,
                 local_attention=32,
                 reference_compile=False,
-                pad_token_id=0,
                 cls_token_id=1,
                 sep_token_id=2,
-                bos_token_id=1,
-                eos_token_id=2,
             )
             native = DecisionModel(ModernBertModel(config), head_layers=2).eval()
             tokenizer.save_pretrained(path / "tokenizer")
@@ -246,8 +236,9 @@ def check_decision_adapters():
             save_file(native.state_dict(), str(path / "model.safetensors"))
             agent = Agent(str(path), device="cpu", backend="eager")
             result, maps, offsets, probabilities, _ = inference.explain_laya(agent, text)
-            expected = agent.predict(text, {"route": inference.QUESTION})["answers"]["route"]["probabilities"]
-            check(probabilities == list(expected.values()), "Laya adapter lost native calibration or class ordering")
+            temperature = agent.temperature_by_options[temp_bucket(0, 3)]
+            expected = (result.scores[0] / temperature).softmax(-1)
+            torch.testing.assert_close(torch.tensor(probabilities), expected, atol=5.1e-5, rtol=0)
             check(
                 all(len(row) == len(offset) for row, offset in zip(maps, offsets, strict=True)),
                 "Laya state offsets do not align",
@@ -273,6 +264,7 @@ def check_vlm_adapter():
     template = "user <image> {{ messages[0]['content'][1]['text'] }} assistant"
     processor = Idefics3Processor(image_processor, tokenizer, image_seq_len=4, chat_template=template)
     config = Idefics3Config(
+        pad_token_id=0,
         image_token_id=processor.image_token_id,
         scale_factor=2,
         vision_config={
@@ -283,29 +275,28 @@ def check_vlm_adapter():
             "num_hidden_layers": 2,
             "num_attention_heads": 2,
         },
-        text_config=LlamaConfig(
-            vocab_size=256,
-            hidden_size=32,
-            intermediate_size=64,
-            num_hidden_layers=2,
-            num_attention_heads=4,
-            num_key_value_heads=2,
-            pad_token_id=0,
-            bos_token_id=1,
-            eos_token_id=2,
-        ),
+        text_config=LlamaConfig(**TEXT_CONFIG, num_key_value_heads=2),
     )
     model = Idefics3ForConditionalGeneration(config).eval()
     # Keep synthetic decoding inside the known regular vocabulary, rather than producing only special IDs.
     model.generation_config.suppress_tokens = [index for index in range(256) if index not in range(5, 20)]
     with patch.object(inference, "load_resource", return_value=(model, processor, Lock())):
         result = inference.generate_answer(Image.new("RGB", (48, 24), "red"), "describe image", "cpu")
-        cam, probability = inference.explain_answer_token(result, result["choices"][0], "cpu")
+        index = result["choices"][2]
+        cam, probability = inference.explain_answer_token(result, index, "cpu")
+        reference = model.generate(
+            **result["inputs"],
+            max_new_tokens=index + 1,
+            return_dict_in_generate=True,
+            output_logits=True,
+        )
+        expected = float(reference.logits[index][0].softmax(-1)[result["generated_ids"][index]])
+        check(abs(probability - expected) < 1e-6, "VLM probability differs from native incremental generation")
         check(tuple(cam.shape) == (1, 2, 2), "VLM map does not match the native visual-token grid")
         check(bool(cam.isfinite().all()) and 0 < probability < 1, "VLM outputs are not finite")
         check(result["input_image"].size == (32, 32), "VLM overlay does not show the actual model crop")
-        changed = {**result, "generated_ids": result["generated_ids"][:1] + [6] * 5}
-        future_cam, future_probability = inference.explain_answer_token(changed, 0, "cpu")
+        changed = {**result, "generated_ids": result["generated_ids"][: index + 1] + [6] * 5}
+        future_cam, future_probability = inference.explain_answer_token(changed, index, "cpu")
         torch.testing.assert_close(cam, future_cam, atol=0, rtol=0)
         check(probability == future_probability, "VLM explanation leaked future answer tokens")
 
@@ -344,6 +335,10 @@ def check_navigation_and_text_ui():
         check(len(ui.exception) == 0 and len(ui.get("html")) == 3, "Decision maps did not render")
         ui.text_area[0].set_value("A different ticket").run()
         check(len(ui.get("html")) == 0, "Stale maps survived a changed ticket")
+    with patch.object(app, "explain_decision", side_effect=RuntimeError("TokenIG did not converge")):
+        ui.button[0].click().run()
+        check(any("numerical checks" in error.value for error in ui.error), "Numerical failure was hidden")
+        check(len(ui.get("html")) == 0, "Numerical failure displayed an unverified map")
 
 
 def main():

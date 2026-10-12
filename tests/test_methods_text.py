@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 
 from torchcam.methods import TokenIG
 
@@ -102,6 +103,33 @@ def test_token_ig_interactions_keep_context_fixed():
     )
     # The third token is fixed context: IG splits a two-token product equally.
     torch.testing.assert_close(result.attributions, torch.tensor([[[-4, -4, 0]]], dtype=torch.float64))
+
+
+@pytest.mark.parametrize("checkpointed", [False, True])
+def test_token_ig_checkpointed_cancellation(checkpointed):
+    model = TextClassifier()
+    with torch.no_grad():
+        model.embedding.weight[1:, 0].copy_(torch.tensor([1, -1, 0], dtype=torch.float64))
+    model.embedding.weight.grad = torch.ones_like(model.embedding.weight)
+
+    def forward(input_ids, attention_mask):
+        def cubic(ids):
+            return model.embedding(ids)[..., 0].pow(3)
+
+        states = checkpoint(cubic, input_ids, use_reentrant=False) if checkpointed else cubic(input_ids)
+        score = (states * attention_mask).sum(-1)
+        return torch.stack((score, 2 * score), -1)
+
+    model.forward = forward
+    inputs = {"input_ids": torch.tensor([[1, 2]]), "attention_mask": torch.ones(1, 2)}
+    result = TokenIG(model, model.embedding)(inputs, steps=4, max_steps=8)
+    # Incorrect [3, -3] maps also pass completeness: assert the individual analytical contributions.
+    torch.testing.assert_close(result.attributions, torch.tensor([[[1, -1], [2, -2]]], dtype=torch.float64))
+    torch.testing.assert_close(result.completeness_error, torch.zeros(1, 2, dtype=torch.float64))
+    torch.testing.assert_close(model.embedding.weight.grad, torch.ones_like(model.embedding.weight))
+    assert model.training
+    assert model.dropout.training
+    assert not model.embedding._forward_hooks
 
 
 def test_token_ig_refuses_unconverged_maps_and_cleans_up():

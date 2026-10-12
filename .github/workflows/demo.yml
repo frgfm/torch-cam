@@ -8,7 +8,6 @@ on:
       - 'demo/**'
       - 'pyproject.toml'
   pull_request:
-    branches: main
     paths:
       - '.github/workflows/demo.yml'
       - 'demo/**'

@@ -3,7 +3,8 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
@@ -128,33 +129,39 @@ class TokenIG:
                 inputs, class_idx, token_mask, baseline, steps, max_steps, tolerance, stability_tolerance
             )
 
-    def _forward(self, inputs: Mapping[str, Any], replacement: Tensor | None = None) -> tuple[Tensor, Tensor]:
+    @contextmanager
+    def _forward(self, inputs: Mapping[str, Any], replacement: Tensor | None = None) -> Iterator[tuple[Tensor, Tensor]]:
         captured: list[Tensor] = []
+        record = True
 
         def hook(_module: nn.Module, _args: tuple[Any, ...], output: Tensor) -> Tensor:
-            captured.append(output)
+            if record:
+                captured.append(output)
             return output if replacement is None else replacement
 
         handle = self.embedding_layer.register_forward_hook(hook)
         try:
             output = self.model(**inputs)
+            if len(captured) != 1:
+                raise RuntimeError("the input embedding module must run exactly once per forward")
+            embedding = captured[0]
+            record = False  # Keep replacement active during checkpoint backward, without retaining recomputed outputs.
+            if not isinstance(embedding, Tensor) or embedding.ndim != 3 or not embedding.is_floating_point():
+                raise ValueError("embedding output must be floating-point (N, tokens, channels)")
+            scores = output if self.output_transform is None else self.output_transform(output)
+            if (
+                not isinstance(scores, Tensor)
+                or scores.ndim != 2
+                or scores.shape[0] != embedding.shape[0]
+                or any(size == 0 for size in scores.shape)
+                or not scores.is_floating_point()
+            ):
+                raise ValueError(
+                    "model scores must be floating-point (N, classes); supply `output_transform` if needed"
+                )
+            yield scores, embedding
         finally:
             handle.remove()
-        if len(captured) != 1:
-            raise RuntimeError("the input embedding module must run exactly once per forward")
-        embedding = captured[0]
-        if not isinstance(embedding, Tensor) or embedding.ndim != 3 or not embedding.is_floating_point():
-            raise ValueError("embedding output must be floating-point (N, tokens, channels)")
-        scores = output if self.output_transform is None else self.output_transform(output)
-        if (
-            not isinstance(scores, Tensor)
-            or scores.ndim != 2
-            or scores.shape[0] != embedding.shape[0]
-            or any(size == 0 for size in scores.shape)
-            or not scores.is_floating_point()
-        ):
-            raise ValueError("model scores must be floating-point (N, classes); supply `output_transform` if needed")
-        return scores, embedding
 
     def _explain(
         self,
@@ -168,8 +175,8 @@ class TokenIG:
         stability_tolerance: float,
     ) -> TokenAttribution:
         with torch.no_grad():
-            scores, actual = self._forward(inputs)
-            actual = actual.detach()
+            with self._forward(inputs) as (scores, embedding):
+                actual = embedding.detach()
             if mask is not None and (
                 mask.shape != actual.shape[:2] or mask.dtype != torch.bool or mask.device != actual.device
             ):
@@ -182,7 +189,8 @@ class TokenIG:
             if not actual.isfinite().all() or not reference.isfinite().all():
                 raise ValueError("input and reference embeddings must be finite")
             difference = actual - reference
-            baseline_scores, _ = self._forward(inputs, reference)
+            with self._forward(inputs, reference) as (base, _):
+                baseline_scores = base.detach()
         indices = (
             list(range(scores.shape[1]))
             if class_idx is None
@@ -232,16 +240,16 @@ class TokenIG:
         weighted_difference = difference.to(dtype)
         for alpha, weight in zip(*_quadrature(steps), strict=True):
             current = (reference + float(alpha) * difference).detach().requires_grad_(True)
-            scores, _ = self._forward(inputs, current)
-            if not scores.requires_grad:
-                raise RuntimeError("model scores must retain gradients; call the underlying differentiable module")
-            for position, index in enumerate(indices):
-                grad = torch.autograd.grad(
-                    scores[:, index].sum(), current, retain_graph=position + 1 < len(indices), allow_unused=True
-                )[0]
-                if grad is None:
-                    raise RuntimeError("model scores are disconnected from the input embeddings")
-                maps[:, position] += (grad.detach().to(dtype) * weighted_difference).sum(-1) * float(weight)
+            with self._forward(inputs, current) as (scores, _):
+                if not scores.requires_grad:
+                    raise RuntimeError("model scores must retain gradients; call the underlying differentiable module")
+                for position, index in enumerate(indices):
+                    grad = torch.autograd.grad(
+                        scores[:, index].sum(), current, retain_graph=position + 1 < len(indices), allow_unused=True
+                    )[0]
+                    if grad is None:
+                        raise RuntimeError("model scores are disconnected from the input embeddings")
+                    maps[:, position] += (grad.detach().to(dtype) * weighted_difference).sum(-1) * float(weight)
         if not maps.isfinite().all():
             raise ValueError("token contributions must be finite")
         return maps

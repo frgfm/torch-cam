@@ -93,7 +93,9 @@ def explain_laya(agent, text):
     inputs = {key: batch[key].to(agent.device) for key in MODEL_INPUTS if key in batch}
     mask = torch.zeros_like(inputs["input_ids"], dtype=torch.bool)
     mask[:, state_slice] = True
-    result = TokenIG(agent.model, agent.model.encoder.get_input_embeddings(), itemgetter(0))(inputs, token_mask=mask)
+    result = TokenIG(agent.model, agent.model.encoder.get_input_embeddings(), itemgetter(0))(
+        inputs, token_mask=mask, max_steps=512
+    )
     prediction = agent.predict(text, {"route": QUESTION})["answers"]["route"]
     probabilities = [prediction["probabilities"][label] for label in QUESTION["criteria"]]
     maps = result.attributions[0, :, state_slice].cpu().tolist()
@@ -121,7 +123,9 @@ def explain_minilm(model, tokenizer, text):
         device=model.device,
     )
     # This checkpoint's published label order is contradiction, entailment, neutral.
-    result = TokenIG(model, model.get_input_embeddings(), lambda output: output.logits)(inputs, 1, token_mask=mask)
+    result = TokenIG(model, model.get_input_embeddings(), lambda output: output.logits)(
+        inputs, 1, token_mask=mask, max_steps=512
+    )
     probabilities = result.scores[:, 1].softmax(0).cpu().tolist()
     maps = result.attributions[:, 0].cpu().tolist()
     offsets = [

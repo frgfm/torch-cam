@@ -266,7 +266,8 @@ The Streamlit explorer has three tabs, with models loaded only when you request 
 - **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya) and [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) route support tickets, with one probability and token heatmap per option. Download signed contributions and numerical checks as JSON.
 
 The image tabs accept JPEG and PNG uploads. A shared cache retains one model at a time, and inference on each cached
-model is serialized. The VLM uses one square crop, displayed alongside its map. Decision maps explain logits relative
+model is serialized. Text attribution is limited to 512 nodes per pass in the demo; failed numerical checks return
+an error. The VLM uses one square crop, displayed alongside its map. Decision maps explain logits relative
 to zero ticket embeddings; Laya's probabilities retain its native calibration, while MiniLM uses zero-shot entailment
 scores normalized across the three routing options. Maps are estimates of relevance, not proof of bias.
 

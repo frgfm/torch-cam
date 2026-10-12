@@ -52,12 +52,8 @@ Display it:
 
 ## Text decisions
 
-Use your existing text classifier and tokenizer:
-
---8<-- "README.md:quickstart-text"
-
-See [Text decision models](getting-started/text-decisions.md) for the API contract and Laya integration.
-`TokenIG` is available in the development version; install from source using the [installation guide](getting-started/installation.md).
+See [Text decision models](getting-started/text-decisions.md) for input-token attribution, the API contract and
+Laya integration. Install the development version from source until the next release.
 
 ## CAM zoo
 

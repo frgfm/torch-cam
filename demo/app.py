@@ -113,11 +113,6 @@ def preprocess_image(image, weights):
     return input_tensor, model_input
 
 
-def load_model(model_name, device):
-    model, _, lock = load_resource("image", model_name, device)
-    return model, lock
-
-
 @contextmanager
 def preserve_model_state(model):
     module_modes = [(module, module.training) for module in model.modules()]
@@ -214,7 +209,7 @@ def compute_result(
     device = "cuda" if torch.cuda.is_available() else "cpu"
     try:
         with st.spinner(f"Loading {MODEL_LABELS[model_name]}…"):
-            model, lock = load_model(model_name, device)
+            model, _, lock = load_resource("image", model_name, device)
     except Exception as exc:
         raise ConnectionError(
             "The pretrained model could not be loaded. Check connectivity, the model cache, and available memory, then retry."
@@ -423,9 +418,13 @@ def decision_page():
                 result = explain_decision(text, model_name, "cuda" if torch.cuda.is_available() else "cpu")
         except ValueError as exc:
             st.error(str(exc))
-        except Exception:
+        except Exception as exc:
             LOGGER.exception("Decision explanation failed")
-            st.error("The decision could not be explained. Check model availability and available memory, then retry.")
+            st.error(
+                "Token contributions did not pass numerical checks within the demo's compute budget."
+                if isinstance(exc, RuntimeError) and "TokenIG did not converge" in str(exc)
+                else "The decision could not be explained. Check model availability and available memory, then retry."
+            )
         else:
             st.session_state["decision_result"] = {**result, "request": request}
     result = st.session_state.get("decision_result")
