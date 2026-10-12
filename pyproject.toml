@@ -61,10 +61,10 @@ docs = [
     "mkdocs==1.6.1",
     "mkdocs-material[imaging]==9.7.7",
     "mkdocstrings[python]==1.0.6",
-    "griffe-typingdoc==0.3.1",
+    "griffe-typingdoc==0.3.2",
     # "termynal==0.13.1",
     # "mkdocs-swagger-ui-tag==0.7.2",
-    "mkdocs-llmstxt==0.5.0",
+    "mkdocs-llmstxt==0.5.1",
 ]
 demo = [
     "Pillow>=12.3.0",
