@@ -62,7 +62,7 @@ class TokenIG:
             for example ``lambda output: output.logits`` or ``lambda output: output[0]``. Prefer pre-softmax logits.
 
     Raises:
-        ValueError: if the embedding layer does not belong to the model
+        ValueError: if the embedding layer is outside the model or renormalizes weights during forward
     """
 
     def __init__(
@@ -77,6 +77,8 @@ class TokenIG:
         )
         if self.embedding_layer not in model.modules():
             raise ValueError("`embedding_layer` must belong to `model`")
+        if isinstance(self.embedding_layer, nn.Embedding) and self.embedding_layer.max_norm is not None:
+            raise ValueError("embeddings with `max_norm` mutate weights during forward and are unsupported")
         self.output_transform = output_transform
 
     def __call__(
@@ -136,8 +138,10 @@ class TokenIG:
 
         def hook(_module: nn.Module, _args: tuple[Any, ...], output: Tensor) -> Tensor:
             if record:
-                captured.append(output)
-            return output if replacement is None else replacement
+                captured.append(
+                    output.detach().clone() if replacement is None and isinstance(output, Tensor) else output
+                )
+            return output if replacement is None else replacement.clone()
 
         handle = self.embedding_layer.register_forward_hook(hook)
         try:

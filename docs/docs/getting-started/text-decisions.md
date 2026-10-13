@@ -73,5 +73,5 @@ reduces work; independent samples can be batched. Maps accumulate without storin
 channel tensor. Difficult paths can cost substantially more than prediction.
 
 Use eager execution, preferably float32/float64, and non-reentrant checkpointing. Outer `torch.no_grad()` is supported;
-inference mode and no-grad model forwards are not. Accumulation uses float64 (float32 on MPS) but cannot recover
-precision lost inside the model. Hooks, submodule training modes, parameter values and `.grad` buffers are preserved.
+inference mode and no-grad/weight-mutating forwards (`max_norm`) are unsupported. Accumulation uses float64 (float32 on
+MPS), without recovering model precision. Hooks, submodule training modes, parameter values and `.grad` buffers are preserved.

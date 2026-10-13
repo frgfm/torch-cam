@@ -308,18 +308,20 @@ def image_page():
             "Classification model",
             tuple(MODEL_LABELS),
             format_func=MODEL_LABELS.__getitem__,
+            key="image-model",
         )
-        method_name = st.selectbox("CAM method", compatible_methods(model_name))
+        method_name = st.selectbox("CAM method", compatible_methods(model_name), key=f"image-method-{model_name}")
         weights = get_model_weights(model_name).DEFAULT
         categories = weights.meta["categories"]
 
-        class_mode = st.radio("Target class", ("Predicted class", "Choose a class"))
+        class_mode = st.radio("Target class", ("Predicted class", "Choose a class"), key="image-class-mode")
         explicit_class_idx = None
         if class_mode == "Choose a class":
             explicit_class_idx = st.selectbox(
                 "ImageNet class",
                 range(len(categories)),
                 format_func=categories.__getitem__,
+                key="image-class-index",
             )
 
         method_kwargs = {}
@@ -332,13 +334,16 @@ def image_page():
                 help="Separate multiple module names with '+'.",
             )
             if method_name == "FinerCAM":
-                method_kwargs["gamma"] = st.number_input("Comparison strength", min_value=0.0, value=0.6, step=0.1)
+                method_kwargs["gamma"] = st.number_input(
+                    "Comparison strength", min_value=0.0, value=0.6, step=0.1, key="image-gamma"
+                )
                 method_kwargs["num_references"] = st.number_input(
                     "Automatic comparison classes",
                     min_value=1,
                     max_value=len(categories) - 1,
                     value=3,
                     step=1,
+                    key="image-reference-count",
                 )
             if method_name in SLOW_METHODS:
                 method_kwargs["batch_size"] = st.number_input(
@@ -346,6 +351,7 @@ def image_page():
                     min_value=1,
                     value=32,
                     step=1,
+                    key="image-batch-size",
                     help="Lower values use less memory but may change extraction latency.",
                 )
 
@@ -401,7 +407,9 @@ def token_heatmap(text, offsets, contributions):
 def decision_page():
     st.caption("See which ticket tokens support each routing decision.")
     with st.sidebar:
-        model_name = st.selectbox("Decision model", tuple(DECISION_MODELS), format_func=DECISION_MODELS.__getitem__)
+        model_name = st.selectbox(
+            "Decision model", tuple(DECISION_MODELS), format_func=DECISION_MODELS.__getitem__, key="decision-model"
+        )
     text = st.text_area(
         "Support ticket",
         value="Customer: Alex Johnson. I was charged twice for the same order. Please refund the duplicate payment.",
@@ -460,7 +468,7 @@ def vlm_page():
     except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         st.error("This image cannot be opened safely. Choose a valid PNG or JPEG file.")
         return
-    prompt = st.text_input("Prompt", value="Describe this image in one sentence.", max_chars=500)
+    prompt = st.text_input("Prompt", value="Describe this image in one sentence.", max_chars=500, key="vlm-prompt")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     request = (uploaded.getvalue() if uploaded is not None else None, prompt)
     if st.button("Generate answer", type="primary", disabled=image is None or not prompt.strip()):
@@ -527,6 +535,10 @@ def main():
     st.set_page_config(page_title="TorchCAM Explorer", page_icon="🔎", layout="wide")
     st.title("TorchCAM Explorer")
     st.caption("Explore what supports a model's output: image regions, visual tokens, or text tokens.")
+    # Keep editable controls alive while their tab is not rendered; uploaders cannot be assigned through session state.
+    for key in tuple(st.session_state):
+        if key.startswith(("image-", "target-layers-", "decision-", "ticket-")) or key in {"vlm-prompt", "vlm-token"}:
+            st.session_state[key] = st.session_state[key]
     tabs = st.tabs(("Image classifiers", "VLMs", "Decision models"), key="explorer", on_change="rerun")
     for tab, page in zip(tabs, (image_page, vlm_page, decision_page), strict=True):
         if tab.open:
