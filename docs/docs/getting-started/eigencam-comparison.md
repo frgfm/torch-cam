@@ -25,7 +25,7 @@ python scripts/eigencam_comparison.py --device mps \
 The script downloads the three source photos from a pinned scikit-image revision and verifies their SHA256
 checksums. It also downloads torchvision's `ResNet18_Weights.IMAGENET1K_V1` checkpoint on first use. It saves
 three figures (PNG originals and compact WebP copies) and a JSON report with per-image scores, every measured
-latency sample, environment and source hashes. CUDA is an available script option, but was not tested for the results below.
+latency sample, environment and source hashes. A separate CUDA timing matrix is reported below.
 
 All methods use the same pretrained ResNet18 in evaluation mode, frozen parameters, float32 inputs,
 batch size one, the weights' resize/center-crop/normalization transform, and `layer4` features of shape
@@ -134,6 +134,48 @@ Process-median ranges, p95 values, raw samples and captured worker warnings are 
 These are one-model, one-layer, batch-one measurements on one machine, not a general runtime ranking.
 Earlier/higher-resolution target layers and larger channel counts can make SVD substantially more expensive.
 
+## Additional NVIDIA CUDA measurements
+
+The submitted EigenCAM implementation was also checked on an NVIDIA A40 (driver 550.54.14),
+Python 3.11.5, the minimum-supported torch 2.4.1+cu121, torchvision 0.19.1+cu121 and cuDNN 9.1.0.
+The EigenCAM and comparison-script tests passed (48 passed, two MPS tests skipped), followed by a 12-configuration
+smoke check and three fresh processes each covering a 24-configuration timing matrix.
+The pretrained weights loaded strictly with no missing or unexpected keys.
+
+The matrix covers ResNet18 (`layer3`/`layer4`), ResNet50 (`layer3`/`layer4`) and MobileNetV3 Large
+(`features.12`/`features.16`), input crops of 224 or 384 pixels, and batches of one or eight.
+The three pinned photos above are cycled across each batch. We use float32, disable matmul and
+cuDNN TF32 and cuDNN benchmarking, and set CPU/inter-op threads to one. Every method and timing
+scope excludes its first call and five warmups, then records 20 synchronized calls per process;
+method order rotates between processes. The timing helper and execution paths are the same as above.
+GPU process occupancy is checked before and after each configuration; the accepted run had no
+competing process on the selected GPU. GPU clocks are not locked.
+
+For ResNet18 / `layer4` / 224 pixels / batch one, medians of process medians are:
+
+| Method | CUDA extraction (ms) | CUDA forward + extraction (ms) | Process-median range for forward + extraction (ms) |
+| --- | ---: | ---: | ---: |
+| EigenCAM | 2.782 | 6.973 | 6.944–6.989 |
+| CAM | 0.383 | 4.545 | 4.544–4.551 |
+| GradCAM | 0.892 | 5.842 | 5.805–5.855 |
+| LayerCAM | 0.860 | 5.828 | 5.802–5.832 |
+
+EigenCAM takes about 20% longer than LayerCAM in this configuration. Across the 24 configurations,
+EigenCAM's forward-plus-extraction time is higher in 20 and lower in four; its ratio to LayerCAM
+ranges from 0.916 to 10.732. The four lower-latency configurations are batch-one ResNet50 `layer4`
+at 224 pixels and MobileNetV3 `features.12` at both input sizes and `features.16` at 224 pixels.
+These modest advantages do not establish a general speed benefit. Earlier layers and larger batches
+can substantially increase the SVD cost: ResNet50 `layer3` / 384 pixels / batch eight takes
+310.995 ms for EigenCAM versus 28.979 ms for LayerCAM.
+
+The [complete CUDA report](../img/eigencam/results-cuda.json) contains the 24 configurations,
+all raw samples and process ranges, memory measurements, weight/source hashes, environment,
+GPU snapshots, and the standalone harness source. Plain CAM is included only for ResNet `layer4`:
+intermediate channels and MobileNetV3's multi-FC head do not satisfy its feature/head contract.
+This CUDA run checks numerical validity and class independence; it adds no dataset-level quality
+metric. The CUDA and Mac reports use different torch versions, so their absolute times must not
+be interpreted as an isolated comparison of hardware speed.
+
 ## Other limitations and numerical conventions
 
 - The largest feature variance can come from background, texture or nuisance variation; it is not a guarantee
@@ -148,7 +190,7 @@ Earlier/higher-resolution target layers and larger channel counts can make SVD s
 - Callable output targets are unsupported. Accepting a class index is API compatibility only; it does not
   turn EigenCAM into a class-discriminative method.
 - The example verifies behavior and exposes tradeoffs. It does not establish retrieval gains, localization
-  superiority or robustness, and does not include CUDA or the minimum-supported torch version.
+  superiority or robustness, and does not establish a runtime ranking beyond the tested hardware, models and configurations.
 
 ## Image attribution
 
