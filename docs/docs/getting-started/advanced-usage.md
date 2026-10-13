@@ -444,6 +444,11 @@ When the MPS backend does not implement SVD, decomposition alone falls back to C
 The sign is fixed by making the largest-magnitude channel loading positive. If the largest singular value is
 repeated, the principal direction is not unique and can differ across backends.
 
+See the [reproducible EigenCAM comparison](eigencam-comparison.md) for pretrained-model screenshots,
+class-confidence diagnostics, CPU/MPS runtime measurements and a headless inference-only encoder example.
+EigenCAM is a feature-inspection option; the example does not show a speed or class-explanation advantage
+over LayerCAM.
+
 ## Token activation maps for VLMs
 
 ### Gradient-based token maps across architectures
