@@ -42,12 +42,10 @@ def _target_scores(output: Any, targets: OutputTarget | list[OutputTarget]) -> T
         samples: tuple[Any, ...] | list[Any] = output.unbind(0)
     elif isinstance(output, list):
         samples = output
-    elif isinstance(output, Mapping) and all(isinstance(value, Tensor) and value.ndim > 0 for value in output.values()):
-        # e.g. torchvision segmentation or Hugging Face outputs
-        samples = [
-            dict(zip(output, values, strict=True))
-            for values in zip(*(v.unbind(0) for v in output.values()), strict=True)
-        ]
+    elif isinstance(output, Mapping) and all(isinstance(value, Tensor) for value in output.values()):
+        # e.g. torchvision segmentation or Hugging Face outputs; scalars such as a loss are shared by every sample
+        batched = {key: value.unbind(0) for key, value in output.items() if value.ndim > 0}
+        samples = [{**output, **dict(zip(batched, row, strict=True))} for row in zip(*batched.values(), strict=True)]
     else:
         raise TypeError("model output must be a tensor, a per-sample list, or a mapping of batched tensors")
 

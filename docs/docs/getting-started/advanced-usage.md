@@ -45,8 +45,9 @@ cam_extractor = SmoothGradCAMpp(model, target_layer=model.features[7])   # by mo
 ```
 
 If you omit `target_layer`, TorchCAM runs a dummy forward of shape `(1, *input_shape)` (default
-`(3, 224, 224)`), picks the last layer whose output still has spatial dimensions, and logs the choice. If your
-model expects a different input, set `input_shape` accordingly — otherwise the dummy forward will fail or pick
+`(3, 224, 224)`), picks the last layer whose output still has spatial dimensions, and logs the choice. The search
+stops at the first layer returning a dictionary, such as a detection or segmentation backbone, and skips layers that
+run more than once or change the batch size. If your model expects a different input, set `input_shape` accordingly — otherwise the dummy forward will fail or pick
 the wrong layer:
 
 ```python
@@ -136,7 +137,7 @@ cam_extractor(class_idx=None, scores=None, normalized=True, *, targets=None)
   To explain the top prediction use the argmax (`out.squeeze(0).argmax().item()`), but you can pass **any** valid
   index to see where the model looks for that class. For a batch, pass one index per sample (see below).
 - **`scores`** — the raw model output. `class_idx` expects a tensor shaped `(N, num_classes)`; `targets` accepts a
-  batched tensor or one list item per sample. Required by gradient methods; ignored by `LeGrad`,
+  batched tensor, one list item per sample, or a dictionary of batched tensors. Required by gradient methods; ignored by `LeGrad`,
   `SmoothGradCAMpp`, and `CAM`. The Score-CAM family re-runs the stored input, so `scores` can be omitted.
 - **`targets`** — one callable shared by the batch or one callable per sample. Each callable receives one sample's
   model output and must return a scalar tensor. Pass exactly one of `class_idx` or `targets`.
@@ -156,6 +157,7 @@ adapter. For a torchvision detector, explain the top-scoring box:
 
 ```python
 from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
+from torchcam.methods import GradCAM
 
 model = fasterrcnn_resnet50_fpn_v2(weights="DEFAULT").eval()
 with GradCAM(model) as cam_extractor:  # resolves to backbone.body.layer4, which feeds every FPN level
@@ -205,7 +207,7 @@ with GradCAM(model) as cam_extractor:
     cams = cam_extractor(class_ids, out)         # cams[0] has shape (3, H, W)
 ```
 
-## Models with multiple inputs or batched dictionary outputs
+## Models with multiple inputs or tuple outputs
 
 The hooked layer must output a tensor. `targets` handles a batched tensor, a list containing one output per sample,
 or a dictionary of batched tensors. Tuple outputs such as `(logits, aux)`, `class_idx` on dictionary outputs, and

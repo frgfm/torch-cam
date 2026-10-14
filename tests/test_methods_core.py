@@ -174,7 +174,9 @@ def test_output_target_validation(mock_img_model):
     with pytest.raises(TypeError, match="per-sample list"):
         core._target_scores((torch.ones(1), torch.ones(1)), itemgetter(0))
     with pytest.raises(TypeError, match="mapping of batched tensors"):
-        core._target_scores({"out": torch.tensor(1.0)}, itemgetter("out"))
+        core._target_scores({"out": [1.0]}, itemgetter("out"))
+    output = {"logits": torch.arange(4.0).view(2, 2), "loss": torch.tensor(1.0)}
+    assert core._target_scores(output, lambda sample: sample["logits"][1] + sample["loss"]).tolist() == [2.0, 4.0]
 
     def number_target(_output):
         return 1
