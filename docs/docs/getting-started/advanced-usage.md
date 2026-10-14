@@ -14,7 +14,7 @@ what your model accepts and returns:
 | CNN classifier | Native | Class logits shaped `(N, num_classes)` and a spatial target layer. |
 | Batched, 3D, or video classifier | Native | One class index per sample and the correct `input_shape`. |
 | Multi-input model | Adapter required | Wrap the inputs into one tensor argument while preserving the hooked path. |
-| Tensor or per-sample list output | Native with `targets` | Reduce each sample output to one scalar tensor. |
+| Tensor, per-sample list, or dictionary output | Native with `targets` | Reduce each sample output to one scalar tensor. |
 | torchvision VisionTransformer | Native with `LeGrad` | Target supported encoder blocks; other CAM methods need `reshape_transform`. |
 | timm or Hugging Face CNN | Native (timm) or logits wrapper (Hugging Face) | See [timm and Hugging Face models](#timm-and-hugging-face-models). |
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
@@ -151,13 +151,25 @@ Gradient-based extractors also accept `retain_graph=True` (forwarded to the grad
 the extractor several times after a single forward — see
 [Troubleshooting](troubleshooting.md#runtimeerror-trying-to-backward-through-the-graph-a-second-time).
 
-`targets` opens the same extractor API to dense predictions and embeddings without a task-specific adapter. For a
-segmentation tensor shaped `(N, classes, H, W)`, explain class 5 inside a region mask:
+`targets` opens the same extractor API to detection, dense predictions and embeddings without a task-specific
+adapter. For a torchvision detector, explain the top-scoring box:
+
+```python
+from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
+
+model = fasterrcnn_resnet50_fpn_v2(weights="DEFAULT").eval()
+with GradCAM(model) as cam_extractor:  # resolves to an FPN output, not a per-box head
+    detections = model(input_batch)
+    cams = cam_extractor(scores=detections, targets=lambda sample: sample["scores"][0])
+```
+
+For a torchvision segmentation model, which returns a dictionary of batched tensors, explain class 5 inside a
+region mask:
 
 ```python
 with LayerCAM(model, target_layer="backbone.layer4") as cam_extractor:
-    output = model(input_batch)
-    cams = cam_extractor(scores=output, targets=lambda sample: sample[5][region_mask].mean())
+    output = model(input_batch)  # {"out": (N, classes, H, W), ...}
+    cams = cam_extractor(scores=output, targets=lambda sample: sample["out"][5][region_mask].mean())
 ```
 
 For an embedding tensor shaped `(N, embedding_dim)`, the target can be its similarity to another embedding:
@@ -172,7 +184,8 @@ with LayerCAM(model, target_layer="visual.layer4") as cam_extractor:
 ```
 
 Tensor outputs are split along their batch dimension. A model may instead return a list with one item per sample,
-such as detection dictionaries; in that case each target receives the corresponding item. `GradCAM`,
+such as detection dictionaries; in that case each target receives the corresponding item. Dictionaries of batched
+tensors, such as segmentation or Hugging Face outputs, are split into one dictionary per sample. `GradCAM`,
 `GradCAMpp`, `SmoothGradCAMpp`, `XGradCAM`, `LayerCAM`, `ScoreCAM`, `SSCAM`, and `ISCAM` support this contract, as
 does `RefineCAM` when its base method supports it. `CAM`, `FinerCAM`, and `LeGrad` retain their specialized
 class-based objectives.
@@ -194,9 +207,9 @@ with GradCAM(model) as cam_extractor:
 
 ## Models with multiple inputs or batched dictionary outputs
 
-The hooked layer must output a tensor. `targets` handles a batched tensor or a list containing one output per sample.
-Tuple outputs such as `(logits, aux)`, one dictionary containing batched tensors, and models taking several inputs
-(e.g. a siamese network) need a thin wrapper around that boundary:
+The hooked layer must output a tensor. `targets` handles a batched tensor, a list containing one output per sample,
+or a dictionary of batched tensors. Tuple outputs such as `(logits, aux)`, `class_idx` on dictionary outputs, and
+models taking several inputs (e.g. a siamese network) need a thin wrapper around that boundary:
 
 ```python
 import torch.nn as nn

@@ -57,9 +57,15 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
 
     # Check output shapes
     candidate_layer = None
+    names = [name for name, _ in output_shapes]
     for layer_name, output_shape in reversed(output_shapes):
-        # Stop before flattening or global pooling
-        if len(output_shape) == (len(input_shape) + 1) and any(v != 1 for v in output_shape[2:]):
+        # Stop before flattening or global pooling; skip per-region outputs and modules shared across feature levels
+        if (
+            len(output_shape) == (len(input_shape) + 1)
+            and output_shape[0] == 1
+            and names.count(layer_name) == 1
+            and any(v != 1 for v in output_shape[2:])
+        ):
             candidate_layer = layer_name
             break
 

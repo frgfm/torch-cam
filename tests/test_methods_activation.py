@@ -9,12 +9,15 @@ from torchcam.methods import activation
 
 
 class _StructuredModel(nn.Module):
-    def __init__(self):
+    def __init__(self, batched=False):
         super().__init__()
         self.features = nn.Conv2d(1, 2, 1)
+        self.batched = batched
 
     def forward(self, input_tensor):
         scores = self.features(input_tensor).flatten(2).mean(-1)
+        if self.batched:
+            return {"primary": scores[:, 0], "secondary": scores[:, 1]}
         return [{"primary": row[0], "secondary": row[1]} for row in scores]
 
 
@@ -177,9 +180,10 @@ def test_scorecam_restores_state_on_error(cam_name, monkeypatch):
         assert model.training
 
 
+@pytest.mark.parametrize("batched", [False, True])
 @pytest.mark.parametrize("cam_cls", [activation.ScoreCAM, activation.SSCAM, activation.ISCAM])
-def test_score_cams_support_per_sample_output_targets(cam_cls):
-    model = _StructuredModel().eval()
+def test_score_cams_support_per_sample_output_targets(cam_cls, batched):
+    model = _StructuredModel(batched).eval()
     kwargs = {"batch_size": 2}
     if cam_cls is not activation.ScoreCAM:
         kwargs["num_samples"] = 2
