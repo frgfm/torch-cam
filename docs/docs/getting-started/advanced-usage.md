@@ -158,7 +158,8 @@ adapter. For a torchvision detector, explain the top-scoring box:
 from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
 
 model = fasterrcnn_resnet50_fpn_v2(weights="DEFAULT").eval()
-with GradCAM(model) as cam_extractor:  # resolves to an FPN output, not a per-box head
+# Each box is pooled from a single FPN level, so hook the backbone layer that feeds all of them
+with GradCAM(model, target_layer="backbone.body.layer4") as cam_extractor:
     detections = model(input_batch)
     cams = cam_extractor(scores=detections, targets=lambda sample: sample["scores"][0])
 ```
