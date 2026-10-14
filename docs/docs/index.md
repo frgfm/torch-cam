@@ -69,3 +69,7 @@ Display it:
 
 * [Advanced usage](getting-started/advanced-usage.md) — supported model and task boundaries, choosing the target layer, batched inputs, ViT/3D, and picking a method.
 * [Troubleshooting](getting-started/troubleshooting.md) — fixes for the `requires grad` error, `NaN`/blank maps, and hook issues.
+
+## Author
+
+TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)), founder of [Rimward](https://rimward.ai) (YC S23).

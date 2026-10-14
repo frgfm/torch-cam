@@ -350,6 +350,10 @@ Each notebook includes setup cells that pin a development snapshot with fixes af
 | [Latency benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) | Measure CAM extraction and end-to-end latency on your hardware | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) |
 | [Performance benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) | Evaluate confidence and deletion/insertion faithfulness with an explicit baseline | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) |
 
+## Author
+
+TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)), founder of [Rimward](https://rimward.ai) (YC S23).
+
 ## Citation
 
 If you wish to cite this project, feel free to use this [BibTeX](http://www.bibtex.org/) reference:

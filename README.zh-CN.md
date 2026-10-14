@@ -311,6 +311,10 @@ python scripts/eval_latency.py SmoothGradCAMpp
 
 这些示例发布于 2022 年。调整环境配置和代码时，请参阅当前的[安装说明](#安装)和[文档](https://frgfm.github.io/torch-cam/)。
 
+## 作者
+
+TorchCAM 由 [Rimward](https://rimward.ai)（YC S23）创始人 [François-Guillaume (F-G) Fernandez](https://fgfm.dev)（[@frgfm](https://github.com/frgfm)）创建并维护。
+
 ## 引用
 
 如果要引用本项目，可以使用以下 [BibTeX](http://www.bibtex.org/)：
