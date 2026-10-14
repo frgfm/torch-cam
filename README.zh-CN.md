@@ -158,7 +158,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 
 ## CAM 方法一览
 
-本项目由仓库所有者开发和维护，其实现基于以下研究论文：
+本项目由[作者](#作者)开发和维护，其实现基于以下研究论文：
 
 - [Learning Deep Features for Discriminative Localization](https://arxiv.org/abs/1512.04150)：最初的 CAM 论文
 - [Grad-CAM](https://arxiv.org/abs/1610.02391)：GradCAM 论文，将 CAM 推广到没有全局平均池化的模型。

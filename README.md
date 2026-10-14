@@ -197,7 +197,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 
 ## CAM Zoo
 
-This project is developed and maintained by the repo owner, but the implementation was based on the following research papers:
+This project is developed and maintained by [its author](#author), but the implementation was based on the following research papers:
 
 - [Learning Deep Features for Discriminative Localization](https://arxiv.org/abs/1512.04150): the original CAM paper
 - [Grad-CAM](https://arxiv.org/abs/1610.02391): GradCAM paper, generalizing CAM to models without global average pooling.
