@@ -281,3 +281,42 @@ def test_fuse_cams_preserves_first_max(requires_grad, nonfinite, dtype):
         actual_grads = torch.autograd.grad(fused.sum(), cams)
         expected_grads = torch.autograd.grad(expected.sum(), cams)
         torch.testing.assert_close(actual_grads, expected_grads, equal_nan=True)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
+@pytest.mark.parametrize("constant", [0.0, 3.0])
+def test_cam_normalize_constant_dtype(dtype, constant):
+    cams = torch.full((2, 3, 4), constant, dtype=dtype)
+    normalized = core._CAM._normalize(cams)
+    torch.testing.assert_close(normalized, torch.zeros_like(cams))
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
+def test_cam_normalize_nonconstant_dtype(dtype):
+    cams = torch.tensor([[[0.0, 1.0], [0.5, 0.25]]], dtype=dtype)
+    expected = cams.clone() / (1.0 + 1e-8)
+    normalized = core._CAM._normalize(cams)
+    torch.testing.assert_close(normalized, expected)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+@pytest.mark.parametrize("normalized", [False, True])
+def test_gradcam_blank_map_dtype(dtype, normalized):
+    model = (
+        torch.nn
+        .Sequential(
+            torch.nn.Conv2d(1, 1, 1, bias=False),
+            torch.nn.AdaptiveAvgPool2d(1),
+            torch.nn.Flatten(1),
+            torch.nn.Linear(1, 1, bias=False),
+        )
+        .to(dtype=dtype)
+        .eval()
+    )
+    with torch.no_grad():
+        model[0].weight.fill_(1)
+        model[3].weight.fill_(-1)
+    with GradCAM(model, "0") as extractor:
+        scores = model(torch.ones((1, 1, 2, 2), dtype=dtype))
+        (cam,) = extractor(0, scores, normalized=normalized)
+        torch.testing.assert_close(cam, torch.zeros((1, 2, 2), dtype=dtype))

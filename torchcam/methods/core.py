@@ -196,7 +196,8 @@ class _CAM:
         dims = tuple(range(cams.ndim - spatial_dims, cams.ndim))
         cams.sub_(cams.amin(dim=dims, keepdim=True))
         # Avoid division by zero
-        cams.div_(cams.amax(dim=dims, keepdim=True) + eps)
+        denominator = cams.amax(dim=dims, keepdim=True) + eps
+        cams.div_(denominator.masked_fill(denominator == 0, 1))
 
         return cams
 
