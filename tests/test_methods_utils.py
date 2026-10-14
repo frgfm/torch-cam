@@ -29,6 +29,16 @@ def test_locate_candidate_layer_skips_region_and_shared_outputs():
     assert _utils.locate_candidate_layer(Detector(), (3, 8, 8)) == "backbone"
 
 
+@pytest.mark.parametrize(
+    ("arch", "expected"),
+    [("fasterrcnn_mobilenet_v3_large_320_fpn", "backbone.body.16"), ("lraspp_mobilenet_v3_large", "backbone.16")],
+)
+def test_locate_candidate_layer_stops_at_feature_dicts(arch, expected):
+    # Per-level FPN outputs and single-proposal ROI heads come after the backbone's feature dict
+    mod = get_model(arch, weights=None, weights_backbone=None).eval()
+    assert _utils.locate_candidate_layer(mod) == expected
+
+
 def test_locate_candidate_layer(mock_img_model, monkeypatch):
     # ResNet-18
     mod = get_model("resnet18", weights=None).eval()

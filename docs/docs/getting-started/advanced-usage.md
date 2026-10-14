@@ -158,8 +158,7 @@ adapter. For a torchvision detector, explain the top-scoring box:
 from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
 
 model = fasterrcnn_resnet50_fpn_v2(weights="DEFAULT").eval()
-# Each box is pooled from a single FPN level, so hook the backbone layer that feeds all of them
-with GradCAM(model, target_layer="backbone.body.layer4") as cam_extractor:
+with GradCAM(model) as cam_extractor:  # resolves to backbone.body.layer4, which feeds every FPN level
     detections = model(input_batch)
     cams = cam_extractor(scores=detections, targets=lambda sample: sample["scores"][0])
 ```
@@ -168,7 +167,7 @@ For a torchvision segmentation model, which returns a dictionary of batched tens
 region mask:
 
 ```python
-with LayerCAM(model, target_layer="backbone.layer4") as cam_extractor:
+with LayerCAM(model) as cam_extractor:  # resolves to backbone.layer4 for DeepLabV3 and FCN ResNets
     output = model(input_batch)  # {"out": (N, classes, H, W), ...}
     cams = cam_extractor(scores=output, targets=lambda sample: sample["out"][5][region_mask].mean())
 ```

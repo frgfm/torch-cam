@@ -3,7 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from functools import partial
 
@@ -35,10 +35,14 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         the candidate layer for CAM
     """
     output_shapes: list[tuple[str | None, tuple[int, ...]]] = []
+    feature_dicts: list[str | None] = []
 
     def _record_output_shape(_: nn.Module, _input: Tensor, output: object, name: str | None = None) -> None:
         """Activation hook."""
-        if isinstance(output, Tensor):
+        # Layers after a feature dict (e.g. detection or segmentation backbones) only feed some levels or heads
+        if isinstance(output, Mapping):
+            feature_dicts.append(name)
+        elif isinstance(output, Tensor) and not feature_dicts:
             output_shapes.append((name, output.shape))
 
     hook_handles: list[torch.utils.hooks.RemovableHandle] = []
