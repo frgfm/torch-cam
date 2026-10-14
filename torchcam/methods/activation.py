@@ -196,7 +196,12 @@ class ScoreCAM(_CAM):
     def _upsample(self, activation: Tensor) -> Tensor:
         spatial_dims = self._input.ndim - 2
         interpolation_mode = "bilinear" if spatial_dims == 2 else "trilinear" if spatial_dims == 3 else "nearest"
-        return F.interpolate(activation, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
+        return F.interpolate(
+            activation,
+            self._input.shape[2:],
+            mode=interpolation_mode,
+            align_corners=None if interpolation_mode == "nearest" else False,
+        )
 
     @staticmethod
     def _select_scores(
