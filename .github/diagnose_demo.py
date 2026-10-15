@@ -24,7 +24,7 @@ for label,url in [('collie','https://www.woopets.fr/assets/races/000/066/big-por
  inputs=processor(images=image,text='a picture of',return_tensors='pt')
  start=inputs['input_ids'].shape[-1]-1
  started=time.perf_counter()
- with torch.inference_mode():sequences=model.generate(**inputs,do_sample=False,num_beams=3,use_cache=False,repetition_penalty=1.1,max_new_tokens=24)
+ with torch.inference_mode():sequences=model.generate(**inputs,do_sample=False,num_beams=3,use_cache=False,repetition_penalty=1.2,no_repeat_ngram_size=2,max_new_tokens=24)
  caption=processor.decode(sequences[0],skip_special_tokens=True)
  row={'caption':caption,'generation_seconds':time.perf_counter()-started,'tokens':{}}
  report['images'][label]=row
