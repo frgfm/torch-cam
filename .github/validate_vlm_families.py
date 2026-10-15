@@ -20,7 +20,29 @@ try:
  started=time.perf_counter()
  if model_id in ('deberta','decider'):
   for text, expected in [('I was charged twice. Please refund the duplicate payment.','Billing'), ('My password reset link has expired. Help me sign in.','Account access'), ('My shipment has not arrived. The tracking page shows a delivery delay.','Delivery')]:
-   result=inference.explain_decision(text, model_id, 'cpu')
+   with patch.object(inference,'ablate_ticket',wraps=inference.ablate_ticket) as scored:
+    result=inference.explain_decision(text, model_id, 'cpu')
+   if model_id=='decider':
+    import importlib.util
+    from types import SimpleNamespace
+    from urllib.request import urlopen
+    native_path=out/'native_prompt.py'
+    native_path.write_bytes(urlopen('https://raw.githubusercontent.com/Mapika/decider/main/decider/prompt.py',timeout=30).read())
+    spec=importlib.util.spec_from_file_location('native_prompt',native_path);native=importlib.util.module_from_spec(spec);spec.loader.exec_module(native)
+    order=SimpleNamespace(shuffle=lambda value:None)
+    question=SimpleNamespace(text=inference.QUESTION['instructions'],options=[f'{label}: {description}' for label,description in inference.QUESTION['criteria'].items()],gold=0)
+    model,tokenizer,_=inference.load_resource('decision','decider','cpu')
+    item=native.build(SimpleNamespace(context=text,qs=[question]),tokenizer,rng=order)
+    batch=scored.call_args.args[1]
+    assert item['ids']==batch['input_ids'][0].tolist(),'Prompt differs from native builder'
+    columns=[tokenizer.encode(letter,add_special_tokens=False)[0] for letter in 'ABC']
+    with torch.no_grad():
+     hidden=model.model(input_ids=batch['input_ids'],attention_mask=batch['attention_mask'],use_cache=False).last_hidden_state[:,-1]
+     reference=torch.nn.functional.linear(hidden,model.lm_head.weight[columns]).float()[0]
+    torch.testing.assert_close(torch.tensor(result['scores']),reference,rtol=1e-4,atol=1e-4)
+    expected=(reference/model.config.decision_temperature).softmax(-1)
+    torch.testing.assert_close(torch.tensor(result['probabilities']),expected,rtol=1e-5,atol=1e-5)
+    report['native_parity']=True
    predicted=result['labels'][max(range(3), key=result['probabilities'].__getitem__)]
    assert predicted==expected, (predicted,expected)
    report[expected] = result

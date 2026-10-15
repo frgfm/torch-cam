@@ -23,6 +23,7 @@ DECISION_MODELS = {
     "decider": "Decider · 0.8B",
 }
 DECIDER_ID = "Mapika/decider-0.8b"
+DECIDER_REVISION = "a0a01d6f8135298f400a8c856b355793012ae971"
 NLI_MODELS = {
     "minilm": "cross-encoder/nli-MiniLM2-L6-H768",
     "deberta": "MoritzLaurer/deberta-v3-base-zeroshot-v2.0",
@@ -82,19 +83,29 @@ def load_resource(family, model_name, device):
         if family == "vlm" and model_name in VLM_MODELS:
             processor = AutoProcessor.from_pretrained(model_name)
             loader = BlipForConditionalGeneration if model_name == VLM_ID else AutoModelForImageTextToText
-            dtype = torch.float32 if model_name == VLM_ID else torch.bfloat16
+            full_precision = model_name == VLM_ID or (device == "cpu" and model_name.startswith("Qwen/"))
+            dtype = torch.float32 if full_precision else torch.bfloat16
             model = loader.from_pretrained(model_name, dtype=dtype, attn_implementation="eager").eval().to(device)
         elif family == "decision" and model_name == "decider":
             from huggingface_hub import hf_hub_download  # noqa: PLC0415
 
-            processor = AutoTokenizer.from_pretrained(DECIDER_ID, use_fast=True)
-            model = AutoModelForCausalLM.from_pretrained(DECIDER_ID, dtype=torch.float32).eval().to(device)
+            processor = AutoTokenizer.from_pretrained(DECIDER_ID, revision=DECIDER_REVISION, use_fast=True)
+            model = (
+                AutoModelForCausalLM
+                .from_pretrained(
+                    DECIDER_ID,
+                    revision=DECIDER_REVISION,
+                    dtype=torch.float32,
+                )
+                .eval()
+                .to(device)
+            )
             metadata = json.loads(
                 Path(
                     hf_hub_download(
                         DECIDER_ID,
                         "decider_config.json",
-                        revision=model.config._commit_hash,  # noqa: SLF001
+                        revision=DECIDER_REVISION,
                     )
                 ).read_text(encoding="utf-8")
             )

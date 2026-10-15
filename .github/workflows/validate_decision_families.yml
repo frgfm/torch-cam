@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: make install-demo
       - name: Validate native inference and token maps
-        run: uv run python .github/validate_vlm_families.py
+        run: uv run --no-sync python .github/validate_vlm_families.py
       - uses: actions/upload-artifact@v7
         if: always()
         with:
