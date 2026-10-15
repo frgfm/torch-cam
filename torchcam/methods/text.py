@@ -15,7 +15,94 @@ from torch import Tensor, nn
 
 from ._utils import _model_eval
 
-__all__ = ["TokenAttribution", "TokenIG"]
+__all__ = ["TokenAblation", "TokenAblationResult", "TokenAttribution", "TokenIG"]
+
+
+@dataclass(frozen=True)
+class TokenAblationResult:
+    """Single-token replacement effects; interactions mean contributions need not add up.
+
+    Attributes:
+        scores: original scores shaped ``(N, classes)``; no calibration is applied
+        attributions: original minus replaced-token scores, shaped ``(N, classes, tokens)``; excluded tokens are zero
+    """
+
+    scores: Tensor
+    attributions: Tensor
+
+
+class TokenAblation:
+    """Explain a classifier by replacing one input token at a time, without gradients.
+
+    All classes share one forward per selected token position, plus the original forward. Attention, positions and
+    other context stay fixed. Use a replacement ID appropriate to the model, such as its pretrained mask token.
+    Models must be deterministic in evaluation mode, have independent batch samples, and not mutate their parameters.
+
+    Args:
+        model: PyTorch classifier accepting keyword arguments, including ``input_ids``
+        output_transform: optional function selecting floating-point ``(N, classes)`` scores from model output
+    """
+
+    def __init__(self, model: nn.Module, output_transform: Callable[[Any], Tensor] | None = None) -> None:
+        self.model = model
+        self.output_transform = output_transform
+
+    def __call__(
+        self, inputs: Mapping[str, Any], replacement_id: int, *, token_mask: Tensor | None = None
+    ) -> TokenAblationResult:
+        """Return signed effects of individual token replacements.
+
+        Args:
+            inputs: unchanged model keyword arguments; ``input_ids`` must be integer ``(N, tokens)``
+            replacement_id: vocabulary ID substituted at each selected position; attention remains unchanged
+            token_mask: boolean ``(N, tokens)`` mask on the IDs' device; omitted means every token
+
+        Returns:
+            detached original scores and signed effects. Positive values mean replacement lowers a class score.
+            Effects are marginal changes with other tokens fixed, not additive contributions or token probabilities.
+
+        Raises:
+            ValueError: if IDs, replacement, mask or model scores are invalid
+        """
+        ids = inputs.get("input_ids")
+        if (
+            not isinstance(ids, Tensor)
+            or ids.ndim != 2
+            or not ids.numel()
+            or ids.dtype not in {torch.int32, torch.int64}
+        ):
+            raise ValueError("`input_ids` must be non-empty integer (N, tokens)")
+        if not isinstance(replacement_id, int) or isinstance(replacement_id, bool) or replacement_id < 0:
+            raise ValueError("`replacement_id` must be a nonnegative vocabulary ID")
+        mask = torch.ones_like(ids, dtype=torch.bool) if token_mask is None else token_mask
+        if mask.shape != ids.shape or mask.dtype != torch.bool or mask.device != ids.device:
+            raise ValueError("`token_mask` must be boolean (N, tokens) on the IDs' device")
+
+        def score(batch: Mapping[str, Any]) -> Tensor:
+            output = self.model(**batch)
+            value = output if self.output_transform is None else self.output_transform(output)
+            shape = value.shape if isinstance(value, Tensor) else ()
+            if (
+                len(shape) != 2
+                or shape[0] != ids.shape[0]
+                or not shape[1]
+                or not value.is_floating_point()
+                or not value.isfinite().all()
+            ):
+                raise ValueError("model scores must be finite floating-point (N, classes)")
+            return value.detach()
+
+        with _model_eval(self.model), torch.no_grad():
+            scores = score(inputs)
+            maps = scores.new_zeros((*scores.shape, ids.shape[1]))
+            for position in mask.any(0).nonzero().flatten().tolist():
+                replaced = ids.clone()
+                replaced[mask[:, position], position] = replacement_id
+                changed = score({**inputs, "input_ids": replaced})
+                if changed.shape != scores.shape:
+                    raise ValueError("model score shape changed after token replacement")
+                maps[:, :, position] = (scores - changed) * mask[:, position, None]
+        return TokenAblationResult(scores, maps)
 
 
 @dataclass(frozen=True)
