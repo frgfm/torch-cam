@@ -274,7 +274,7 @@ def render_comparison(selected_image):
         columns[2].info("Compute a CAM to see the overlay.")
         return
 
-    columns[1].image(result["raw_image"], width="stretch")
+    columns[1].container(key="raw-cam").image(result["raw_image"], width="stretch", output_format="PNG")
     columns[1].download_button(
         "Download raw tensor",
         data=result["tensor_bytes"],
@@ -541,6 +541,7 @@ def vlm_page():
 
 def main():
     st.set_page_config(page_title="TorchCAM Explorer", page_icon="🔎", layout="wide")
+    st.html("<style>.st-key-raw-cam img { image-rendering: pixelated; }</style>")
     st.title("TorchCAM Explorer")
     st.caption("Explore what supports a model's output: image regions, visual tokens, or text tokens.")
     # Keep editable controls alive while their tab is not rendered; uploaders cannot be assigned through session state.
