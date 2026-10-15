@@ -22,14 +22,14 @@ jobs:
           for endpoint in [base,base+'/runtime']:
               with urlopen(Request(endpoint,headers=headers),timeout=15) as response:info=json.load(response)
               print(json.dumps({key:info.get(key) for key in ['sha','stage','hardware','runtime','sdk'] if key in info}),flush=True)
+          rows=[]
           try:
               with urlopen(Request(base+'/logs/run',headers=headers),timeout=8) as response:
                   deadline=time.monotonic()+15
-                  rows=[]
                   while time.monotonic()<deadline and len(rows)<400:
                       line=response.readline().decode(errors='replace')
                       if not line:break
                       rows.append(line)
-                  print(''.join(rows[-70:]),flush=True)
           except Exception as error:print('Runtime log read:',type(error).__name__,str(error),flush=True)
+          finally:print('Captured',len(rows),'log lines\\n'+''.join(rows[-70:]),flush=True)
           PY
