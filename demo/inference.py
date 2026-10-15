@@ -188,13 +188,6 @@ def generate_answer(image, prompt, device):
         choices = [index for index in range(start, len(ids)) if ids[index] not in processor.tokenizer.all_special_ids]
         if not choices:
             raise ValueError("The model produced no caption tokens. Try a different image.")
-        # Start on a token whose prediction benefits from the image, rather than a generic article.
-        replay = {"pixel_values": inputs["pixel_values"], "input_ids": sequences[:, :-1]}
-        replay["attention_mask"] = torch.ones_like(replay["input_ids"])
-        visible = model(**replay, use_cache=False).logits[0].log_softmax(-1)
-        replay["pixel_values"] = torch.zeros_like(replay["pixel_values"])
-        blank = model(**replay, use_cache=False).logits[0].log_softmax(-1)
-        visual_effect = (visible - blank).gather(1, sequences[0, 1:, None]).squeeze(1)
         return {
             "model": "BLIP captioner",
             "prompt": prompt,
@@ -204,7 +197,6 @@ def generate_answer(image, prompt, device):
             "generated_ids": ids,
             "answer": processor.tokenizer.decode(ids[start:], skip_special_tokens=True),
             "choices": choices,
-            "default_token": max(choices, key=lambda index: float(visual_effect[index - 1])),
             "token_labels": {
                 index: f"{number} · {processor.tokenizer.decode([ids[index]])!r}"
                 for number, index in enumerate(choices, 1)

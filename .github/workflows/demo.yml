@@ -26,31 +26,83 @@ env:
   UV_VERSION: "0.12.5"  # pinned for reproducible installs across all jobs
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - name: Install dependencies
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: make install-demo
+      - name: Run demo smoke check
+        run: uv run python demo/smoke.py
+      - name: Check pretrained models before deployment
+        if: github.event_name != 'pull_request'
+        env:
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run python demo/smoke.py --pretrained
+      - name: Start demo and wait for health
+        shell: bash
+        run: |
+          set -euo pipefail
+          log_file="${RUNNER_TEMP}/torchcam-demo.log"
+          uv run streamlit run demo/app.py \
+            --server.headless true \
+            --server.port 8080 \
+            >"${log_file}" 2>&1 &
+          server_pid=$!
+
+          cleanup() {
+            kill "${server_pid}" 2>/dev/null || true
+            wait "${server_pid}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          if ! python - <<'PY'
+          import time
+          from urllib.request import urlopen
+
+          url = "http://127.0.0.1:8080/_stcore/health"
+          deadline = time.monotonic() + 60
+          last_error = None
+          while time.monotonic() < deadline:
+              try:
+                  with urlopen(url, timeout=2) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except OSError as exc:
+                  last_error = exc
+              time.sleep(1)
+          raise SystemExit(f"Streamlit health check timed out: {last_error}")
+          PY
+          then
+            cat "${log_file}"
+            exit 1
+          fi
+
   sync-to-hub:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - uses: actions/checkout@v7
       - name: Sync demo to existing Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          PREVIEW_SOURCE_SHA: cb2c1dab0df37a9e2dc5a1a81b37447836cb55d3
+          PREVIEW_SOURCE_SHA: 9b931de37a8f7d8c17c2759714ade1c34cb3cd4d
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json, os
-          from urllib.request import Request, urlopen
-          base = 'https://huggingface.co/api/spaces/frgfm/torch-cam'
-          headers = {'Authorization': 'Bearer ' + os.environ['HF_TOKEN'], 'Content-Type': 'application/json'}
-          with urlopen(Request(base + '/runtime', headers=headers), timeout=30) as response:
-              runtime = json.load(response)
-          for key in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS'):
-              payload = json.dumps({'key': key}).encode()
-              with urlopen(Request(base + '/variables', data=payload, headers=headers, method='DELETE'), timeout=30):
-                  pass
-          print('Removed preview thread variables; retaining the Space runtime defaults')
-          PY
           space_dir="$(mktemp -d)"
           trap 'rm -rf "${space_dir}"' EXIT
 

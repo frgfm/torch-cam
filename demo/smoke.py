@@ -286,7 +286,6 @@ def check_vlm_adapter():
         check(tuple(cam.shape) == (1, 4, 4), "VLM map does not match the native visual-token grid")
         check(bool(cam.isfinite().all()) and 0 < probability < 1, "VLM outputs are not finite")
         check(result["input_image"].size == (32, 32), "VLM overlay does not show the actual model crop")
-        check(result["default_token"] in result["choices"], "VLM default token is not selectable")
         changed = {**result, "generated_ids": result["generated_ids"][: index + 1] + [6] * 5}
         future_cam, future_probability = inference.explain_answer_token(changed, index, "cpu")
         torch.testing.assert_close(cam, future_cam, atol=0, rtol=0)
