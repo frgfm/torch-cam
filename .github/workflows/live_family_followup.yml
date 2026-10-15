@@ -1,0 +1,41 @@
+name: live-family-followup
+on:
+  push:
+    branches: [codex/live-family-followup-467]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      UV_TORCH_BACKEND: cpu
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: '0.12.5'
+          activate-environment: true
+      - uses: actions/download-artifact@v5
+        with:
+          name: demo-pretrained-diagnostics
+          run-id: 38746524887
+          github-token: ${{ github.token }}
+          path: fixtures
+      - run: make install-demo
+      - name: Verify deployed model flows
+        env:
+          PREVIEW_SOURCE_SHA: 85482d69acf8c7be78a0a6b7658aa732fb227e38
+        run: |
+          npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/browser" playwright@1.57.0
+          "${RUNNER_TEMP}/browser/node_modules/.bin/playwright" install --with-deps chromium
+          PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/browser/node_modules/playwright" node .github/live_family_followup.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: live-family-followup
+          path: live-family-check/
