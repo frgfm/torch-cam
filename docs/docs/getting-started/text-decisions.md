@@ -1,14 +1,21 @@
 # Text decision models
 
-`TokenIG` explains differentiable PyTorch classifiers with [Integrated Gradients](https://arxiv.org/abs/1703.01365)
-on input word embeddings. It needs no tokenizer, Transformers or Laya dependency. Until the next release,
+`TokenAblation` measures single-token replacement effects without gradients. `TokenIG` explains differentiable
+classifiers with [Integrated Gradients](https://arxiv.org/abs/1703.01365) on word embeddings. Neither adds a tokenizer,
+Transformers or Laya dependency. Until the next release,
 [install from source](installation.md).
 
 --8<-- "README.md:quickstart-text"
 
 ## Inputs and results
 
-The extractor forwards `inputs` as keyword arguments. Supply the word-embedding module before positional/contextual
+Both extractors forward `inputs` as keyword arguments and accept `output_transform` for structured model scores.
+`TokenAblation` returns original `(N, classes)` scores and signed `(N, classes, tokens)` effects. Each effect is the
+original score minus the score after replacing that token's ID; attention and other context stay fixed. Choose an
+appropriate `replacement_id`, such as the model's mask token. All classes share one forward per selected position.
+Interactions mean these marginal effects need not sum to a total score change; there is no completeness diagnostic.
+
+For `TokenIG`, supply the word-embedding module before positional/contextual
 mixing, directly or by name. It must run once per forward and return `(N, tokens, channels)`. Use `output_transform`
 to select `(N, classes)` scores from structured outputs, e.g. `lambda output: output.logits` or `output[0]`.
 `class_idx=2` selects one output column; `[2, 0]` preserves that order; omitting it explains every column.
@@ -29,9 +36,9 @@ Retain signed values for numerical checks and comparisons. Independently normali
 across classes. These are baseline-relative score contributions, not token probabilities or proof of bias; use
 controlled word deletions/name substitutions to investigate suspected proxies.
 
-`token_mask` selects the `(N, tokens)` embeddings to vary; excluded tokens stay fixed and receive zero attribution.
+`token_mask` selects the `(N, tokens)` positions to vary; excluded tokens stay fixed and receive zero attribution.
 Exclude padding, special tokens, questions and decision options as appropriate. A padding mask alone also attributes
-attended special tokens. `baseline` defaults to zero and may be any tensor matching embedding shape, device and dtype,
+attended special tokens. For `TokenIG`, `baseline` defaults to zero and may match embedding shape, device and dtype,
 including padding embeddings. Selected tokens remain attended; attention/position metadata never change. The caller
 owns tokenization, offsets, truncation checks and model-specific input construction.
 
@@ -49,6 +56,10 @@ extractor = TokenIG(
 result = extractor(batch, token_mask=state_mask)
 ```
 
+For interactive explanations without backward passes, use
+`TokenAblation(agent.model, lambda output: output[0])(batch, agent.tok.mask_token_id, token_mask=state_mask)`.
+This also avoids the steep zero-embedding integration paths that can make pretrained decision models slow to explain.
+
 Forward `input_ids`, `attention_mask`, `marker_pos`, `marker_mask`, `qtype` and any `position_ids`/`option_ids` unchanged,
 including attention-mask dictionaries for parallel layouts. Use Laya's sequence builder to identify state positions,
 check truncated state/options, and select valid output columns when options are padded. Apply the same option-order
@@ -57,8 +68,9 @@ and language calibration.
 
 Laya [0.4.6 architecture](https://github.com/NandhaKishorM/laya/tree/c73908d96ff73c0062c340a11bf7c54ec7d8bc4d) was checked
 with native ModernBERT, random weights and a synthetic tokenizer: choice, score and noul questions, sequential and
-parallel layouts. This establishes architecture compatibility, not learned relevance. Actual maps need executable
-weights and gradients; a remote labels/probabilities-only API needs a perturbation method.
+parallel layouts. This establishes architecture compatibility, not learned relevance. Local adapters need an executable
+model; `TokenIG` additionally needs gradients. `TokenAblation` can use a remote scoring wrapper if it supports the same
+controlled token replacements.
 
 ## Numerical checks and cost
 

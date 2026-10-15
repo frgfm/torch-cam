@@ -11,10 +11,10 @@ import streamlit as st
 import torch
 from PIL import ImageOps
 
-from torchcam.methods import TAM, TokenIG
+from torchcam.methods import LayerCAM, TokenAblation
 
 DECISION_MODELS = {"laya": "Laya", "minilm": "MiniLM · zero-shot classifier"}
-VLM_ID = "HuggingFaceTB/SmolVLM-256M-Instruct"
+VLM_ID = "Salesforce/blip-image-captioning-base"
 QUESTION = {
     "type": "choice",
     "instructions": "Route this support ticket by the issue described in the message.",
@@ -53,15 +53,15 @@ def load_resource(family, model_name, device):
         processor = model.tok
     else:
         from transformers import (  # noqa: PLC0415
-            AutoModelForImageTextToText,
             AutoModelForSequenceClassification,
             AutoProcessor,
             AutoTokenizer,
+            BlipForConditionalGeneration,
         )
 
         if family == "vlm":
             processor = AutoProcessor.from_pretrained(VLM_ID)
-            model = AutoModelForImageTextToText.from_pretrained(VLM_ID, dtype=torch.float32).eval().to(device)
+            model = BlipForConditionalGeneration.from_pretrained(VLM_ID).eval().to(device)
         elif family == "decision" and model_name == "minilm":
             checkpoint = "cross-encoder/nli-MiniLM2-L6-H768"
             processor = AutoTokenizer.from_pretrained(checkpoint, use_fast=True)
@@ -93,9 +93,7 @@ def explain_laya(agent, text):
     inputs = {key: batch[key].to(agent.device) for key in MODEL_INPUTS if key in batch}
     mask = torch.zeros_like(inputs["input_ids"], dtype=torch.bool)
     mask[:, state_slice] = True
-    result = TokenIG(agent.model, agent.model.encoder.get_input_embeddings(), itemgetter(0))(
-        inputs, token_mask=mask, max_steps=512
-    )
+    result = ablate_ticket(agent.model, inputs, mask, agent.tok.mask_token_id, itemgetter(0))
     prediction = agent.predict(text, {"route": QUESTION})["answers"]["route"]
     probabilities = [prediction["probabilities"][label] for label in QUESTION["criteria"]]
     maps = result.attributions[0, :, state_slice].cpu().tolist()
@@ -123,16 +121,20 @@ def explain_minilm(model, tokenizer, text):
         device=model.device,
     )
     # This checkpoint's published label order is contradiction, entailment, neutral.
-    result = TokenIG(model, model.get_input_embeddings(), lambda output: output.logits)(
-        inputs, 1, token_mask=mask, max_steps=512
-    )
-    probabilities = result.scores[:, 1].softmax(0).cpu().tolist()
+    result = ablate_ticket(model, inputs, mask, tokenizer.mask_token_id, lambda output: output.logits[:, 1:2])
+    probabilities = result.scores[:, 0].softmax(0).cpu().tolist()
     maps = result.attributions[:, 0].cpu().tolist()
     offsets = [
         [offset if keep else [0, 0] for offset, keep in zip(row, selected, strict=True)]
         for row, selected in zip(offsets, mask.cpu().tolist(), strict=True)
     ]
     return result, maps, offsets, probabilities, "entailment logit"
+
+
+def ablate_ticket(model, inputs, mask, replacement_id, output_transform):
+    if mask.any(0).sum() > 64:
+        raise ValueError("This ticket is too long for an interactive explanation. Please shorten it.")
+    return TokenAblation(model, output_transform)(inputs, replacement_id, token_mask=mask)
 
 
 def explain_decision(text, model_name, device):
@@ -145,18 +147,16 @@ def explain_decision(text, model_name, device):
     return {
         "model": DECISION_MODELS[model_name],
         "text": text,
-        "method": "TokenIG",
+        "method": "TokenAblation",
         "target": target,
         "question": QUESTION,
-        "baseline": "zero ticket embeddings; question/options held fixed",
+        "baseline": "one ticket token masked at a time; question/options held fixed",
+        "replacement_token": processor.mask_token,
         "labels": list(QUESTION["criteria"]),
         "probabilities": probabilities,
         "attributions": maps,
         "offsets": offsets,
-        "steps": result.steps,
-        "scores": result.scores[:, result.class_indices].cpu().flatten().tolist(),
-        "baseline_scores": result.baseline_scores[:, result.class_indices].cpu().flatten().tolist(),
-        "completeness_error": result.completeness_error.cpu().flatten().tolist(),
+        "scores": result.scores.cpu().flatten().tolist(),
         "elapsed": perf_counter() - started_at,
     }
 
@@ -164,22 +164,8 @@ def explain_decision(text, model_name, device):
 def prepare_vlm_inputs(model, processor, image, prompt, device):
     size = model.config.vision_config.image_size
     model_input = ImageOps.fit(image, (size, size))
-    messages = [{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": prompt}]}]
-    rendered = processor.apply_chat_template(messages, add_generation_prompt=True)
-    inputs = processor(
-        text=rendered,
-        images=[model_input],
-        do_image_splitting=False,
-        size={"longest_edge": size},
-        max_image_size={"longest_edge": size},
-        return_tensors="pt",
-    ).to(device)
-    side = size // model.config.vision_config.patch_size // model.config.scale_factor
-    if (
-        inputs["pixel_values"].shape[1] != 1
-        or int((inputs["input_ids"] == model.config.image_token_id).sum()) != side**2
-    ):
-        raise ValueError("The VLM input must contain one square image grid.")
+    inputs = processor(text=prompt, images=model_input, return_tensors="pt").to(device)
+    side = size // model.config.vision_config.patch_size
     return inputs, model_input, side
 
 
@@ -187,44 +173,61 @@ def generate_answer(image, prompt, device):
     model, processor, lock = load_resource("vlm", VLM_ID, device)
     with lock, torch.inference_mode():
         inputs, model_input, side = prepare_vlm_inputs(model, processor, image, prompt, device)
-        sequences = model.generate(**inputs, do_sample=False, max_new_tokens=48, return_dict_in_generate=False)
-        ids = sequences[0, inputs["input_ids"].shape[1] :].tolist()
-        choices = [index for index, token in enumerate(ids) if token not in processor.tokenizer.all_special_ids]
+        start = inputs["input_ids"].shape[1] - 1  # BLIP replaces CLS with BOS and removes the final SEP.
+        sequences = model.generate(
+            **inputs,
+            do_sample=False,
+            num_beams=3,
+            use_cache=False,
+            repetition_penalty=1.2,
+            no_repeat_ngram_size=2,
+            max_new_tokens=24,
+            return_dict_in_generate=False,
+        )
+        ids = sequences[0].tolist()
+        choices = [index for index in range(start, len(ids)) if ids[index] not in processor.tokenizer.all_special_ids]
         if not choices:
-            raise ValueError("The model produced no answer tokens. Try a different image or prompt.")
+            raise ValueError("The model produced no caption tokens. Try a different image.")
+        # Start on a token whose prediction benefits from the image, rather than a generic article.
+        replay = {"pixel_values": inputs["pixel_values"], "input_ids": sequences[:, :-1]}
+        replay["attention_mask"] = torch.ones_like(replay["input_ids"])
+        visible = model(**replay, use_cache=False).logits[0].log_softmax(-1)
+        replay["pixel_values"] = torch.zeros_like(replay["pixel_values"])
+        blank = model(**replay, use_cache=False).logits[0].log_softmax(-1)
+        visual_effect = (visible - blank).gather(1, sequences[0, 1:, None]).squeeze(1)
         return {
-            "model": "SmolVLM-256M",
+            "model": "BLIP captioner",
             "prompt": prompt,
             "input_image": model_input,
             "grid_side": side,
-            "inputs": {key: value.cpu() for key, value in inputs.items()},
+            "pixel_values": inputs["pixel_values"].cpu(),
             "generated_ids": ids,
-            "answer": processor.tokenizer.decode(ids, skip_special_tokens=True),
+            "answer": processor.tokenizer.decode(ids[start:], skip_special_tokens=True),
             "choices": choices,
-            "token_labels": {index: f"{index + 1} · {processor.tokenizer.decode([ids[index]])!r}" for index in choices},
+            "default_token": max(choices, key=lambda index: float(visual_effect[index - 1])),
+            "token_labels": {
+                index: f"{number} · {processor.tokenizer.decode([ids[index]])!r}"
+                for number, index in enumerate(choices, 1)
+            },
         }
 
 
 def explain_answer_token(result, token_index, device):
-    model, processor, lock = load_resource("vlm", VLM_ID, device)
-    with lock, torch.inference_mode():
-        inputs = {key: value.to(device) for key, value in result["inputs"].items()}
+    model, _, lock = load_resource("vlm", VLM_ID, device)
+    with lock, torch.enable_grad():
         prefix = torch.tensor([result["generated_ids"][:token_index]], device=device, dtype=torch.long)
-        inputs["input_ids"] = torch.cat((inputs["input_ids"], prefix), -1)
-        inputs["attention_mask"] = torch.cat((inputs["attention_mask"], torch.ones_like(prefix)), -1)
-        output = model(**inputs, output_hidden_states=True, use_cache=False, logits_to_keep=1)
-        states = output.hidden_states[-1]
-        ids = inputs["input_ids"][0]
-        image_mask = ids == model.config.image_token_id
-        special_ids = torch.tensor(processor.tokenizer.all_special_ids, device=device)
-        context = inputs["attention_mask"][0].bool() & ~image_mask & ~torch.isin(ids, special_ids)
+        inputs = {
+            "pixel_values": result["pixel_values"].to(device).clone().requires_grad_(True),
+            "input_ids": prefix,
+            "attention_mask": torch.ones_like(prefix),
+        }
         side = result["grid_side"]
         token_id = result["generated_ids"][token_index]
-        maps = TAM(model.get_output_embeddings())(
-            token_id,
-            states[:, image_mask].reshape(1, side, side, states.shape[-1]),
-            states[:, context],
-            inputs["input_ids"][:, context],
-        )
-        probability = float(output.logits[0, -1].float().softmax(-1)[token_id])
+        layer = model.text_decoder.bert.encoder.layer[-1].crossattention.self.dropout
+        # Last text query attends to CLS followed by the row-major patch grid; CLS has no pixel location.
+        reshape = lambda states: states[:, :, -1, 1:].reshape(states.shape[0], states.shape[1], side, side)
+        with LayerCAM(model, layer, reshape_transform=reshape) as extractor:
+            output = model(**inputs, use_cache=False, logits_to_keep=1)
+            maps = extractor(token_id, output.logits[:, -1])[0]
+        probability = float(output.logits[0, -1].detach().float().softmax(-1)[token_id])
     return maps.float().cpu(), probability

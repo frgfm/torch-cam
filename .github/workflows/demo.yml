@@ -44,6 +44,13 @@ jobs:
         run: make install-demo
       - name: Run demo smoke check
         run: uv run python demo/smoke.py
+      - name: Check pretrained models before deployment
+        if: github.event_name != 'pull_request'
+        env:
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run python demo/smoke.py --pretrained
       - name: Start demo and wait for health
         shell: bash
         run: |
@@ -92,16 +99,28 @@ jobs:
       - name: Sync demo to existing Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          PREVIEW_SOURCE_SHA: 79748356046489c9b9182c81aee378d4b7e8e13d
+          PREVIEW_SOURCE_SHA: cb2c1dab0df37a9e2dc5a1a81b37447836cb55d3
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${HF_TOKEN}" || { echo "::error::Repository HF_TOKEN is missing"; exit 1; }
+          python - <<'PY'
+          import json, os
+          from urllib.request import Request, urlopen
+          base = 'https://huggingface.co/api/spaces/frgfm/torch-cam'
+          headers = {'Authorization': 'Bearer ' + os.environ['HF_TOKEN'], 'Content-Type': 'application/json'}
+          with urlopen(Request(base + '/runtime', headers=headers), timeout=30) as response:
+              runtime = json.load(response)
+          if str(runtime.get('hardware', {}).get('current', '')).startswith('cpu'):
+              for key in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS'):
+                  payload = json.dumps({'key': key, 'value': '2'}).encode()
+                  with urlopen(Request(base + '/variables', data=payload, headers=headers, method='POST'), timeout=30):
+                      pass
+              print('Configured two CPU threads for the live demo')
+          PY
           space_dir="$(mktemp -d)"
           trap 'rm -rf "${space_dir}"' EXIT
 
           git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
-          echo "Previous Space revision: $(git -C "${space_dir}" rev-parse HEAD)"
           mkdir -p "${space_dir}/src"
           cp demo/app.py "${space_dir}/src/streamlit_app.py"
           cp demo/inference.py "${space_dir}/src/inference.py"
@@ -158,3 +177,25 @@ jobs:
           else:
               raise SystemExit('Timed out waiting for the deployed Space')
           PY
+      - name: Verify the live UI with pretrained models
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/torchcam-browser" playwright@1.57.0
+          "${RUNNER_TEMP}/torchcam-browser/node_modules/.bin/playwright" install --with-deps chromium
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          image = Path(os.environ['RUNNER_TEMP']) / 'border-collie.jpg'
+          with urlopen(Request('https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg', headers={'User-Agent': 'TorchCAM demo validation'}), timeout=60) as response:
+              image.write_bytes(response.read())
+          PY
+          PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/torchcam-browser/node_modules/playwright" \
+            DEMO_CHECK_IMAGE="${RUNNER_TEMP}/border-collie.jpg" node .github/live_demo_check.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: live-demo-screenshots
+          path: live-demo-check/
+          if-no-files-found: warn
