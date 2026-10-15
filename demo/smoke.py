@@ -356,6 +356,14 @@ def check_vlm_adapter():
 
 
 def check_vlm_families():
+    inference.load_resource.clear()
+    with patch.object(inference, "vlm_device_supported", return_value=False):
+        try:
+            inference.load_resource("vlm", "google/gemma-4-E2B-it", "cpu")
+        except ValueError as error:
+            check("BF16" in str(error), "Missing interactive-device explanation")
+        else:
+            raise AssertionError("Unsupported Gemma CPU attempted to load a checkpoint")
     torch.manual_seed(13)
     image = Image.new("RGB", (64, 48), "red")
     image.paste("green", (32, 0, 64, 24))
@@ -420,7 +428,10 @@ def check_vlm_families():
         pixels["mm_token_type_ids"] = (pixels["input_ids"] == 20).long()
         processor = SimpleNamespace(image_processor=proc, apply_chat_template=lambda *_, batch=pixels, **__: batch)
         inputs, display, grid = inference.prepare_vlm_inputs(model, processor, image, "unused", "cpu")
-        check(grid == (6, 8) and display.size == image.size, "Non-square patch geometry changed")
+        check(
+            grid == ((3, 4) if family == "qwen" else (6, 8)) and display.size == image.size,
+            "Non-square patch geometry changed",
+        )
         for xy in [(8, 8), (40, 8), (8, 32), (40, 32)]:
             check(
                 max(abs(a - b) for a, b in zip(display.getpixel(xy), image.getpixel(xy), strict=True)) <= 1,
@@ -435,7 +446,7 @@ def check_vlm_families():
         }
         with patch.object(inference, "load_resource", return_value=(model, processor, Lock())):
             cam, prob = inference.explain_answer_token(result, len(ids) + 1, "cpu")
-            check(tuple(cam.shape) == (1, 6, 8) and cam.isfinite().all(), "Invalid native VLM map")
+            check(tuple(cam.shape) == (1, *grid) and cam.isfinite().all(), "Invalid native VLM map")
             current = inference.answer_inputs(result, len(ids) + 1, "cpu")
             with torch.no_grad():
                 reference = model(**current, use_cache=False, logits_to_keep=1).logits[0, -1].float().softmax(-1)[13]
@@ -521,6 +532,9 @@ def check_pretrained():
     with urlopen(Request(url, headers={"User-Agent": "TorchCAM demo validation"}), timeout=60) as response:
         image = Image.open(BytesIO(response.read())).convert("RGB")
     for model_id in inference.VLM_MODELS:
+        if not inference.vlm_device_supported(model_id, "cpu"):
+            LOGGER.info("Skipping %s: this CPU lacks BF16 acceleration", model_id)
+            continue
         inference.load_resource.clear()
         gc.collect()
         result = inference.generate_answer(image, "a picture of", "cpu", model_id)
@@ -528,38 +542,33 @@ def check_pretrained():
         index = next(
             i
             for i in result["choices"]
-            if processor.tokenizer.decode([result["generated_ids"][i]]).strip().lower() == "dog"
+            if processor.tokenizer.decode([result["generated_ids"][i]]).strip().lower() in {"dog", "border"}
         )
-        cam, _ = inference.explain_answer_token(result, index, "cpu")
+        cam, probability = inference.explain_answer_token(result, index, "cpu")
         check(bool(cam.isfinite().all()) and bool(cam.any()), "Invalid pretrained token map")
         inputs = inference.answer_inputs(result, index, "cpu")
         inputs["pixel_values"] = inputs["pixel_values"].detach()
-        occluded = []
+        baseline = float(torch.tensor(probability).log())
+        drops = {True: [], False: []}
         with torch.no_grad():
-            for largest in (True, False):
-                selected = cam.flatten().topk(max(1, cam.numel() // 5), largest=largest).indices
-                altered = {**inputs, "pixel_values": inputs["pixel_values"].clone()}
-                if model.config.model_type == "blip":
-                    height, width = result["grid_shape"]
-                    mask = torch.zeros(height * width, dtype=torch.bool)
-                    mask[selected] = True
-                    mask = mask.reshape(height, width).repeat_interleave(result["input_image"].height // height, 0)
-                    mask = mask.repeat_interleave(result["input_image"].width // width, 1)
-                    altered["pixel_values"][..., mask] = 0
-                else:
-                    _, _, order, _ = inference.vlm_target(model, inputs)
-                    pixels = altered["pixel_values"].reshape(-1, altered["pixel_values"].shape[-1])
-                    pixels[order[selected]] = 0 if model.config.model_type == "qwen3_vl" else 0.5
-                occluded.append(
-                    float(
-                        model(**altered, logits_to_keep=1, use_cache=False).logits[
-                            0, -1, result["generated_ids"][index]
-                        ]
-                    )
-                )
-        check(
-            occluded[0] < occluded[1], f"{model_id}: high-ranked regions are less informative than low-ranked regions"
-        )
+            for fraction in (0.2, 0.5):
+                for largest in (True, False):
+                    selected = cam.flatten().topk(max(1, int(cam.numel() * fraction)), largest=largest).indices
+                    altered = {**inputs, "pixel_values": inputs["pixel_values"].clone()}
+                    if model.config.model_type == "blip":
+                        height, width = result["grid_shape"]
+                        mask = torch.zeros(height * width, dtype=torch.bool)
+                        mask[selected] = True
+                        mask = mask.reshape(height, width).repeat_interleave(result["input_image"].height // height, 0)
+                        mask = mask.repeat_interleave(result["input_image"].width // width, 1)
+                        altered["pixel_values"][..., mask] = 0
+                    else:
+                        _, _, groups, _ = inference.vlm_target(model, inputs)
+                        pixels = altered["pixel_values"].reshape(-1, altered["pixel_values"].shape[-1])
+                        pixels[groups[selected].flatten()] = 0 if model.config.model_type == "qwen3_vl" else 0.5
+                    scores = model(**altered, logits_to_keep=1, use_cache=False).logits[0, -1].float()
+                    drops[largest].append(baseline - float(scores.log_softmax(-1)[result["generated_ids"][index]]))
+        check(sum(drops[True]) > max(0, sum(drops[False])), f"{model_id}: region-removal rank check failed")
         LOGGER.info("Pretrained %s caption and token-occlusion check passed: %s", model_id, result["answer"])
         del model, processor, result, cam, inputs, altered
 

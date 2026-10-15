@@ -264,14 +264,14 @@ The full package documentation is available [here](https://frgfm.github.io/torch
 The Streamlit explorer has three tabs, each with a model selector. Models load only when you request an explanation:
 
 - **Image classifiers**: pretrained torchvision models, class probabilities, CAMs and overlays.
-- **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base), [Qwen3-VL 2B](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) and [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) generate captions. Select a token to view its LayerCAM and next-token probability. The same extractor uses decoder-to-image attention for BLIP and spatial patch features for Qwen/Gemma.
+- **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base), [Qwen3-VL 2B](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) and [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) generate captions. Select a token to view its CAM and next-token probability. BLIP uses cross-attention LayerCAM; Qwen uses GradCAM across its projected visual tokens and DeepStack paths; Gemma uses vision-feature LayerCAM. All use the same CAM API.
 - **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya) and [Decider-0.8B](https://huggingface.co/Mapika/decider-0.8b) score allowed routing choices directly. [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) and [DeBERTa](https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0) provide NLI baselines. All use `TokenAblation`, with one probability and input-token heatmap per option; signed effects are downloadable as JSON.
 
 The image tabs accept JPEG and PNG uploads, cleared on tab changes; other controls persist. A shared cache retains one
 model at a time, with serialized inference. The text demo explains up to 64 ticket tokens and rejects longer inputs.
 The VLM displays its actual processed image alongside the selected token's map. BLIP uses a square crop; Qwen/Gemma
 preserve the aspect ratio. Gemma uses bfloat16 weights to fit memory; Qwen uses float32 on CPU. A GPU is recommended
-for responsive interaction with these larger checkpoints.
+for responsive interaction with these larger checkpoints. Gemma's demo requires CUDA or a BF16-accelerated CPU.
 Decision effects compare logits after replacing one token; effects can interact and need not add up. Laya and Decider
 retain native probability calibration. Decider uses a space replacement; the encoders use their mask tokens.
 MiniLM/DeBERTa use zero-shot entailment
@@ -293,7 +293,8 @@ The first computation downloads the selected pretrained checkpoint; later comput
 For offline verification, `python demo/smoke.py` checks navigation, UI state, input alignment and native model adapters
 using small random-weight fixtures. These fixtures are only tests; the app always requests pretrained checkpoints.
 `python demo/smoke.py --pretrained` downloads the deployed models, checks routing examples and verifies that masking
-high-ranked regions reduces BLIP's dog-token score more than masking low-ranked regions. Trusted deployments run it.
+high-ranked regions reduces subject-token confidence more than masking low-ranked regions across multiple removal
+fractions. Gemma is skipped on CPUs without BF16 acceleration. Trusted deployments run it.
 The deployed version is available on [Hugging Face Spaces](https://huggingface.co/spaces/frgfm/torch-cam).
 
 ![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/torchcam_demo.png)

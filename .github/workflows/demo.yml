@@ -50,7 +50,6 @@ jobs:
           OMP_NUM_THREADS: '2'
           MKL_NUM_THREADS: '2'
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          HF_HUB_DISABLE_XET: '1'
         run: uv run --no-sync python demo/smoke.py --pretrained
       - name: Start demo and wait for health
         shell: bash

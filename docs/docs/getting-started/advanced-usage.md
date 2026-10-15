@@ -419,11 +419,16 @@ with LayerCAM(model, target_layer=visual_layer, reshape_transform=to_spatial_gri
     maps = extractor(token_id, output.logits[:, -1])
 ```
 
-The method stays the same; each architecture supplies a differentiable visual layer and a spatial reshape.
+The CAM API stays the same; each architecture supplies a differentiable visual layer and a spatial reshape.
 The [demo adapters](https://github.com/frgfm/torch-cam/blob/main/demo/inference.py)
 cover BLIP, Qwen3-VL and Gemma 4 with a vision tower. Qwen's grouped patches must be reordered before projection;
-Gemma's explicit patch coordinates exclude padding. Qwen is hooked before the DeepStack branches so every visual
-path contributes gradients. The demo reconstructs the processed pixels to keep the overlay aligned.
+Gemma's explicit patch coordinates exclude padding. Qwen uses GradCAM on its main merger and all DeepStack
+injections; Gemma uses LayerCAM at the input normalization of its final vision block. These are feature/method
+presets using the same CAM API. Both target the selected token's log-odds against the rest of the vocabulary,
+removing common logit shifts without softmax saturation. Gradients start at the target features, so earlier frozen
+vision layers need no backward graph. Reconstructed processed pixels keep the overlay aligned. BLIP retains
+decoder cross-attention LayerCAM. Each map is conditional on the preceding caption tokens; a word predictable
+from text alone can have little image dependence.
 
 This interface also applies to other differentiable VLMs; it does not automatically infer arbitrary patch layouts,
 video frames, crops or image stitching. Validate spatial ordering with an asymmetric image, compare the score with
