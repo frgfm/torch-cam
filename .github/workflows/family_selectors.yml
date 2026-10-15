@@ -1,0 +1,43 @@
+name: family-model-selectors
+on:
+  push:
+    branches: [codex/screenshots-model-families-467]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      UV_TORCH_BACKEND: cpu
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: '0.12.5'
+          activate-environment: true
+      - uses: actions/download-artifact@v5
+        with:
+          name: demo-pretrained-diagnostics
+          run-id: 38746524887
+          github-token: ${{ github.token }}
+          path: fixtures
+      - run: make install-demo
+      - name: Capture model selectors and verify navigation
+        run: |
+          npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/browser" playwright@1.57.0
+          "${RUNNER_TEMP}/browser/node_modules/.bin/playwright" install --with-deps chromium
+          uv run streamlit run demo/app.py --server.headless true --server.port 8080 > /tmp/streamlit.log 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do curl --fail --silent http://127.0.0.1:8080/_stcore/health && break; sleep 1; done
+          PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/browser/node_modules/playwright" node .github/family_selectors.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: family-ui-screenshots
+          path: family-ui/
