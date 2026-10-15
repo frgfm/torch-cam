@@ -16,7 +16,7 @@ started=time.perf_counter()
 processor=AutoProcessor.from_pretrained(model_id)
 model=BlipForConditionalGeneration.from_pretrained(model_id).eval().requires_grad_(False)
 report={'model':model_id,'load_seconds':time.perf_counter()-started,'images':{}}
-for label,url in [('collie','https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg'),('cats','https://images.cocodataset.org/val2017/000000039769.jpg')]:
+for label,url in [('collie','https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg'),('cats','https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/coco_sample.png')]:
  with urlopen(Request(url,headers={'User-Agent':'TorchCAM demo validation'}),timeout=60) as response:(out/(label+'.jpg')).write_bytes(response.read())
  original=Image.open(out/(label+'.jpg')).convert('RGB')
  size=model.config.vision_config.image_size
@@ -24,11 +24,11 @@ for label,url in [('collie','https://www.woopets.fr/assets/races/000/066/big-por
  inputs=processor(images=image,text='a picture of',return_tensors='pt')
  start=inputs['input_ids'].shape[-1]-1
  started=time.perf_counter()
- with torch.inference_mode():sequences=model.generate(**inputs,do_sample=False,max_new_tokens=32)
+ with torch.inference_mode():sequences=model.generate(**inputs,do_sample=False,num_beams=3,use_cache=False,repetition_penalty=1.1,max_new_tokens=24)
  caption=processor.decode(sequences[0],skip_special_tokens=True)
  row={'caption':caption,'generation_seconds':time.perf_counter()-started,'tokens':{}}
  report['images'][label]=row
- indices=[i for i in range(start,sequences.shape[1]) if any(w in processor.decode([sequences[0,i]]).lower() for w in ['dog','cat','sitting','black','white'])][:4]
+ indices=[i for i in range(start,sequences.shape[1]) if any(w in processor.decode([sequences[0,i]]).lower() for w in ['dog','cat','sitting','black','white','border','col'])][:4]
  grid=size//model.config.vision_config.patch_size
  for index in indices:
   token_id=int(sequences[0,index]);token=processor.decode([token_id])
@@ -36,7 +36,7 @@ for label,url in [('collie','https://www.woopets.fr/assets/races/000/066/big-por
   current['attention_mask']=torch.ones_like(current['input_ids'])
   maps={};timings={}
   for name,kind,target,transform in [
-    ('VisionGradCAM',GradCAM,'vision_model.post_layernorm',lambda x:x[:,1:].transpose(1,2).reshape(x.shape[0],x.shape[-1],grid,grid)),
+    ('VisionGradCAM',GradCAM,'vision_model.encoder.layers.11.layer_norm1',lambda x:x[:,1:].transpose(1,2).reshape(x.shape[0],x.shape[-1],grid,grid)),
     ('Cross6LayerCAM',LayerCAM,'text_decoder.bert.encoder.layer.6.crossattention.self.dropout',lambda x:x[:,:,-1,1:].reshape(x.shape[0],x.shape[1],grid,grid)),
     ('Cross11LayerCAM',LayerCAM,'text_decoder.bert.encoder.layer.11.crossattention.self.dropout',lambda x:x[:,:,-1,1:].reshape(x.shape[0],x.shape[1],grid,grid)),
   ]:
