@@ -1,39 +1,179 @@
 name: demo
+
 on:
   push:
-    branches: [codex/preview-pr-467]
+    branches: [main, codex/preview-pr-467]
+    paths:
+      - '.github/workflows/demo.yml'
+      - 'demo/**'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - '.github/workflows/demo.yml'
+      - 'demo/**'
+      - 'pyproject.toml'
+  workflow_dispatch:  # Allow trusted manual runs from the Actions tab
+
 permissions:
   contents: read
   actions: read
+
+concurrency:
+  group: demo-model-preview-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'trusted' }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.12.5"  # pinned for reproducible installs across all jobs
+
 jobs:
-  verify-live:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v5
+      - uses: actions/setup-python@v7
         with:
-          github-token: ${{ github.token }}
-          run-id: 38746524887
-          name: demo-pretrained-diagnostics
-          path: ${{ runner.temp }}/collie-fixture
-      - name: Verify the live UI with pretrained models
+          python-version: ${{ env.PYTHON_VERSION }}
+          architecture: x64
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          activate-environment: true
+      - name: Install dependencies
+        env:
+          UV_TORCH_BACKEND: cpu
+        run: make install-demo
+      - name: Run demo smoke check
+        run: uv run --no-sync python demo/smoke.py
+      - name: Check pretrained models before deployment
+        if: github.event_name != 'pull_request'
+        env:
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run --no-sync python demo/smoke.py --pretrained
+      - name: Start demo and wait for health
         shell: bash
         run: |
           set -euo pipefail
-          npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/torchcam-browser" playwright@1.57.0
-          "${RUNNER_TEMP}/torchcam-browser/node_modules/.bin/playwright" install --with-deps chromium
-          python - <<'PY'
-          import hashlib, os
-          from pathlib import Path
-          image = Path(os.environ['RUNNER_TEMP']) / 'collie-fixture/border-collie.jpg'
-          assert hashlib.sha256(image.read_bytes()).hexdigest() == '030798ec323e21fa3fce309ee19436780788fcc5071b5aa7f573bd9d3c5ba22a'
-          print('Verified original collie JPEG')
+          log_file="${RUNNER_TEMP}/torchcam-demo.log"
+          uv run --no-sync streamlit run demo/app.py \
+            --server.headless true \
+            --server.port 8080 \
+            >"${log_file}" 2>&1 &
+          server_pid=$!
+
+          cleanup() {
+            kill "${server_pid}" 2>/dev/null || true
+            wait "${server_pid}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          if ! python - <<'PY'
+          import time
+          from urllib.request import urlopen
+
+          url = "http://127.0.0.1:8080/_stcore/health"
+          deadline = time.monotonic() + 60
+          last_error = None
+          while time.monotonic() < deadline:
+              try:
+                  with urlopen(url, timeout=2) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except OSError as exc:
+                  last_error = exc
+              time.sleep(1)
+          raise SystemExit(f"Streamlit health check timed out: {last_error}")
           PY
-          PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/torchcam-browser/node_modules/playwright" \
-            DEMO_CHECK_IMAGE="${RUNNER_TEMP}/collie-fixture/border-collie.jpg" node .github/nav_check.cjs
+          then
+            cat "${log_file}"
+            exit 1
+          fi
+
+  sync-to-hub:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build
+    steps:
+      - uses: actions/checkout@v7
+      - name: Sync demo to existing Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PREVIEW_SOURCE_SHA: 85482d69acf8c7be78a0a6b7658aa732fb227e38
+        shell: bash
+        run: |
+          set -euo pipefail
+          space_dir="$(mktemp -d)"
+          trap 'rm -rf "${space_dir}"' EXIT
+
+          git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
+          mkdir -p "${space_dir}/src"
+          cp demo/app.py "${space_dir}/src/streamlit_app.py"
+          cp demo/inference.py "${space_dir}/src/inference.py"
+          printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
+            "${GITHUB_REPOSITORY}" "${PREVIEW_SOURCE_SHA}" \
+            >"${space_dir}/requirements.txt"
+
+          git -C "${space_dir}" config user.name "github-actions[bot]"
+          git -C "${space_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${space_dir}" add requirements.txt src
+          if git -C "${space_dir}" diff --cached --quiet; then
+            echo "Space already matches ${GITHUB_SHA}."
+            exit 0
+          fi
+
+          git -C "${space_dir}" commit -m "sync(demo): ${PREVIEW_SOURCE_SHA::7}"
+          git -C "${space_dir}" push \
+            "https://frgfm:${HF_TOKEN}@huggingface.co/spaces/frgfm/torch-cam" \
+            HEAD:main
+      - name: Wait for the deployed version and Space health
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PREVIEW_SOURCE_SHA: 85482d69acf8c7be78a0a6b7658aa732fb227e38
+        run: |
+          python - <<'PYCODE'
+          import json, os, time
+          from urllib.error import URLError
+          from urllib.request import Request, urlopen
+          headers={'Authorization': 'Bearer '+os.environ['HF_TOKEN']}
+          base='https://huggingface.co/api/spaces/frgfm/torch-cam'
+          last=None
+          for attempt in range(60):
+              with urlopen(Request(base+'/runtime',headers=headers),timeout=30) as response:
+                  runtime=json.load(response)
+              if runtime['stage'] != last:
+                  print('Space stage:',runtime['stage'],'hardware:',runtime.get('hardware'),flush=True)
+                  last=runtime['stage']
+              if 'ERROR' in runtime['stage']:raise SystemExit('Space failed: '+runtime['stage'])
+              if runtime['stage']=='RUNNING':
+                  try:
+                      with urlopen('https://huggingface.co/spaces/frgfm/torch-cam/raw/main/requirements.txt',timeout=30) as response:
+                          requirements=response.read().decode()
+                      with urlopen('https://frgfm-torch-cam.hf.space/_stcore/health',timeout=30) as response:
+                          if response.status==200 and os.environ['PREVIEW_SOURCE_SHA'] in requirements:
+                              print('Reviewed version is live',flush=True)
+                              break
+                  except URLError:pass
+              time.sleep(10)
+          else:raise SystemExit('Space startup timed out')
+          PYCODE
+      - uses: actions/download-artifact@v5
+        with:
+          name: demo-pretrained-diagnostics
+          run-id: 38746524887
+          github-token: ${{ github.token }}
+          path: fixtures
+      - name: Verify live inference and capture screenshots
+        env:
+          PREVIEW_SOURCE_SHA: 85482d69acf8c7be78a0a6b7658aa732fb227e38
+        run: |
+          npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/browser" playwright@1.57.0
+          "${RUNNER_TEMP}/browser/node_modules/.bin/playwright" install --with-deps chromium
+          PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/browser/node_modules/playwright" node .github/live_family_check.cjs
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: nav-demo-screenshots
-          path: nav-demo-check/
-          if-no-files-found: warn
+          name: live-family-check
+          path: live-family-check/
