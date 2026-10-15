@@ -62,7 +62,7 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 
 - **12 CAM methods plus VLM token maps**: from CAM and Grad-CAM to LeGrad, RefineCAM and [TAM](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms).
 - **CNNs and Vision Transformers**: automatic target-layer resolution for CNNs, LeGrad and reshape transforms for ViTs.
-- **Text decision models**: `TokenIG` explains which input tokens support each class, with signed contributions and numerical convergence checks. Works with differentiable classifiers, including Laya's decision architecture.
+- **Text decision models**: fast `TokenAblation` measures each token's effect; `TokenIG` provides embedding Integrated Gradients with numerical checks. Both return class-specific signed maps, including for Laya's decision architecture.
 - **Lean**: fully typed, with only 4 runtime dependencies (PyTorch, NumPy, Pillow, Matplotlib).
 - **Measurable**: built-in faithfulness metrics (average drop, increase in confidence, deletion/insertion).
 - **Agent-ready**: `explain()` saves a manifest-backed evidence bundle that humans and coding agents can verify.
@@ -91,26 +91,28 @@ Pass `expected_class_idx` to compare the prediction with the class you expected.
 ### Explain a text decision
 
 Use your existing classifier and tokenizer; TorchCAM adds no Transformers or Laya dependency.
-`TokenIG` is available in the development version (install from source below).
+`TokenAblation` and `TokenIG` are available in the development version (install from source below).
 
 <!-- --8<-- [start:quickstart-text] -->
 ```python
-from torchcam.methods import TokenIG
+from torchcam.methods import TokenAblation
 
 # model and tokenizer are your loaded text classifier and its tokenizer.
-inputs = tokenizer("I was charged twice. Please refund the duplicate payment.", return_tensors="pt")
+inputs = tokenizer("I was charged twice. Please refund the duplicate payment.", return_tensors="pt", return_special_tokens_mask=True)
 inputs = {key: value.to(next(model.parameters()).device) for key, value in inputs.items()}
-extractor = TokenIG(model, model.get_input_embeddings(), output_transform=lambda output: output.logits)
-result = extractor(inputs, token_mask=inputs["attention_mask"].bool())
+token_mask = inputs["attention_mask"].bool() & ~inputs.pop("special_tokens_mask").bool()
+extractor = TokenAblation(model, output_transform=lambda output: output.logits)
+result = extractor(inputs, replacement_id=tokenizer.mask_token_id, token_mask=token_mask)
 
 probabilities = result.scores.softmax(-1)  # Use the model's calibration instead when applicable.
-contributions = result.attributions      # (batch, classes, input_tokens), signed class-logit contributions
+contributions = result.attributions      # (batch, classes, input_tokens), signed class-logit changes
 ```
 <!-- --8<-- [end:quickstart-text] -->
 
-Pass `class_idx=2` or `[2, 0]` to explain selected decisions. Positive contributions support a class relative to the
-embedding baseline; negative values oppose it. Token contributions are not probabilities. For a simple CAM-style
-display, highlight positive contributions beside each decision's probability.
+Positive effects mean replacing a token lowers that class score; other tokens stay fixed. Effects can interact and
+need not add up. Use a replacement ID appropriate to the model, and exclude special/context tokens with `token_mask`.
+For additive embedding-path contributions, use `TokenIG`. Token effects are not probabilities; highlight positive
+values beside each decision's probability for a simple CAM-style display.
 See [Text decision models](https://frgfm.github.io/torch-cam/getting-started/text-decisions/) for masks, baselines,
 efficiency, the result contract, and Laya integration.
 

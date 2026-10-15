@@ -5,7 +5,7 @@ import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
-from torchcam.methods import TokenIG
+from torchcam.methods import TokenAblation, TokenIG
 
 
 class TextClassifier(nn.Module):
@@ -33,6 +33,58 @@ class TextClassifier(nn.Module):
 
 def _inputs():
     return {"input_ids": torch.tensor([[1, 2, 3], [3, 1, 0]]), "attention_mask": torch.tensor([[1, 1, 1], [1, 1, 0]])}
+
+
+def test_token_ablation_class_specific_effects_and_state():
+    model = TextClassifier()
+    model.dropout.eval()
+    modes = [module.training for module in model.modules()]
+    model.embedding.weight.grad = torch.ones_like(model.embedding.weight)
+    inputs = _inputs()
+    original = inputs["input_ids"].clone()
+    result = TokenAblation(model)(inputs, 0, token_mask=inputs["attention_mask"].bool())
+    x, y = model.embedding(original).detach().unbind(-1)
+    expected = torch.stack((x.square() + 2 * y, -x + y.pow(3)), 1)
+    torch.testing.assert_close(result.attributions, expected)
+    torch.testing.assert_close(result.scores, expected.sum(-1))
+    torch.testing.assert_close(inputs["input_ids"], original)
+    torch.testing.assert_close(model.embedding.weight.grad, torch.ones_like(model.embedding.weight))
+    assert [module.training for module in model.modules()] == modes
+    assert model.calls == 4
+    assert not result.attributions.requires_grad
+
+
+def test_token_ablation_interactions_and_fixed_context():
+    model = TextClassifier()
+    model.forward = lambda input_ids, attention_mask: (model.embedding(input_ids)[..., 0] * attention_mask).prod(
+        -1, keepdim=True
+    )
+    inputs = {"input_ids": torch.tensor([[1, 3, 2]]), "attention_mask": torch.ones(1, 3)}
+    result = TokenAblation(model)(inputs, 0, token_mask=torch.tensor([[True, True, False]]))
+    # Each replacement destroys the product; marginal effects are not an additive decomposition.
+    torch.testing.assert_close(result.attributions, torch.tensor([[[-8, -8, 0]]], dtype=torch.float64))
+
+
+@pytest.mark.parametrize("invalid", [True, -1, None])
+def test_token_ablation_invalid_replacement(invalid):
+    with pytest.raises(ValueError, match="replacement_id"):
+        TokenAblation(TextClassifier())(_inputs(), invalid)
+
+
+def test_token_ablation_structured_output_and_failure_cleanup():
+    model = TextClassifier().requires_grad_(False)
+    forward = model.forward
+    model.forward = lambda **kwargs: SimpleNamespace(logits=forward(**kwargs))
+    result = TokenAblation(model, lambda output: output.logits)(_inputs(), 0)
+    assert result.attributions.shape == (2, 2, 3)
+    model.forward = lambda **_: torch.tensor([[float("nan")], [0]])
+    with pytest.raises(ValueError, match="finite"):
+        TokenAblation(model)(_inputs(), 0)
+    assert model.training
+    assert model.dropout.training
+    model.embedding.max_norm = 1
+    with pytest.raises(ValueError, match="max_norm"):
+        TokenAblation(model)
 
 
 def test_token_ig_class_specific_analytic_contributions():
