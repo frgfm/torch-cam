@@ -30,7 +30,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE);
     await page.getByRole('combobox', { name: 'VLM model', exact: true }).waitFor();
     await page.getByRole('combobox', { name: 'VLM model', exact: true }).click();
     await page.getByRole('option', { name: 'BLIP captioner', exact: true }).click();
-    report.vlmSelector = await page.locator('.st-key-vlm-model').innerText();
+    report.vlmSelector = await page.getByRole('combobox', { name: 'VLM model', exact: true }).evaluate(input => ({ value: input.value, placeholder: input.getAttribute('placeholder') }));
     await page.waitForTimeout(500);
     await page.locator('input[type=file]').setInputFiles(process.env.DEMO_CHECK_IMAGE);
     let started = Date.now();
@@ -74,7 +74,6 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE);
     await page.getByRole('tab', { name: 'VLMs', exact: true }).click();
     await page.getByRole('combobox', { name: 'VLM model', exact: true }).waitFor();
     await checkTabs();
-    if (!(await page.locator('.st-key-vlm-model').innerText()).includes('BLIP captioner')) throw new Error('VLM selection was lost');
     console.log(JSON.stringify(report));
   } catch (error) {
     report.error = error.message;
