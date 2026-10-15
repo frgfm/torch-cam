@@ -1,0 +1,90 @@
+name: verify-live-runtime
+on:
+  push:
+    branches: [codex/verify-live-runtime-467]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Stop superseded browser checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for run_id in 38803145222 38804825870; do
+            gh api --method POST "repos/frgfm/torch-cam/actions/runs/${run_id}/cancel" || true
+          done
+      - name: Align CPU threads with the validated runtime and restart
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json,os,time
+          from urllib.request import Request,urlopen
+          base='https://huggingface.co/api/spaces/frgfm/torch-cam'
+          headers={'Authorization':'Bearer '+os.environ['HF_TOKEN'],'Content-Type':'application/json'}
+          with urlopen(Request(base+'/runtime',headers=headers),timeout=30) as r:runtime=json.load(r)
+          assert runtime['hardware']['current']=='cpu-basic',runtime['hardware']
+          for key in ['OMP_NUM_THREADS','MKL_NUM_THREADS']:
+              data=json.dumps({'key':key,'value':'2','description':'Match the CPU thread count used for pretrained demo validation.'}).encode()
+              with urlopen(Request(base+'/variables',headers=headers,data=data,method='POST'),timeout=30):pass
+          with urlopen(Request(base+'/restart',headers=headers,data=b'{}',method='POST'),timeout=30):pass
+          print('Restarted the existing CPU Space with two inference threads',flush=True)
+          time.sleep(10)
+          for attempt in range(60):
+              with urlopen(Request(base+'/runtime',headers=headers),timeout=30) as r:runtime=json.load(r)
+              if runtime['stage']=='RUNNING':
+                  with urlopen('https://frgfm-torch-cam.hf.space/_stcore/health',timeout=30) as r:
+                      if r.status==200:break
+              if 'ERROR' in runtime['stage']:raise SystemExit(json.dumps(runtime))
+              time.sleep(10)
+          else:raise SystemExit('Space restart timed out')
+          print('Space is healthy',flush=True)
+          PY
+      - uses: actions/download-artifact@v5
+        with:
+          name: demo-pretrained-diagnostics
+          run-id: 38746524887
+          github-token: ${{ github.token }}
+          path: fixtures
+      - name: Install browser
+        id: browser
+        run: |
+          npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/browser" playwright@1.57.0
+          "${RUNNER_TEMP}/browser/node_modules/.bin/playwright" install --with-deps chromium
+          echo "PLAYWRIGHT_PACKAGE=${RUNNER_TEMP}/browser/node_modules/playwright" >> "${GITHUB_ENV}"
+      - name: Verify DeBERTa and Decider
+        id: decisions
+        env:
+          MODEL_CASE: decisions
+        run: node .github/check_live_runtime.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: live-runtime-decisions
+          path: live-runtime-decisions/
+      - name: Verify Qwen caption and map
+        id: qwen
+        if: always() && steps.browser.outcome == 'success'
+        env:
+          MODEL_CASE: qwen
+        run: node .github/check_live_runtime.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: live-runtime-qwen
+          path: live-runtime-qwen/
+      - name: Verify Gemma availability and map
+        if: always() && steps.qwen.outcome == 'success'
+        env:
+          MODEL_CASE: gemma
+        run: node .github/check_live_runtime.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: live-runtime-gemma
+          path: live-runtime-gemma/
