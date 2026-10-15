@@ -44,6 +44,13 @@ jobs:
         run: make install-demo
       - name: Run demo smoke check
         run: uv run python demo/smoke.py
+      - name: Check pretrained models before deployment
+        if: github.event_name != 'pull_request'
+        env:
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run python demo/smoke.py --pretrained
       - name: Start demo and wait for health
         shell: bash
         run: |

@@ -6,14 +6,17 @@
 import gc
 import html
 import json
+import logging
 import re
 import struct
+import sys
 import tempfile
 import zlib
 from io import BytesIO
 from pathlib import Path
 from threading import Lock
 from unittest.mock import patch
+from urllib.request import Request, urlopen
 
 import inference
 import torch
@@ -28,11 +31,10 @@ from tokenizers.pre_tokenizers import Whitespace
 from tokenizers.processors import TemplateProcessing
 from torchvision.models import get_model
 from transformers import (
-    Idefics3Config,
-    Idefics3ForConditionalGeneration,
-    Idefics3ImageProcessor,
-    Idefics3Processor,
-    LlamaConfig,
+    BlipConfig,
+    BlipForConditionalGeneration,
+    BlipImageProcessor,
+    BlipProcessor,
     ModernBertConfig,
     ModernBertModel,
     PreTrainedTokenizerFast,
@@ -42,6 +44,7 @@ from transformers import (
 
 import app
 
+LOGGER = logging.getLogger(__name__)
 TEXT_CONFIG = {
     "vocab_size": 256,
     "hidden_size": 32,
@@ -194,7 +197,7 @@ def check_decision_adapters():
     result, maps, offsets, probabilities, _ = inference.explain_minilm(model, tokenizer, text)
     check(len(maps) == len(offsets) == len(probabilities) == 3, "MiniLM routing rows do not align")
     check(abs(sum(probabilities) - 1) < 1e-6, "MiniLM probabilities do not sum to one")
-    check(float(result.completeness_error.abs().max()) <= 1e-4, "MiniLM attribution failed completeness")
+    check(bool(result.attributions.isfinite().all()), "MiniLM token effects are not finite")
     for row, scores in zip(offsets, maps, strict=True):
         check(
             all(score == 0 for offset, score in zip(row, scores, strict=True) if offset == [0, 0]),
@@ -203,7 +206,7 @@ def check_decision_adapters():
     check(hook_count(model) == 0, "MiniLM adapter leaked hooks")
     with patch.object(inference, "load_resource", return_value=(model, tokenizer, Lock())):
         report = inference.explain_decision(text, "minilm", "cpu")
-    check(len(report["scores"]) == len(report["baseline_scores"]) == 3, "Routing score columns do not align")
+    check(len(report["scores"]) == 3 and report["method"] == "TokenAblation", "Routing score columns do not align")
     json.dumps(report, allow_nan=False)
 
     for layout in ("sequential", "parallel"):
@@ -243,7 +246,7 @@ def check_decision_adapters():
                 all(len(row) == len(offset) for row, offset in zip(maps, offsets, strict=True)),
                 "Laya state offsets do not align",
             )
-            check(float(result.completeness_error.abs().max()) <= 1e-4, "Laya attribution failed completeness")
+            check(bool(result.attributions.isfinite().all()), "Laya token effects are not finite")
             check(hook_count(agent.model) == 0, "Laya adapter leaked hooks")
             try:
                 inference.explain_laya(agent, "refund " * 400)
@@ -256,17 +259,8 @@ def check_decision_adapters():
 def check_vlm_adapter():
     torch.manual_seed(7)
     tokenizer = fixture_tokenizer()
-    image_processor = Idefics3ImageProcessor(
-        size={"longest_edge": 32},
-        max_image_size={"longest_edge": 32},
-        do_image_splitting=False,
-    )
-    template = "user <image> {{ messages[0]['content'][1]['text'] }} assistant"
-    processor = Idefics3Processor(image_processor, tokenizer, image_seq_len=4, chat_template=template)
-    config = Idefics3Config(
-        pad_token_id=0,
-        image_token_id=processor.image_token_id,
-        scale_factor=2,
+    processor = BlipProcessor(BlipImageProcessor(size={"height": 32, "width": 32}), tokenizer)
+    config = BlipConfig(
         vision_config={
             "image_size": 32,
             "patch_size": 8,
@@ -275,30 +269,29 @@ def check_vlm_adapter():
             "num_hidden_layers": 2,
             "num_attention_heads": 2,
         },
-        text_config=LlamaConfig(**TEXT_CONFIG, num_key_value_heads=2),
+        text_config={**TEXT_CONFIG, "encoder_hidden_size": 16, "sep_token_id": 2, "is_decoder": True},
     )
-    model = Idefics3ForConditionalGeneration(config).eval()
+    model = BlipForConditionalGeneration(config).eval().requires_grad_(False)
     # Keep synthetic decoding inside the known regular vocabulary, rather than producing only special IDs.
     model.generation_config.suppress_tokens = [index for index in range(256) if index not in range(5, 20)]
     with patch.object(inference, "load_resource", return_value=(model, processor, Lock())):
         result = inference.generate_answer(Image.new("RGB", (48, 24), "red"), "describe image", "cpu")
         index = result["choices"][2]
         cam, probability = inference.explain_answer_token(result, index, "cpu")
-        reference = model.generate(
-            **result["inputs"],
-            max_new_tokens=index + 1,
-            return_dict_in_generate=True,
-            output_logits=True,
-        )
-        expected = float(reference.logits[index][0].softmax(-1)[result["generated_ids"][index]])
+        prefix = torch.tensor([result["generated_ids"][:index]])
+        with torch.no_grad():
+            reference = model(pixel_values=result["pixel_values"], input_ids=prefix, use_cache=False)
+        expected = float(reference.logits[0, -1].softmax(-1)[result["generated_ids"][index]])
         check(abs(probability - expected) < 1e-6, "VLM probability differs from native incremental generation")
-        check(tuple(cam.shape) == (1, 2, 2), "VLM map does not match the native visual-token grid")
+        check(tuple(cam.shape) == (1, 4, 4), "VLM map does not match the native visual-token grid")
         check(bool(cam.isfinite().all()) and 0 < probability < 1, "VLM outputs are not finite")
         check(result["input_image"].size == (32, 32), "VLM overlay does not show the actual model crop")
+        check(result["default_token"] in result["choices"], "VLM default token is not selectable")
         changed = {**result, "generated_ids": result["generated_ids"][: index + 1] + [6] * 5}
         future_cam, future_probability = inference.explain_answer_token(changed, index, "cpu")
         torch.testing.assert_close(cam, future_cam, atol=0, rtol=0)
         check(probability == future_probability, "VLM explanation leaked future answer tokens")
+        check(hook_count(model) == 0, "VLM adapter leaked hooks")
 
 
 def check_navigation_and_text_ui():
@@ -308,7 +301,6 @@ def check_navigation_and_text_ui():
         ui = AppTest.from_file(Path(__file__).with_name("app.py")).run()
         ui.session_state["ticket-input"] = "Edited support ticket"
         ui.session_state["decision-model"] = "minilm"
-        ui.session_state["vlm-prompt"] = "Edited image prompt"
         ui.session_state["image-model"] = "resnet50"
         ui.session_state["image-method-resnet50"] = "GradCAM"
         for section in ("Decision models", "VLMs", "Image classifiers", "Decision models", "VLMs", "Image classifiers"):
@@ -318,9 +310,7 @@ def check_navigation_and_text_ui():
             if section == "Decision models":
                 check(ui.text_area[0].value == "Edited support ticket", "Tab navigation reset the ticket")
                 check(ui.selectbox[0].value == "minilm", "Tab navigation reset the decision model")
-            elif section == "VLMs":
-                check(ui.text_input[0].value == "Edited image prompt", "Tab navigation reset the prompt")
-            else:
+            elif section == "Image classifiers":
                 check(ui.selectbox[0].value == "resnet50", "Tab navigation reset the image model")
                 check(ui.selectbox[1].value == "GradCAM", "Tab navigation reset the CAM method")
         loader.assert_not_called()
@@ -333,7 +323,7 @@ def check_navigation_and_text_ui():
 
     report = {
         "model": "Local verification fixture",
-        "method": "TokenIG",
+        "method": "TokenAblation",
         "text": text,
         "elapsed": 0.1,
         "labels": list(inference.QUESTION["criteria"]),
@@ -341,17 +331,56 @@ def check_navigation_and_text_ui():
         "offsets": [[(0, 4)]] * 3,
         "attributions": [[1], [-1], [0]],
     }
-    with patch.object(app, "explain_decision", return_value=report):
+    with patch.object(app, "load_resource"), patch.object(app, "explain_decision", return_value=report):
         ui = AppTest.from_string("import app\napp.decision_page()").run()
         ui.text_area[0].set_value(text)
         ui.button[0].click().run()
         check(len(ui.exception) == 0 and len(ui.get("html")) == 3, "Decision maps did not render")
         ui.text_area[0].set_value("A different ticket").run()
         check(len(ui.get("html")) == 0, "Stale maps survived a changed ticket")
-    with patch.object(app, "explain_decision", side_effect=RuntimeError("TokenIG did not converge")):
+    with patch.object(app, "load_resource"), patch.object(app, "explain_decision", side_effect=RuntimeError("Failure")):
         ui.button[0].click().run()
-        check(any("numerical checks" in error.value for error in ui.error), "Numerical failure was hidden")
-        check(len(ui.get("html")) == 0, "Numerical failure displayed an unverified map")
+        check(any("could not be explained" in error.value for error in ui.error), "Explanation failure was hidden")
+        check(len(ui.get("html")) == 0, "Explanation failure displayed a stale map")
+
+
+def check_pretrained():
+    """Check the deployed models on public examples; run explicitly with --pretrained."""
+    logging.basicConfig(level=logging.INFO)
+    torch.set_num_threads(2)
+    for model_name in inference.DECISION_MODELS:
+        for text, expected in (
+            ("I was charged twice. Please refund the duplicate payment.", "Billing"),
+            ("My password reset link has expired. Help me sign in.", "Account access"),
+            ("My shipment has not arrived. The tracking page shows a delivery delay.", "Delivery"),
+        ):
+            result = inference.explain_decision(text, model_name, "cpu")
+            predicted = result["labels"][max(range(3), key=result["probabilities"].__getitem__)]
+            check(predicted == expected, f"{model_name} routed {expected} as {predicted}")
+            check(bool(torch.tensor(result["attributions"]).isfinite().all()), "Nonfinite pretrained effects")
+            LOGGER.info("Pretrained %s / %s: %.2fs", model_name, expected, result["elapsed"])
+    url = "https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg"
+    with urlopen(Request(url, headers={"User-Agent": "TorchCAM demo validation"}), timeout=60) as response:
+        image = Image.open(BytesIO(response.read())).convert("RGB")
+    result = inference.generate_answer(image, "a picture of", "cpu")
+    model, processor, _ = inference.load_resource("vlm", inference.VLM_ID, "cpu")
+    index = next(i for i in result["choices"] if processor.tokenizer.decode([result["generated_ids"][i]]) == "dog")
+    cam, _ = inference.explain_answer_token(result, index, "cpu")
+    inputs = {"pixel_values": result["pixel_values"], "input_ids": torch.tensor([result["generated_ids"][:index]])}
+    occluded = []
+    side, size = result["grid_side"], result["input_image"].width
+    with torch.no_grad():
+        for largest in (True, False):
+            mask = torch.zeros(cam.numel(), dtype=torch.bool)
+            mask[cam.flatten().topk(max(1, cam.numel() // 5), largest=largest).indices] = True
+            mask = mask.reshape(side, side).repeat_interleave(size // side, 0).repeat_interleave(size // side, 1)
+            altered = {**inputs, "pixel_values": inputs["pixel_values"].clone()}
+            altered["pixel_values"][..., mask] = 0
+            occluded.append(
+                float(model(**altered, logits_to_keep=1, use_cache=False).logits[0, -1, result["generated_ids"][index]])
+            )
+    check(occluded[0] < occluded[1], "BLIP's high-ranked regions are less informative than low-ranked regions")
+    LOGGER.info("Pretrained BLIP caption and token-occlusion check passed: %s", result["answer"])
 
 
 def main():
@@ -410,4 +439,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    check_pretrained() if "--pretrained" in sys.argv else main()

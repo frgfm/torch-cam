@@ -422,24 +422,23 @@ def decision_page():
     if st.button("Explain decision", type="primary", disabled=not text.strip()):
         st.session_state.pop("decision_result", None)
         try:
-            with st.spinner("Loading the model and checking token contributions…"):
-                result = explain_decision(text, model_name, "cuda" if torch.cuda.is_available() else "cpu")
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            with st.spinner(f"Loading {DECISION_MODELS[model_name]}…"):
+                load_resource("decision", model_name, device)
+            with st.spinner("Measuring each ticket token's effect…"):
+                result = explain_decision(text, model_name, device)
         except ValueError as exc:
             st.error(str(exc))
-        except Exception as exc:
+        except Exception:
             LOGGER.exception("Decision explanation failed")
-            st.error(
-                "Token contributions did not pass numerical checks within the demo's compute budget."
-                if isinstance(exc, RuntimeError) and "TokenIG did not converge" in str(exc)
-                else "The decision could not be explained. Check model availability and available memory, then retry."
-            )
+            st.error("The decision could not be explained. Check model availability and available memory, then retry.")
         else:
             st.session_state["decision_result"] = {**result, "request": request}
     result = st.session_state.get("decision_result")
     if not result or result["request"] != request:
         return
-    st.caption(f"{result['model']} · Integrated Gradients on class scores · {result['elapsed']:.2f} s")
-    st.caption("Highlights show positive support relative to a zero-embedding baseline, scaled within each decision.")
+    st.caption(f"{result['model']} · Token ablation on class scores · {result['elapsed']:.2f} s")
+    st.caption("Highlights show how much masking a token lowers a decision score, scaled within each decision.")
     for label, probability, offsets, scores in zip(
         result["labels"],
         result["probabilities"],
@@ -459,28 +458,27 @@ def decision_page():
 
 
 def vlm_page():
-    st.caption("Generate an answer and explore visual activation for one answer token.")
+    st.caption("Generate a caption and explore image evidence for one generated token.")
     with st.sidebar:
-        st.markdown("**SmolVLM-256M**")
+        st.markdown("**BLIP captioner**")
         uploaded = st.file_uploader("Input image", type=("png", "jpg", "jpeg"), key="vlm-image")
     try:
         image = read_image(uploaded) if uploaded is not None else None
     except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         st.error("This image cannot be opened safely. Choose a valid PNG or JPEG file.")
         return
-    prompt = st.text_input("Prompt", value="Describe this image in one sentence.", max_chars=500, key="vlm-prompt")
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    request = (uploaded.getvalue() if uploaded is not None else None, prompt)
-    if st.button("Generate answer", type="primary", disabled=image is None or not prompt.strip()):
+    request = uploaded.getvalue() if uploaded is not None else None
+    if st.button("Generate caption", type="primary", disabled=image is None):
         st.session_state.pop("vlm_result", None)
         st.session_state.pop("vlm_map", None)
         st.session_state.pop("vlm-token", None)
         try:
-            with st.spinner("Loading SmolVLM and generating an answer…"):
-                result = generate_answer(image, prompt, device)
+            with st.spinner("Loading BLIP and generating a caption…"):
+                result = generate_answer(image, "a picture of", device)
         except Exception:
             LOGGER.exception("VLM generation failed")
-            st.error("The answer could not be generated. Check model availability and available memory, then retry.")
+            st.error("The caption could not be generated. Check model availability and available memory, then retry.")
         else:
             st.session_state["vlm_result"] = {**result, "request": request}
     result = st.session_state.get("vlm_result")
@@ -488,11 +486,12 @@ def vlm_page():
         if image is not None:
             st.image(image, width=400)
         return
-    st.markdown("**Answer**")
+    st.markdown("**Caption**")
     st.write(result["answer"])
     token_index = st.selectbox(
-        "Answer token",
+        "Caption token",
         result["choices"],
+        index=result["choices"].index(result["default_token"]),
         format_func=result["token_labels"].__getitem__,
         key="vlm-token",
     )
@@ -508,8 +507,13 @@ def vlm_page():
         current_map = {"index": token_index, "cam": cam, "probability": probability}
         st.session_state["vlm_map"] = current_map
     cam = current_map["cam"]
-    st.caption(f"TAM · selected token probability {current_map['probability']:.1%}")
-    st.caption("Visual relevance estimate for this token. The model uses the square crop shown below.")
+    st.caption(f"LayerCAM · raw next-token probability {current_map['probability']:.1%}")
+    st.caption(
+        "Colors show relative image influence for this token, not an object mask. The square crop is the model input."
+    )
+    if not cam.any():
+        st.info("The model has no positive visual attribution for this token. Try another caption token.")
+        return
     columns = st.columns(3)
     for column, label, display in zip(
         columns,
@@ -537,7 +541,7 @@ def main():
     st.caption("Explore what supports a model's output: image regions, visual tokens, or text tokens.")
     # Keep editable controls alive while their tab is not rendered; uploaders cannot be assigned through session state.
     for key in tuple(st.session_state):
-        if key.startswith(("image-", "target-layers-", "decision-", "ticket-")) or key in {"vlm-prompt", "vlm-token"}:
+        if key.startswith(("image-", "target-layers-", "decision-", "ticket-")) or key == "vlm-token":
             st.session_state[key] = st.session_state[key]
     tabs = st.tabs(("Image classifiers", "VLMs", "Decision models"), key="explorer", on_change="rerun")
     for tab, page in zip(tabs, (image_page, vlm_page, decision_page), strict=True):
