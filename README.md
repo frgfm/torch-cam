@@ -269,7 +269,7 @@ The Streamlit explorer has three tabs, with models loaded only when you request 
 
 The image tabs accept JPEG and PNG uploads, cleared on tab changes; other controls persist. A shared cache retains one
 model at a time, with serialized inference. The text demo explains up to 64 ticket tokens and rejects longer inputs.
-The VLM uses one square crop, displayed alongside its map, and starts on a token sensitive to replacing the image.
+The VLM uses one square crop, displayed alongside the map for the caption token you select.
 Decision effects compare logits after masking one token; effects can interact and need not add up. Laya's probabilities
 retain its native calibration, while MiniLM uses zero-shot entailment
 scores normalized across the three routing options. Maps are estimates of relevance, not proof of bias.

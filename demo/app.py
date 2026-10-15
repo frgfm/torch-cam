@@ -491,10 +491,14 @@ def vlm_page():
     token_index = st.selectbox(
         "Caption token",
         result["choices"],
-        index=result["choices"].index(result["default_token"]),
+        index=None,
+        placeholder="Choose a caption token to explain",
         format_func=result["token_labels"].__getitem__,
         key="vlm-token",
     )
+    if token_index is None:
+        st.image(result["input_image"], width=400)
+        return
     current_map = st.session_state.get("vlm_map")
     if current_map is None or current_map["index"] != token_index:
         try:
