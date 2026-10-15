@@ -65,6 +65,22 @@ def test_token_ablation_interactions_and_fixed_context():
     torch.testing.assert_close(result.attributions, torch.tensor([[[-8, -8, 0]]], dtype=torch.float64))
 
 
+@pytest.mark.parametrize("ids", [None, torch.empty(0, 3, dtype=torch.long), torch.ones(2, 3)])
+def test_token_ablation_rejects_invalid_ids_before_forward(ids):
+    model = TextClassifier()
+    with pytest.raises(ValueError, match="input_ids"):
+        TokenAblation(model)({"input_ids": ids}, 0)
+    assert model.calls == 0
+
+
+@pytest.mark.parametrize("mask", [torch.ones(2, 3), torch.ones(2, 2, dtype=torch.bool)])
+def test_token_ablation_rejects_invalid_masks_before_forward(mask):
+    model = TextClassifier()
+    with pytest.raises(ValueError, match="token_mask"):
+        TokenAblation(model)(_inputs(), 0, token_mask=mask)
+    assert model.calls == 0
+
+
 @pytest.mark.parametrize("invalid", [True, -1, None])
 def test_token_ablation_invalid_replacement(invalid):
     with pytest.raises(ValueError, match="replacement_id"):
