@@ -17,6 +17,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_PACKAGE);
   for(const name of ['BLIP captioner','Qwen3-VL · 2B','Gemma 4 · E2B'])await page.getByRole('option',{name,exact:true}).waitFor();
   await screenshot('vlm-models');await page.getByRole('option',{name:'Qwen3-VL · 2B',exact:true}).click();
   await page.locator('input[type=file]').setInputFiles('fixtures/border-collie.jpg');
+  await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Generate caption'&&!b.disabled));
   for(const [name,word,method] of [['Qwen3-VL · 2B',/· ' (Border|dog)'$/,'GradCAM'],['Gemma 4 · E2B',/· ' (dog|Dog)'$/,'LayerCAM']]){
    if(name.startsWith('Gemma'))await choose('VLM model',name);
    const button=page.getByRole('button',{name:'Generate caption',exact:true});
@@ -25,7 +26,9 @@ const {chromium} = require(process.env.PLAYWRIGHT_PACKAGE);
     report.vlms[name]={available:false,reason:message};await screenshot('gemma-hardware');continue;
    }
    const start=Date.now();await button.click();
-   await page.getByRole('combobox',{name:'Caption token',exact:true}).click();
+   const tokenBox=page.getByRole('combobox',{name:'Caption token',exact:true});
+   await Promise.race([tokenBox.waitFor(),page.getByText('The caption could not be generated. Check model availability and available memory, then retry.',{exact:true}).waitFor().then(()=>{throw Error(name+': caption generation failed')})]);
+   await tokenBox.click();
    await page.getByRole('option',{name:word}).first().click();
    await page.getByText(new RegExp(`${method} · raw next-token probability`)).waitFor();
    await page.getByRole('button',{name:'Download token map',exact:true}).waitFor();
@@ -40,7 +43,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_PACKAGE);
   for(const name of ['DeBERTa · zero-shot classifier','Decider · 0.8B']){
    if(name.startsWith('Decider'))await choose('Decision model',name);
    const start=Date.now();await page.getByRole('button',{name:'Explain decision',exact:true}).click();
-   await page.getByText(`${name} · Token ablation on class scores`,{exact:false}).waitFor();
+   await Promise.race([page.getByText(`${name} · Token ablation on class scores`,{exact:false}).waitFor(),page.getByText('The decision could not be explained. Check model availability and available memory, then retry.',{exact:true}).waitFor().then(()=>{throw Error(name+': decision explanation failed')})]);
    await page.getByRole('button',{name:'Download signed contributions',exact:true}).waitFor();
    await page.waitForFunction(()=>[...document.querySelectorAll('[data-testid="stHtml"]')].filter(n=>n.textContent.includes('I was charged twice')).length===3);
    report.decisions[name]={seconds:(Date.now()-start)/1000};await screenshot(name.startsWith('Decider')?'decision-decider':'decision-deberta');console.log(name,JSON.stringify(report.decisions[name]));
