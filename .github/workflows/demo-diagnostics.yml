@@ -1,0 +1,35 @@
+name: demo-diagnostics-refine
+on:
+  push:
+    branches: [codex/diagnose-demo-467-refine]
+permissions:
+  contents: read
+jobs:
+  pretrained:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      UV_TORCH_BACKEND: cpu
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: '0.12.5'
+          activate-environment: true
+          enable-cache: true
+      - name: Install the PR demo
+        run: make install-demo
+      - name: Compare pretrained maps and measure decision latency
+        run: uv run python .github/diagnose_demo.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: demo-pretrained-diagnostics
+          path: demo-diagnostics/
+          if-no-files-found: warn
