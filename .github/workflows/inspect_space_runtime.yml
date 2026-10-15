@@ -1,0 +1,35 @@
+name: inspect-demo-runtime
+on:
+  push:
+    branches: [codex/inspect-demo-runtime-467]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - name: Read Space status and recent runtime logs
+        run: |
+          python - <<'PY'
+          import json,os,time
+          from urllib.request import Request,urlopen
+          from urllib.error import HTTPError
+          headers={'Authorization':'Bearer '+os.environ['HF_TOKEN']}
+          base='https://huggingface.co/api/spaces/frgfm/torch-cam'
+          for endpoint in [base,base+'/runtime']:
+              with urlopen(Request(endpoint,headers=headers),timeout=15) as response:info=json.load(response)
+              print(json.dumps({key:info.get(key) for key in ['sha','stage','hardware','runtime','sdk'] if key in info}),flush=True)
+          try:
+              with urlopen(Request(base+'/logs/run',headers=headers),timeout=8) as response:
+                  deadline=time.monotonic()+15
+                  rows=[]
+                  while time.monotonic()<deadline and len(rows)<400:
+                      line=response.readline().decode(errors='replace')
+                      if not line:break
+                      rows.append(line)
+                  print(''.join(rows[-70:]),flush=True)
+          except Exception as error:print('Runtime log read:',type(error).__name__,str(error),flush=True)
+          PY
