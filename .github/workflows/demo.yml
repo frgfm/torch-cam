@@ -4,11 +4,18 @@ on:
     branches: [codex/preview-pr-467]
 permissions:
   contents: read
+  actions: read
 jobs:
   verify-live:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
+        with:
+          github-token: ${{ github.token }}
+          run-id: 38746524887
+          name: demo-pretrained-diagnostics
+          path: ${{ runner.temp }}/collie-fixture
       - name: Verify the live UI with pretrained models
         shell: bash
         run: |
@@ -16,15 +23,14 @@ jobs:
           npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/torchcam-browser" playwright@1.57.0
           "${RUNNER_TEMP}/torchcam-browser/node_modules/.bin/playwright" install --with-deps chromium
           python - <<'PY'
-          import os
+          import hashlib, os
           from pathlib import Path
-          from urllib.request import Request, urlopen
-          image = Path(os.environ['RUNNER_TEMP']) / 'border-collie.jpg'
-          with urlopen(Request('https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg', headers={'User-Agent': 'TorchCAM demo validation'}), timeout=60) as response:
-              image.write_bytes(response.read())
+          image = Path(os.environ['RUNNER_TEMP']) / 'collie-fixture/border-collie.jpg'
+          assert hashlib.sha256(image.read_bytes()).hexdigest() == '030798ec323e21fa3fce309ee19436780788fcc5071b5aa7f573bd9d3c5ba22a'
+          print('Verified original collie JPEG')
           PY
           PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/torchcam-browser/node_modules/playwright" \
-            DEMO_CHECK_IMAGE="${RUNNER_TEMP}/border-collie.jpg" node .github/nav_check.cjs
+            DEMO_CHECK_IMAGE="${RUNNER_TEMP}/collie-fixture/border-collie.jpg" node .github/nav_check.cjs
       - uses: actions/upload-artifact@v7
         if: always()
         with:
