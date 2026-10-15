@@ -40,8 +40,8 @@ try:
      hidden=model.model(input_ids=batch['input_ids'],attention_mask=batch['attention_mask'],use_cache=False).last_hidden_state[:,-1]
      reference=torch.nn.functional.linear(hidden,model.lm_head.weight[columns]).float()[0]
     torch.testing.assert_close(torch.tensor(result['scores']),reference,rtol=1e-4,atol=1e-4)
-    expected=(reference/model.config.decision_temperature).softmax(-1)
-    torch.testing.assert_close(torch.tensor(result['probabilities']),expected,rtol=1e-5,atol=1e-5)
+    expected_probs=(reference/model.config.decision_temperature).softmax(-1)
+    torch.testing.assert_close(torch.tensor(result['probabilities']),expected_probs,rtol=1e-5,atol=1e-5)
     report['native_parity']=True
    predicted=result['labels'][max(range(3), key=result['probabilities'].__getitem__)]
    assert predicted==expected, (predicted,expected)
