@@ -419,36 +419,6 @@ extra spatial dimension). Note that `overlay_mask` works on 2D PIL images, so ov
 See the latency and faithfulness benchmarks in the [README](https://github.com/frgfm/torch-cam#performance-benchmarks)
 for concrete numbers, and the [methods reference](../reference/methods.md) for the full API.
 
-### Class-independent feature maps with EigenCAM
-
-`EigenCAM` projects centered spatial features onto their first principal component. It works with a frozen model
-and under `torch.no_grad()` or `torch.inference_mode()`, using the same target-layer and `reshape_transform`
-options as other spatial CAM extractors:
-
-```python
-from torchcam.methods import EigenCAM
-
-with EigenCAM(model, target_layer="layer4") as extractor:
-    with torch.inference_mode():
-        model(input_tensor)
-        cams = extractor()  # one (batch, height, width) map per target layer
-```
-
-No class index or output scores are needed. Class indices are accepted for compatibility, but selecting another
-class produces the same map: this visualizes feature variation, not evidence for a particular prediction.
-Callable output targets are not supported. The projection uses ReLU, then per-sample min-max normalization;
-`normalized=False` skips normalization but retains ReLU. Constant features yield zero maps.
-Half/bfloat16 features are computed in float32; float64 is preserved. Output stays on the activation device.
-When the MPS backend does not implement SVD, decomposition alone falls back to CPU.
-
-The sign is fixed by making the largest-magnitude channel loading positive. If the largest singular value is
-repeated, the principal direction is not unique and can differ across backends.
-
-See the [reproducible EigenCAM comparison](eigencam-comparison.md) for pretrained-model screenshots,
-class-confidence diagnostics, CPU/MPS runtime measurements and a headless inference-only encoder example.
-EigenCAM is a feature-inspection option; the example does not show a speed or class-explanation advantage
-over LayerCAM.
-
 ## Token activation maps for VLMs
 
 ### Gradient-based token maps across architectures

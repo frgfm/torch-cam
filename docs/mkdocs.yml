@@ -82,7 +82,6 @@ plugins:
         - getting-started/debug-prediction.md
         - getting-started/text-decisions.md
         - getting-started/advanced-usage.md
-        - getting-started/eigencam-comparison.md
         - getting-started/troubleshooting.md
       Package Reference:
         - reference/explain.md
@@ -185,7 +184,6 @@ nav:
     - Debug one prediction: getting-started/debug-prediction.md
     - Text decision models: getting-started/text-decisions.md
     - getting-started/advanced-usage.md
-    - EigenCAM comparison: getting-started/eigencam-comparison.md
     - getting-started/troubleshooting.md
   - Package Reference:
     - Prediction explanations: reference/explain.md
