@@ -1,0 +1,51 @@
+name: Merge approved PR 466
+on:
+  push:
+    branches: [codex/merge-pr-466]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  merge-approved-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge approved core PR through the stacked-PR API
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from urllib.error import HTTPError
+          from urllib.request import Request, urlopen
+          base = 'https://api.github.com/repos/frgfm/torch-cam'
+          expected = '128566d5cdd10faab5579152bc6196a3c4a71975'
+          headers = {'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28'}
+          def request(path, payload=None):
+              try:
+                  with urlopen(Request(base + path, data=None if payload is None else json.dumps(payload).encode(), headers=headers, method='GET' if payload is None else 'PUT'), timeout=30) as response:
+                      return json.load(response)
+              except HTTPError as error:
+                  raise SystemExit(error.read().decode())
+          pr = request('/pulls/466')
+          if pr['head']['sha'] != expected or pr['base']['ref'] != 'main':
+              raise SystemExit('PR changed; refusing to merge a different revision or a different stack')
+          checks = request('/commits/' + expected + '/check-runs?per_page=100')['check_runs']
+          blocked = [check['name'] for check in checks if check['conclusion'] not in ('success', 'skipped', 'neutral')]
+          if blocked:
+              raise SystemExit('Checks are not green: ' + str(blocked))
+          result = request('/pulls/466/merge-async', {'sha': expected, 'merge_method': 'squash', 'merge_action': 'direct_merge', 'bypass_rules': False, 'commit_title': 'feat: explain text decisions with token ablation and Integrated Gradients (#466)'})
+          print(json.dumps(result), flush=True)
+          for attempt in range(60):
+              if result['status'] == 'merged':
+                  child = request('/pulls/467')
+                  if child['merged']:
+                      raise SystemExit('Unexpected child PR state')
+                  print('PR 466 merged; PR 467 remains open. Merge SHA: ' + result['details']['sha'], flush=True)
+                  break
+              if result['status'] != 'pending':
+                  raise SystemExit('Merge did not complete: ' + json.dumps(result))
+              time.sleep(2)
+              result = request('/pulls/466/merge-async/' + result['details']['uuid'])
+          else:
+              raise SystemExit('Merge still pending: ' + json.dumps(result))
+          PY
