@@ -10,12 +10,25 @@ from time import perf_counter
 import streamlit as st
 import torch
 from PIL import ImageOps
+from torchvision.transforms.functional import to_pil_image
 
 from torchcam.methods import LayerCAM, TokenAblation
 
-DECISION_MODELS = {"laya": "Laya", "minilm": "MiniLM · zero-shot classifier"}
+DECISION_MODELS = {
+    "laya": "Laya",
+    "minilm": "MiniLM · zero-shot classifier",
+    "deberta": "DeBERTa · zero-shot classifier",
+}
+NLI_MODELS = {
+    "minilm": "cross-encoder/nli-MiniLM2-L6-H768",
+    "deberta": "MoritzLaurer/deberta-v3-base-zeroshot-v2.0",
+}
 VLM_ID = "Salesforce/blip-image-captioning-base"
-VLM_MODELS = {VLM_ID: "BLIP captioner"}
+VLM_MODELS = {
+    VLM_ID: "BLIP captioner",
+    "Qwen/Qwen3-VL-2B-Instruct": "Qwen3-VL · 2B",
+    "google/gemma-4-E2B-it": "Gemma 4 · E2B",
+}
 QUESTION = {
     "type": "choice",
     "instructions": "Route this support ticket by the issue described in the message.",
@@ -54,6 +67,7 @@ def load_resource(family, model_name, device):
         processor = model.tok
     else:
         from transformers import (  # noqa: PLC0415
+            AutoModelForImageTextToText,
             AutoModelForSequenceClassification,
             AutoProcessor,
             AutoTokenizer,
@@ -62,11 +76,13 @@ def load_resource(family, model_name, device):
 
         if family == "vlm" and model_name in VLM_MODELS:
             processor = AutoProcessor.from_pretrained(model_name)
-            model = BlipForConditionalGeneration.from_pretrained(model_name).eval().to(device)
-        elif family == "decision" and model_name == "minilm":
-            checkpoint = "cross-encoder/nli-MiniLM2-L6-H768"
+            loader = BlipForConditionalGeneration if model_name == VLM_ID else AutoModelForImageTextToText
+            dtype = torch.float32 if model_name == VLM_ID else torch.bfloat16
+            model = loader.from_pretrained(model_name, dtype=dtype, attn_implementation="eager").eval().to(device)
+        elif family == "decision" and model_name in NLI_MODELS:
+            checkpoint = NLI_MODELS[model_name]
             processor = AutoTokenizer.from_pretrained(checkpoint, use_fast=True)
-            model = AutoModelForSequenceClassification.from_pretrained(checkpoint).eval().to(device)
+            model = AutoModelForSequenceClassification.from_pretrained(checkpoint, dtype=torch.float32).eval().to(device)
         else:
             raise ValueError("Unknown demo model")
         model.requires_grad_(False)
@@ -102,7 +118,7 @@ def explain_laya(agent, text):
     return result, maps, offsets, probabilities, "option logit"
 
 
-def explain_minilm(model, tokenizer, text):
+def explain_nli(model, tokenizer, text):
     hypotheses = [f"This ticket is about {description.lower()}" for description in QUESTION["criteria"].values()]
     encoded = tokenizer(
         [text] * len(hypotheses),
@@ -114,15 +130,19 @@ def explain_minilm(model, tokenizer, text):
     )
     limit = min(tokenizer.model_max_length, model.config.max_position_embeddings - 2)
     if encoded["input_ids"].shape[1] > limit:
-        raise ValueError("This ticket exceeds MiniLM's context. Shorten it so every displayed token can be explained.")
+        raise ValueError(
+            "This ticket exceeds the model's context. Shorten it so every displayed token can be explained."
+        )
     offsets = encoded.pop("offset_mapping").tolist()
     inputs = {key: value.to(model.device) for key, value in encoded.items()}
     mask = torch.tensor(
         [[sequence == 0 for sequence in encoded.sequence_ids(row)] for row in range(len(hypotheses))],
         device=model.device,
     )
-    # This checkpoint's published label order is contradiction, entailment, neutral.
-    result = ablate_ticket(model, inputs, mask, tokenizer.mask_token_id, lambda output: output.logits[:, 1:2])
+    entailment = next(index for index, label in model.config.id2label.items() if label.lower() == "entailment")
+    result = ablate_ticket(
+        model, inputs, mask, tokenizer.mask_token_id, lambda output: output.logits[:, entailment : entailment + 1]
+    )
     probabilities = result.scores[:, 0].softmax(0).cpu().tolist()
     maps = result.attributions[:, 0].cpu().tolist()
     offsets = [
@@ -143,7 +163,7 @@ def explain_decision(text, model_name, device):
     with lock:
         started_at = perf_counter()
         result, maps, offsets, probabilities, target = (
-            explain_laya(model, text) if model_name == "laya" else explain_minilm(model, processor, text)
+            explain_laya(model, text) if model_name == "laya" else explain_nli(model, processor, text)
         )
     return {
         "model": DECISION_MODELS[model_name],
@@ -163,23 +183,109 @@ def explain_decision(text, model_name, device):
 
 
 def prepare_vlm_inputs(model, processor, image, prompt, device):
-    size = model.config.vision_config.image_size
-    model_input = ImageOps.fit(image, (size, size))
-    inputs = processor(text=prompt, images=model_input, return_tensors="pt").to(device)
-    side = size // model.config.vision_config.patch_size
-    return inputs, model_input, side
+    if model.config.model_type == "blip":
+        size = model.config.vision_config.image_size
+        model_input = ImageOps.fit(image, (size, size))
+        inputs = processor(text=prompt, images=model_input, return_tensors="pt").to(device)
+        side = size // model.config.vision_config.patch_size
+        return inputs, model_input, (side, side)
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "image": image},
+                {"type": "text", "text": "Describe the image in one short sentence."},
+            ],
+        }
+    ]
+    image_kwargs = {"max_pixels": 384**2} if model.config.model_type == "qwen3_vl" else {"max_soft_tokens": 70}
+    inputs = processor.apply_chat_template(
+        messages,
+        tokenize=True,
+        add_generation_prompt=True,
+        return_dict=True,
+        return_tensors="pt",
+        enable_thinking=False,
+        **image_kwargs,
+    ).to(device)
+    _, _, indices, (height, width) = vlm_target(model, inputs)
+    patch = model.config.vision_config.patch_size
+    pixels = inputs["pixel_values"].detach().float().cpu().reshape(-1, inputs["pixel_values"].shape[-1])[indices.cpu()]
+    if model.config.model_type == "qwen3_vl":
+        temporal = model.config.vision_config.temporal_patch_size
+        pixels = pixels.reshape(height, width, 3, temporal, patch, patch)[:, :, :, 0].permute(2, 0, 3, 1, 4)
+        pixels = pixels.reshape(3, height * patch, width * patch)
+        mean = torch.tensor(processor.image_processor.image_mean)[:, None, None]
+        std = torch.tensor(processor.image_processor.image_std)[:, None, None]
+        pixels = pixels * std + mean
+    else:
+        pixels = pixels.reshape(height, width, patch, patch, 3).permute(4, 0, 2, 1, 3)
+        pixels = pixels.reshape(3, height * patch, width * patch)
+    return inputs, to_pil_image(pixels.clamp(0, 1)), (height, width)
+
+
+def vlm_target(model, inputs):
+    """Adapt native patch coordinates to LayerCAM.
+
+    Returns:
+        target layer, reshape function, spatially ordered patch indices and grid dimensions
+
+    Raises:
+        ValueError: if the input is not one image with a supported rectangular layout
+    """
+    if model.config.model_type == "qwen3_vl":
+        if inputs["image_grid_thw"].shape != (1, 3) or inputs["image_grid_thw"][0, 0] != 1:
+            raise ValueError("The demo expects one still image")
+        _, height, width = inputs["image_grid_thw"][0].tolist()
+        merge = model.config.vision_config.spatial_merge_size
+        indices = torch.arange(height * width, device=inputs["pixel_values"].device)
+        indices = indices.reshape(height // merge, width // merge, merge, merge).permute(0, 2, 1, 3).flatten()
+        # Before DeepStack branches: gradients include every visual route into the language model.
+        layer = model.model.visual.patch_embed
+    elif model.config.model_type == "gemma4":
+        positions = inputs["image_position_ids"]
+        if positions.shape[0] != 1:
+            raise ValueError("The demo expects one still image")
+        valid = (positions[0] >= 0).all(-1)
+        width, height = (positions[0, valid].amax(0) + 1).tolist()
+        indices = valid.nonzero().flatten()
+        indices = indices[(positions[0, valid, 1] * width + positions[0, valid, 0]).argsort()]
+        if indices.numel() != height * width:
+            raise ValueError("Image patches must form a complete rectangular grid")
+        layer = model.model.vision_tower.patch_embedder
+    else:
+        raise ValueError("Unsupported visual feature layout")
+    reshape = lambda states: states.float().reshape(-1, states.shape[-1])[indices].T.reshape(1, -1, height, width)
+    return layer, reshape, indices, (height, width)
+
+
+def answer_inputs(result, token_index, device):
+    """Replay the prefix, preserving image metadata and multimodal token types.
+
+    Returns:
+        model inputs with regular tensors, including a differentiable pixel tensor
+    """
+    inputs = {key: value.to(device).clone() for key, value in result["inputs"].items()}
+    inputs["input_ids"] = torch.tensor([result["generated_ids"][:token_index]], device=device)
+    inputs["attention_mask"] = torch.ones_like(inputs["input_ids"])
+    for key in ("mm_token_type_ids", "token_type_ids"):
+        if key in inputs:
+            inputs[key] = torch.nn.functional.pad(inputs[key], (0, token_index - inputs[key].shape[1]))
+    inputs["pixel_values"].requires_grad_(True)
+    return inputs
 
 
 def generate_answer(image, prompt, device, model_name=VLM_ID):
     model, processor, lock = load_resource("vlm", model_name, device)
     with lock, torch.inference_mode():
-        inputs, model_input, side = prepare_vlm_inputs(model, processor, image, prompt, device)
-        start = inputs["input_ids"].shape[1] - 1  # BLIP replaces CLS with BOS and removes the final SEP.
+        inputs, model_input, grid = prepare_vlm_inputs(model, processor, image, prompt, device)
+        blip = model.config.model_type == "blip"
+        start = inputs["input_ids"].shape[1] - int(blip)  # BLIP replaces CLS with BOS and removes the final SEP.
         sequences = model.generate(
             **inputs,
             do_sample=False,
-            num_beams=3,
-            use_cache=False,
+            num_beams=3 if blip else 1,
+            use_cache=not blip,
             repetition_penalty=1.2,
             no_repeat_ngram_size=2,
             max_new_tokens=24,
@@ -194,7 +300,8 @@ def generate_answer(image, prompt, device, model_name=VLM_ID):
             "model_id": model_name,
             "prompt": prompt,
             "input_image": model_input,
-            "grid_side": side,
+            "grid_shape": grid,
+            "inputs": {key: value.cpu() for key, value in inputs.items()},
             "pixel_values": inputs["pixel_values"].cpu(),
             "generated_ids": ids,
             "answer": processor.tokenizer.decode(ids[start:], skip_special_tokens=True),
@@ -209,17 +316,18 @@ def generate_answer(image, prompt, device, model_name=VLM_ID):
 def explain_answer_token(result, token_index, device):
     model, _, lock = load_resource("vlm", result["model_id"], device)
     with lock, torch.enable_grad():
-        prefix = torch.tensor([result["generated_ids"][:token_index]], device=device, dtype=torch.long)
-        inputs = {
-            "pixel_values": result["pixel_values"].to(device).clone().requires_grad_(True),
-            "input_ids": prefix,
-            "attention_mask": torch.ones_like(prefix),
-        }
-        side = result["grid_side"]
+        if token_index not in result["choices"]:
+            raise ValueError("Select a generated caption token")
+        inputs = answer_inputs(result, token_index, device)
         token_id = result["generated_ids"][token_index]
-        layer = model.text_decoder.bert.encoder.layer[-1].crossattention.self.dropout
-        # Last text query attends to CLS followed by the row-major patch grid; CLS has no pixel location.
-        reshape = lambda states: states[:, :, -1, 1:].reshape(states.shape[0], states.shape[1], side, side)
+        if model.config.model_type == "blip":
+            layer = model.text_decoder.bert.encoder.layer[-1].crossattention.self.dropout
+            # Last text query attends to CLS followed by the row-major patch grid; CLS has no pixel location.
+            reshape = lambda states: states[:, :, -1, 1:].reshape(
+                states.shape[0], states.shape[1], *result["grid_shape"]
+            )
+        else:
+            layer, reshape, _, _ = vlm_target(model, inputs)
         with LayerCAM(model, layer, reshape_transform=reshape) as extractor:
             output = model(**inputs, use_cache=False, logits_to_keep=1)
             maps = extractor(token_id, output.logits[:, -1])[0]

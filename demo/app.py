@@ -467,7 +467,13 @@ def decision_page():
 def vlm_page():
     st.caption("Generate a caption and explore image evidence for one generated token.")
     with st.sidebar:
-        model_name = st.selectbox("VLM model", tuple(VLM_MODELS), format_func=VLM_MODELS.__getitem__, key="vlm-model")
+        model_name = st.selectbox(
+            "VLM model",
+            tuple(VLM_MODELS),
+            format_func=VLM_MODELS.__getitem__,
+            key="vlm-model",
+            on_change=load_resource.clear,
+        )
         uploaded = st.file_uploader("Input image", type=("png", "jpg", "jpeg"), key="vlm-image")
     try:
         image = read_image(uploaded) if uploaded is not None else None
@@ -520,7 +526,7 @@ def vlm_page():
     cam = current_map["cam"]
     st.caption(f"LayerCAM · raw next-token probability {current_map['probability']:.1%}")
     st.caption(
-        "Colors show relative image influence for this token, not an object mask. The square crop is the model input."
+        "Colors show relative image influence for this token, not an object mask. The model input is shown alongside."
     )
     if not cam.any():
         st.info("The model has no positive visual attribution for this token. Try another caption token.")

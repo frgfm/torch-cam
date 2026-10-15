@@ -264,14 +264,15 @@ The full package documentation is available [here](https://frgfm.github.io/torch
 The Streamlit explorer has three tabs, each with a model selector. Models load only when you request an explanation:
 
 - **Image classifiers**: pretrained torchvision models, class probabilities, CAMs and overlays.
-- **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base) generates a caption; select a token to view its LayerCAM and next-token probability. The map targets decoder-to-image attention, with CLS excluded from the spatial grid.
-- **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya) and [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) route support tickets. `TokenAblation` measures each masked token's score effect, with one probability and heatmap per option; signed effects are downloadable as JSON.
+- **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base), [Qwen3-VL 2B](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) and [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) generate captions. Select a token to view its LayerCAM and next-token probability. The same extractor uses decoder-to-image attention for BLIP and spatial patch features for Qwen/Gemma.
+- **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya), [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) and [DeBERTa](https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0) route support tickets. `TokenAblation` measures each masked token's score effect, with one probability and heatmap per option; signed effects are downloadable as JSON.
 
 The image tabs accept JPEG and PNG uploads, cleared on tab changes; other controls persist. A shared cache retains one
 model at a time, with serialized inference. The text demo explains up to 64 ticket tokens and rejects longer inputs.
-The VLM uses one square crop, displayed alongside the map for the caption token you select.
+The VLM displays its actual processed image alongside the selected token's map. BLIP uses a square crop; Qwen/Gemma
+preserve the aspect ratio. Larger VLMs use bfloat16 weights; a GPU is recommended for responsive interaction.
 Decision effects compare logits after masking one token; effects can interact and need not add up. Laya's probabilities
-retain its native calibration, while MiniLM uses zero-shot entailment
+retain its native calibration, while MiniLM/DeBERTa use zero-shot entailment
 scores normalized across the three routing options. Maps are estimates of relevance, not proof of bias.
 
 Install the optional demo dependencies ([Streamlit](https://streamlit.io/), Transformers and Laya) to run it locally:

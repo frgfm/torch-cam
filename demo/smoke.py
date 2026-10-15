@@ -15,6 +15,7 @@ import zlib
 from io import BytesIO
 from pathlib import Path
 from threading import Lock
+from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.request import Request, urlopen
 
@@ -35,12 +36,20 @@ from transformers import (
     BlipForConditionalGeneration,
     BlipImageProcessor,
     BlipProcessor,
+    DebertaV2Config,
+    DebertaV2ForSequenceClassification,
+    Gemma4Config,
+    Gemma4ForConditionalGeneration,
     ModernBertConfig,
     ModernBertModel,
     PreTrainedTokenizerFast,
+    Qwen3VLConfig,
+    Qwen3VLForConditionalGeneration,
     RobertaConfig,
     RobertaForSequenceClassification,
 )
+from transformers.models.gemma4.image_processing_gemma4 import Gemma4ImageProcessor
+from transformers.models.qwen2_vl.image_processing_qwen2_vl import Qwen2VLImageProcessor
 
 import app
 
@@ -192,23 +201,38 @@ def check_decision_adapters():
     torch.manual_seed(19)
     tokenizer = fixture_tokenizer()
     text = "Customer José: charged twice refund duplicate payment."
-    config = RobertaConfig(**TEXT_CONFIG, max_position_embeddings=256, num_labels=3)
-    model = RobertaForSequenceClassification(config).eval().requires_grad_(False)
-    result, maps, offsets, probabilities, _ = inference.explain_minilm(model, tokenizer, text)
-    check(len(maps) == len(offsets) == len(probabilities) == 3, "MiniLM routing rows do not align")
-    check(abs(sum(probabilities) - 1) < 1e-6, "MiniLM probabilities do not sum to one")
-    check(bool(result.attributions.isfinite().all()), "MiniLM token effects are not finite")
-    for row, scores in zip(offsets, maps, strict=True):
-        check(
-            all(score == 0 for offset, score in zip(row, scores, strict=True) if offset == [0, 0]),
-            "MiniLM attributed fixed hypothesis or special tokens",
-        )
-    check(hook_count(model) == 0, "MiniLM adapter leaked hooks")
-    with patch.object(inference, "load_resource", return_value=(model, tokenizer, Lock())):
-        report = inference.explain_decision(text, "minilm", "cpu")
-    check(len(report["scores"]) == 3 and report["method"] == "TokenAblation", "Routing score columns do not align")
-    json.dumps(report, allow_nan=False)
-
+    models = {
+        "minilm": RobertaForSequenceClassification(
+            RobertaConfig(
+                **TEXT_CONFIG,
+                max_position_embeddings=256,
+                id2label={0: "contradiction", 1: "entailment", 2: "neutral"},
+            )
+        ),
+        "deberta": DebertaV2ForSequenceClassification(
+            DebertaV2Config(
+                **TEXT_CONFIG,
+                max_position_embeddings=256,
+                id2label={0: "entailment", 1: "not_entailment"},
+            )
+        ),
+    }
+    for name, model in models.items():
+        model.eval().requires_grad_(False)
+        result, maps, offsets, probabilities, _ = inference.explain_nli(model, tokenizer, text)
+        check(len(maps) == len(offsets) == len(probabilities) == 3, "NLI routing rows do not align")
+        check(abs(sum(probabilities) - 1) < 1e-6, "NLI probabilities do not sum to one")
+        check(bool(result.attributions.isfinite().all()), "NLI token effects are not finite")
+        for row, scores in zip(offsets, maps, strict=True):
+            check(
+                all(score == 0 for offset, score in zip(row, scores, strict=True) if offset == [0, 0]),
+                "NLI attributed fixed hypothesis or special tokens",
+            )
+        check(hook_count(model) == 0, "NLI adapter leaked hooks")
+        with patch.object(inference, "load_resource", return_value=(model, tokenizer, Lock())):
+            report = inference.explain_decision(text, name, "cpu")
+        check(len(report["scores"]) == 3 and report["method"] == "TokenAblation", "Routing score columns do not align")
+        json.dumps(report, allow_nan=False)
     for layout in ("sequential", "parallel"):
         with tempfile.TemporaryDirectory(prefix="torchcam-laya-") as directory:
             path = Path(directory)
@@ -293,6 +317,108 @@ def check_vlm_adapter():
         check(hook_count(model) == 0, "VLM adapter leaked hooks")
 
 
+def check_vlm_families():
+    torch.manual_seed(13)
+    image = Image.new("RGB", (64, 48), "red")
+    image.paste("green", (32, 0, 64, 24))
+    image.paste("blue", (0, 24, 32, 48))
+    image.paste("white", (32, 24, 64, 48))
+    text = {
+        "vocab_size": 256,
+        "hidden_size": 32,
+        "intermediate_size": 64,
+        "num_hidden_layers": 2,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 2,
+        "head_dim": 8,
+        "pad_token_id": 0,
+        "bos_token_id": 1,
+        "eos_token_id": 2,
+    }
+    for family in ["qwen", "gemma"]:
+        if family == "qwen":
+            proc = Qwen2VLImageProcessor(patch_size=8, merge_size=2, temporal_patch_size=2, do_resize=False)
+            pixels = proc(images=[image], return_tensors="pt")
+            config = Qwen3VLConfig(
+                image_token_id=20,
+                vision_start_token_id=21,
+                vision_end_token_id=22,
+                text_config={**text, "rope_parameters": {"rope_type": "default", "mrope_section": [1, 1, 2]}},
+                vision_config={
+                    "depth": 2,
+                    "hidden_size": 16,
+                    "intermediate_size": 32,
+                    "num_heads": 2,
+                    "out_hidden_size": 32,
+                    "patch_size": 8,
+                    "temporal_patch_size": 2,
+                    "spatial_merge_size": 2,
+                    "num_position_embeddings": 16,
+                    "deepstack_visual_indexes": [0],
+                },
+            )
+            model = Qwen3VLForConditionalGeneration(config)
+        else:
+            proc = Gemma4ImageProcessor(patch_size=8, pooling_kernel_size=2, max_soft_tokens=70, do_resize=False)
+            pixels = proc(images=[image], return_tensors="pt")
+            pixels.pop("num_soft_tokens_per_image")
+            config = Gemma4Config(
+                image_token_id=20,
+                boi_token_id=21,
+                eoi_token_id=22,
+                text_config={
+                    **text,
+                    "vocab_size_per_layer_input": 256,
+                    "hidden_size_per_layer_input": 8,
+                    "layer_types": ["sliding_attention", "full_attention"],
+                    "use_bidirectional_attention": "vision",
+                },
+                vision_config={
+                    "hidden_size": 16,
+                    "intermediate_size": 32,
+                    "num_hidden_layers": 2,
+                    "num_attention_heads": 2,
+                    "num_key_value_heads": 2,
+                    "head_dim": 8,
+                    "patch_size": 8,
+                    "pooling_kernel_size": 2,
+                    "position_embedding_size": 64,
+                },
+            )
+            model = Gemma4ForConditionalGeneration(config)
+        model.eval().requires_grad_(False)
+        ids = [1, 21] + [20] * 12 + [22, 10, 11]
+        pixels["input_ids"] = torch.tensor([ids])
+        pixels["attention_mask"] = torch.ones_like(pixels["input_ids"])
+        pixels["mm_token_type_ids"] = (pixels["input_ids"] == 20).long()
+        processor = SimpleNamespace(image_processor=proc, apply_chat_template=lambda *_, batch=pixels, **__: batch)
+        inputs, display, grid = inference.prepare_vlm_inputs(model, processor, image, "unused", "cpu")
+        check(grid == (6, 8) and display.size == image.size, "Non-square patch geometry changed")
+        for xy in [(8, 8), (40, 8), (8, 32), (40, 32)]:
+            check(
+                max(abs(a - b) for a, b in zip(display.getpixel(xy), image.getpixel(xy), strict=True)) <= 1,
+                "Patch projection transposes or scrambles pixels",
+            )
+        result = {
+            "inputs": inputs,
+            "generated_ids": [*ids, 12, 13, 14],
+            "choices": [len(ids), len(ids) + 1, len(ids) + 2],
+            "grid_shape": grid,
+            "model_id": family,
+        }
+        with patch.object(inference, "load_resource", return_value=(model, processor, Lock())):
+            cam, prob = inference.explain_answer_token(result, len(ids) + 1, "cpu")
+            check(tuple(cam.shape) == (1, 6, 8) and cam.isfinite().all(), "Invalid native VLM map")
+            current = inference.answer_inputs(result, len(ids) + 1, "cpu")
+            with torch.no_grad():
+                reference = model(**current, use_cache=False, logits_to_keep=1).logits[0, -1].float().softmax(-1)[13]
+            check(abs(float(reference) - prob) < 1e-6, "VLM score does not match the native prefix replay")
+            changed = {**result, "generated_ids": result["generated_ids"][: len(ids) + 2] + [99] * 3}
+            future, future_prob = inference.explain_answer_token(changed, len(ids) + 1, "cpu")
+            torch.testing.assert_close(cam, future, atol=0, rtol=0)
+            check(prob == future_prob and hook_count(model) == 0, "Future-token leakage or leftover hooks")
+
+
 def check_navigation_and_text_ui():
     with patch.object(
         inference, "load_resource", side_effect=AssertionError("Navigation must not load a model")
@@ -366,25 +492,48 @@ def check_pretrained():
     url = "https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg"
     with urlopen(Request(url, headers={"User-Agent": "TorchCAM demo validation"}), timeout=60) as response:
         image = Image.open(BytesIO(response.read())).convert("RGB")
-    result = inference.generate_answer(image, "a picture of", "cpu")
-    model, processor, _ = inference.load_resource("vlm", inference.VLM_ID, "cpu")
-    index = next(i for i in result["choices"] if processor.tokenizer.decode([result["generated_ids"][i]]) == "dog")
-    cam, _ = inference.explain_answer_token(result, index, "cpu")
-    inputs = {"pixel_values": result["pixel_values"], "input_ids": torch.tensor([result["generated_ids"][:index]])}
-    occluded = []
-    side, size = result["grid_side"], result["input_image"].width
-    with torch.no_grad():
-        for largest in (True, False):
-            mask = torch.zeros(cam.numel(), dtype=torch.bool)
-            mask[cam.flatten().topk(max(1, cam.numel() // 5), largest=largest).indices] = True
-            mask = mask.reshape(side, side).repeat_interleave(size // side, 0).repeat_interleave(size // side, 1)
-            altered = {**inputs, "pixel_values": inputs["pixel_values"].clone()}
-            altered["pixel_values"][..., mask] = 0
-            occluded.append(
-                float(model(**altered, logits_to_keep=1, use_cache=False).logits[0, -1, result["generated_ids"][index]])
-            )
-    check(occluded[0] < occluded[1], "BLIP's high-ranked regions are less informative than low-ranked regions")
-    LOGGER.info("Pretrained BLIP caption and token-occlusion check passed: %s", result["answer"])
+    for model_id in inference.VLM_MODELS:
+        inference.load_resource.clear()
+        gc.collect()
+        result = inference.generate_answer(image, "a picture of", "cpu", model_id)
+        model, processor, _ = inference.load_resource("vlm", model_id, "cpu")
+        index = next(
+            i
+            for i in result["choices"]
+            if processor.tokenizer.decode([result["generated_ids"][i]]).strip().lower() == "dog"
+        )
+        cam, _ = inference.explain_answer_token(result, index, "cpu")
+        check(bool(cam.isfinite().all()) and bool(cam.any()), "Invalid pretrained token map")
+        inputs = inference.answer_inputs(result, index, "cpu")
+        inputs["pixel_values"] = inputs["pixel_values"].detach()
+        occluded = []
+        with torch.no_grad():
+            for largest in (True, False):
+                selected = cam.flatten().topk(max(1, cam.numel() // 5), largest=largest).indices
+                altered = {**inputs, "pixel_values": inputs["pixel_values"].clone()}
+                if model.config.model_type == "blip":
+                    height, width = result["grid_shape"]
+                    mask = torch.zeros(height * width, dtype=torch.bool)
+                    mask[selected] = True
+                    mask = mask.reshape(height, width).repeat_interleave(result["input_image"].height // height, 0)
+                    mask = mask.repeat_interleave(result["input_image"].width // width, 1)
+                    altered["pixel_values"][..., mask] = 0
+                else:
+                    _, _, order, _ = inference.vlm_target(model, inputs)
+                    pixels = altered["pixel_values"].reshape(-1, altered["pixel_values"].shape[-1])
+                    pixels[order[selected]] = 0 if model.config.model_type == "qwen3_vl" else 0.5
+                occluded.append(
+                    float(
+                        model(**altered, logits_to_keep=1, use_cache=False).logits[
+                            0, -1, result["generated_ids"][index]
+                        ]
+                    )
+                )
+        check(
+            occluded[0] < occluded[1], f"{model_id}: high-ranked regions are less informative than low-ranked regions"
+        )
+        LOGGER.info("Pretrained %s caption and token-occlusion check passed: %s", model_id, result["answer"])
+        del model, processor, result, cam, inputs, altered
 
 
 def main():
@@ -393,6 +542,7 @@ def main():
     check_navigation_and_text_ui()
     check_decision_adapters()
     check_vlm_adapter()
+    check_vlm_families()
     check(app.compatible_methods("vit_b_16") == ("LeGrad",), "ViT compatibility changed")
     check("LeGrad" not in app.compatible_methods("resnet18"), "LeGrad must stay ViT-only")
     check("FinerCAM" in app.compatible_methods("resnet18"), "FinerCAM is missing")

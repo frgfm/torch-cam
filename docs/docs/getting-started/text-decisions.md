@@ -72,6 +72,30 @@ parallel layouts. This establishes architecture compatibility, not learned relev
 model; `TokenIG` additionally needs gradients. `TokenAblation` can use a remote scoring wrapper if it supports the same
 controlled token replacements.
 
+## Other classifiers and System One models
+
+The demo's MiniLM and DeBERTa checkpoints are NLI models used as zero-shot classifiers. They score one fixed
+hypothesis per routing option. The adapter reads the entailment column from the checkpoint's `id2label`; its index
+differs between checkpoints. Only ticket tokens are replaced; hypotheses, special tokens and padding stay fixed.
+
+Recent System One models instead consume a state and typed questions and score the allowed options directly:
+
+| Family | Small checkpoint | Native scoring interface |
+| --- | --- | --- |
+| [Kev](https://github.com/jaredpalmer/kev) | [Kev-0.8B](https://huggingface.co/jaredpalmer/kev-0.8b) | Qwen3.5 backbone, LoRA and pointer head; checkpoint temperature |
+| [Clef](https://huggingface.co/Cloudflare/clef-flash) | Clef-Flash, 9B | Qwen3.5 backbone and joint schema head; logits for all questions/options |
+
+These are integration candidates, not additional validated demo backends. `TokenAblation` does not depend on an
+encoder architecture: wrap a native scorer as an `nn.Module` accepting keyword `input_ids` and unchanged batch
+metadata, then select `(N, classes)` option logits with `output_transform`. For multiple questions, select one
+question's options while retaining the entire native layout. Disable caches between perturbed forwards, preserve
+state offsets and option order, and display probabilities with the checkpoint's native calibration.
+
+Decoder tokenizers may have no pretrained mask token. Choose and report a replacement baseline explicitly and
+check it with controlled edits; do not assume that padding is a neutral mask. Kev's current source package also
+requires different Python/dependency ranges from this demo. Hosted Jev probabilities alone do not expose native
+token IDs or raw logits; local architecture compatibility does not establish faithful hosted attribution.
+
 ## Numerical checks and cost
 
 Gauss-Legendre quadrature follows the straight embedding path with `alpha = u**3` and its Jacobian, placing more nodes
