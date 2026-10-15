@@ -3,7 +3,9 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
+import json
 from operator import itemgetter
+from pathlib import Path
 from threading import Lock
 from time import perf_counter
 
@@ -18,7 +20,9 @@ DECISION_MODELS = {
     "laya": "Laya",
     "minilm": "MiniLM · zero-shot classifier",
     "deberta": "DeBERTa · zero-shot classifier",
+    "decider": "Decider · 0.8B",
 }
+DECIDER_ID = "Mapika/decider-0.8b"
 NLI_MODELS = {
     "minilm": "cross-encoder/nli-MiniLM2-L6-H768",
     "deberta": "MoritzLaurer/deberta-v3-base-zeroshot-v2.0",
@@ -67,6 +71,7 @@ def load_resource(family, model_name, device):
         processor = model.tok
     else:
         from transformers import (  # noqa: PLC0415
+            AutoModelForCausalLM,
             AutoModelForImageTextToText,
             AutoModelForSequenceClassification,
             AutoProcessor,
@@ -77,8 +82,26 @@ def load_resource(family, model_name, device):
         if family == "vlm" and model_name in VLM_MODELS:
             processor = AutoProcessor.from_pretrained(model_name)
             loader = BlipForConditionalGeneration if model_name == VLM_ID else AutoModelForImageTextToText
-            dtype = torch.float32 if model_name == VLM_ID else torch.bfloat16
+            full_precision = model_name == VLM_ID or (device == "cpu" and model_name.startswith("Qwen/"))
+            dtype = torch.float32 if full_precision else torch.bfloat16
             model = loader.from_pretrained(model_name, dtype=dtype, attn_implementation="eager").eval().to(device)
+        elif family == "decision" and model_name == "decider":
+            from huggingface_hub import hf_hub_download  # noqa: PLC0415
+
+            processor = AutoTokenizer.from_pretrained(DECIDER_ID, use_fast=True)
+            model = AutoModelForCausalLM.from_pretrained(DECIDER_ID, dtype=torch.float32).eval().to(device)
+            metadata = json.loads(
+                Path(
+                    hf_hub_download(
+                        DECIDER_ID,
+                        "decider_config.json",
+                        revision=model.config._commit_hash,  # noqa: SLF001
+                    )
+                ).read_text(encoding="utf-8")
+            )
+            model.config.decision_temperature = (metadata.get("temperature_by_type") or {}).get(
+                "choice", metadata["temperature"]
+            )
         elif family == "decision" and model_name in NLI_MODELS:
             checkpoint = NLI_MODELS[model_name]
             processor = AutoTokenizer.from_pretrained(checkpoint, use_fast=True)
@@ -160,21 +183,59 @@ def ablate_ticket(model, inputs, mask, replacement_id, output_transform):
     return TokenAblation(model, output_transform)(inputs, replacement_id, token_mask=mask)
 
 
+def explain_decider(model, tokenizer, text):
+    # Native plain state-first layout: tokenize context and question separately, with no generated answer letters.
+    header = "Context:\n"
+    state = tokenizer(header + text, add_special_tokens=False, return_offsets_mapping=True)
+    question = f"\n\nQuestion: {QUESTION['instructions']}\nOptions:"
+    question += "".join(
+        f"\n({letter}) {label}: {description}"
+        for letter, (label, description) in zip(
+            "ABC",
+            QUESTION["criteria"].items(),
+            strict=True,
+        )
+    )
+    tail = tokenizer.encode(question + "\nAnswer: (", add_special_tokens=False)
+    ids = state["input_ids"] + tail
+    if len(ids) > model.config.get_text_config().max_position_embeddings:
+        raise ValueError("This ticket exceeds the model's context. Shorten it before explaining.")
+    offsets = [[max(0, start - len(header)), max(0, end - len(header))] for start, end in state["offset_mapping"]]
+    offsets += [[0, 0]] * len(tail)
+    inputs = {"input_ids": torch.tensor([ids], device=model.device), "use_cache": False, "logits_to_keep": 1}
+    inputs["attention_mask"] = torch.ones_like(inputs["input_ids"])
+    mask = torch.tensor([[end > start for start, end in offsets]], device=model.device)
+    letters = [tokenizer.encode(letter, add_special_tokens=False) for letter in "ABC"]
+    space = tokenizer.encode(" ", add_special_tokens=False)
+    if any(len(ids) != 1 for ids in [*letters, space]) or len({ids[0] for ids in letters}) != 3:
+        raise ValueError("Decider requires single-token option letters and a single-token space baseline")
+    columns = [ids[0] for ids in letters]
+    result = ablate_ticket(model, inputs, mask, space[0], lambda output: output.logits[:, -1, columns].float())
+    temperature = float(model.config.decision_temperature)
+    if not 0 < temperature < float("inf"):
+        raise ValueError("Invalid decision temperature")
+    probabilities = (result.scores[0] / temperature).softmax(-1).cpu().tolist()
+    maps = result.attributions[0].cpu().tolist()
+    return result, maps, [offsets] * len(maps), probabilities, "option logit"
+
+
 def explain_decision(text, model_name, device):
     model, processor, lock = load_resource("decision", model_name, device)
     with lock:
         started_at = perf_counter()
-        result, maps, offsets, probabilities, target = (
-            explain_laya(model, text) if model_name == "laya" else explain_nli(model, processor, text)
-        )
+        if model_name == "laya":
+            result, maps, offsets, probabilities, target = explain_laya(model, text)
+        else:
+            explain = explain_decider if model_name == "decider" else explain_nli
+            result, maps, offsets, probabilities, target = explain(model, processor, text)
     return {
         "model": DECISION_MODELS[model_name],
         "text": text,
         "method": "TokenAblation",
         "target": target,
         "question": QUESTION,
-        "baseline": "one ticket token masked at a time; question/options held fixed",
-        "replacement_token": processor.mask_token,
+        "baseline": "one ticket token replaced at a time; question/options held fixed",
+        "replacement_token": " " if model_name == "decider" else processor.mask_token,
         "labels": list(QUESTION["criteria"]),
         "probabilities": probabilities,
         "attributions": maps,
