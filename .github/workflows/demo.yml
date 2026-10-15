@@ -5,11 +5,13 @@ on:
     branches: [main, codex/preview-pr-467]
     paths:
       - '.github/workflows/demo.yml'
+      - '.github/live_family_check.cjs'
       - 'demo/**'
       - 'pyproject.toml'
   pull_request:
     paths:
       - '.github/workflows/demo.yml'
+      - '.github/live_family_check.cjs'
       - 'demo/**'
       - 'pyproject.toml'
   workflow_dispatch:  # Allow trusted manual runs from the Actions tab
