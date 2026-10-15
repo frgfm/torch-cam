@@ -261,7 +261,7 @@ The full package documentation is available [here](https://frgfm.github.io/torch
 
 ### Playground app
 
-The Streamlit explorer has three tabs, with models loaded only when you request an explanation:
+The Streamlit explorer has three tabs, each with a model selector. Models load only when you request an explanation:
 
 - **Image classifiers**: pretrained torchvision models, class probabilities, CAMs and overlays.
 - **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base) generates a caption; select a token to view its LayerCAM and next-token probability. The map targets decoder-to-image attention, with CLS excluded from the spatial grid.

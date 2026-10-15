@@ -15,6 +15,7 @@ from torchcam.methods import LayerCAM, TokenAblation
 
 DECISION_MODELS = {"laya": "Laya", "minilm": "MiniLM · zero-shot classifier"}
 VLM_ID = "Salesforce/blip-image-captioning-base"
+VLM_MODELS = {VLM_ID: "BLIP captioner"}
 QUESTION = {
     "type": "choice",
     "instructions": "Route this support ticket by the issue described in the message.",
@@ -59,9 +60,9 @@ def load_resource(family, model_name, device):
             BlipForConditionalGeneration,
         )
 
-        if family == "vlm":
-            processor = AutoProcessor.from_pretrained(VLM_ID)
-            model = BlipForConditionalGeneration.from_pretrained(VLM_ID).eval().to(device)
+        if family == "vlm" and model_name in VLM_MODELS:
+            processor = AutoProcessor.from_pretrained(model_name)
+            model = BlipForConditionalGeneration.from_pretrained(model_name).eval().to(device)
         elif family == "decision" and model_name == "minilm":
             checkpoint = "cross-encoder/nli-MiniLM2-L6-H768"
             processor = AutoTokenizer.from_pretrained(checkpoint, use_fast=True)
@@ -169,8 +170,8 @@ def prepare_vlm_inputs(model, processor, image, prompt, device):
     return inputs, model_input, side
 
 
-def generate_answer(image, prompt, device):
-    model, processor, lock = load_resource("vlm", VLM_ID, device)
+def generate_answer(image, prompt, device, model_name=VLM_ID):
+    model, processor, lock = load_resource("vlm", model_name, device)
     with lock, torch.inference_mode():
         inputs, model_input, side = prepare_vlm_inputs(model, processor, image, prompt, device)
         start = inputs["input_ids"].shape[1] - 1  # BLIP replaces CLS with BOS and removes the final SEP.
@@ -189,7 +190,8 @@ def generate_answer(image, prompt, device):
         if not choices:
             raise ValueError("The model produced no caption tokens. Try a different image.")
         return {
-            "model": "BLIP captioner",
+            "model": VLM_MODELS[model_name],
+            "model_id": model_name,
             "prompt": prompt,
             "input_image": model_input,
             "grid_side": side,
@@ -205,7 +207,7 @@ def generate_answer(image, prompt, device):
 
 
 def explain_answer_token(result, token_index, device):
-    model, _, lock = load_resource("vlm", VLM_ID, device)
+    model, _, lock = load_resource("vlm", result["model_id"], device)
     with lock, torch.enable_grad():
         prefix = torch.tensor([result["generated_ids"][:token_index]], device=device, dtype=torch.long)
         inputs = {
