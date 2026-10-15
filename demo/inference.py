@@ -4,6 +4,7 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import json
+from contextlib import ExitStack
 from operator import itemgetter
 from pathlib import Path
 from threading import Lock
@@ -14,7 +15,7 @@ import torch
 from PIL import ImageOps
 from torchvision.transforms.functional import to_pil_image
 
-from torchcam.methods import LayerCAM, TokenAblation
+from torchcam.methods import GradCAM, LayerCAM, TokenAblation
 
 DECISION_MODELS = {
     "laya": "Laya",
@@ -34,6 +35,10 @@ VLM_MODELS = {
     "Qwen/Qwen3-VL-2B-Instruct": "Qwen3-VL · 2B",
     "google/gemma-4-E2B-it": "Gemma 4 · E2B",
 }
+VLM_REVISIONS = {
+    "Qwen/Qwen3-VL-2B-Instruct": "89644892e4d85e24eaac8bacfd4f463576704203",
+    "google/gemma-4-E2B-it": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+}
 QUESTION = {
     "type": "choice",
     "instructions": "Route this support ticket by the issue described in the message.",
@@ -46,6 +51,14 @@ QUESTION = {
 MODEL_INPUTS = ("input_ids", "attention_mask", "marker_pos", "marker_mask", "qtype", "position_ids", "option_ids")
 
 
+def vlm_device_supported(model_name, device):
+    return (
+        not model_name.startswith("google/gemma-4")
+        or str(device) != "cpu"
+        or getattr(torch.cpu, "_is_avx512_bf16_supported", lambda: False)()
+    )
+
+
 @st.cache_resource(show_spinner=False, max_entries=1)
 def load_resource(family, model_name, device):
     """Load only a requested model; share one cache across the three pages.
@@ -56,6 +69,8 @@ def load_resource(family, model_name, device):
     Raises:
         ValueError: if the requested model is unsupported
     """
+    if family == "vlm" and not vlm_device_supported(model_name, device):
+        raise ValueError("Gemma needs a GPU or a BF16-accelerated CPU for interactive explanations.")
     if family == "image":
         from torchvision.models import get_model, get_model_weights  # noqa: PLC0415
 
@@ -81,11 +96,22 @@ def load_resource(family, model_name, device):
         )
 
         if family == "vlm" and model_name in VLM_MODELS:
-            processor = AutoProcessor.from_pretrained(model_name)
+            revision = VLM_REVISIONS.get(model_name)
+            processor = AutoProcessor.from_pretrained(model_name, revision=revision)
             loader = BlipForConditionalGeneration if model_name == VLM_ID else AutoModelForImageTextToText
             full_precision = model_name == VLM_ID or (device == "cpu" and model_name.startswith("Qwen/"))
             dtype = torch.float32 if full_precision else torch.bfloat16
-            model = loader.from_pretrained(model_name, dtype=dtype, attn_implementation="eager").eval().to(device)
+            model = (
+                loader
+                .from_pretrained(
+                    model_name,
+                    revision=revision,
+                    dtype=dtype,
+                    attn_implementation="eager",
+                )
+                .eval()
+                .to(device)
+            )
         elif family == "decision" and model_name == "decider":
             from huggingface_hub import hf_hub_download  # noqa: PLC0415
 
@@ -267,21 +293,22 @@ def prepare_vlm_inputs(model, processor, image, prompt, device):
             "role": "user",
             "content": [
                 {"type": "image", "image": image},
-                {"type": "text", "text": "Describe the image in one short sentence."},
+                {"type": "text", "text": prompt},
             ],
         }
     ]
     image_kwargs = {"max_pixels": 384**2} if model.config.model_type == "qwen3_vl" else {"max_soft_tokens": 70}
+    chat_kwargs = {"enable_thinking": False} if model.config.model_type == "gemma4" else {}
     inputs = processor.apply_chat_template(
         messages,
         tokenize=True,
         add_generation_prompt=True,
         return_dict=True,
         return_tensors="pt",
-        enable_thinking=False,
-        **image_kwargs,
+        processor_kwargs=image_kwargs,
+        **chat_kwargs,
     ).to(device)
-    _, _, indices, (height, width) = vlm_target(model, inputs)
+    indices, (height, width) = vlm_layout(model, inputs)
     patch = model.config.vision_config.patch_size
     pixels = inputs["pixel_values"].detach().float().cpu().reshape(-1, inputs["pixel_values"].shape[-1])[indices.cpu()]
     if model.config.model_type == "qwen3_vl":
@@ -294,14 +321,15 @@ def prepare_vlm_inputs(model, processor, image, prompt, device):
     else:
         pixels = pixels.reshape(height, width, patch, patch, 3).permute(4, 0, 2, 1, 3)
         pixels = pixels.reshape(3, height * patch, width * patch)
-    return inputs, to_pil_image(pixels.clamp(0, 1)), (height, width)
+    _, _, _, grid = vlm_target(model, inputs)
+    return inputs, to_pil_image(pixels.clamp(0, 1)), grid
 
 
-def vlm_target(model, inputs):
-    """Adapt native patch coordinates to LayerCAM.
+def vlm_layout(model, inputs):
+    """Resolve raw patches in image order.
 
     Returns:
-        target layer, reshape function, spatially ordered patch indices and grid dimensions
+        spatially ordered raw-patch indices and grid dimensions
 
     Raises:
         ValueError: if the input is not one image with a supported rectangular layout
@@ -313,8 +341,6 @@ def vlm_target(model, inputs):
         merge = model.config.vision_config.spatial_merge_size
         indices = torch.arange(height * width, device=inputs["pixel_values"].device)
         indices = indices.reshape(height // merge, width // merge, merge, merge).permute(0, 2, 1, 3).flatten()
-        # Before DeepStack branches: gradients include every visual route into the language model.
-        layer = model.model.visual.patch_embed
     elif model.config.model_type == "gemma4":
         positions = inputs["image_position_ids"]
         if positions.shape[0] != 1:
@@ -325,11 +351,25 @@ def vlm_target(model, inputs):
         indices = indices[(positions[0, valid, 1] * width + positions[0, valid, 0]).argsort()]
         if indices.numel() != height * width:
             raise ValueError("Image patches must form a complete rectangular grid")
-        layer = model.model.vision_tower.patch_embedder
     else:
         raise ValueError("Unsupported visual feature layout")
-    reshape = lambda states: states.float().reshape(-1, states.shape[-1])[indices].T.reshape(1, -1, height, width)
-    return layer, reshape, indices, (height, width)
+    return indices, (height, width)
+
+
+def vlm_target(model, inputs):
+    # Target every visual projection into the language model, including all Qwen DeepStack injections.
+    indices, (height, width) = vlm_layout(model, inputs)
+    if model.config.model_type == "qwen3_vl":
+        visual = model.model.visual
+        layers = [visual.merger, *visual.deepstack_merger_list]
+        pool = model.config.vision_config.spatial_merge_size
+    else:
+        layers = [model.model.embed_vision]
+        pool = model.config.vision_config.pooling_kernel_size
+    height, width = height // pool, width // pool
+    groups = indices.reshape(height, pool, width, pool).permute(0, 2, 1, 3).reshape(-1, pool**2)
+    reshape = lambda states: states.float().reshape(1, height, width, -1).permute(0, 3, 1, 2)
+    return layers, reshape, groups, (height, width)
 
 
 def answer_inputs(result, token_index, device):
@@ -351,8 +391,10 @@ def answer_inputs(result, token_index, device):
 def generate_answer(image, prompt, device, model_name=VLM_ID):
     model, processor, lock = load_resource("vlm", model_name, device)
     with lock, torch.inference_mode():
-        inputs, model_input, grid = prepare_vlm_inputs(model, processor, image, prompt, device)
         blip = model.config.model_type == "blip"
+        if not blip and prompt == "a picture of":
+            prompt = "Identify the main subject. Start with its category, then add a brief description."
+        inputs, model_input, grid = prepare_vlm_inputs(model, processor, image, prompt, device)
         start = inputs["input_ids"].shape[1] - int(blip)  # BLIP replaces CLS with BOS and removes the final SEP.
         sequences = model.generate(
             **inputs,
@@ -361,7 +403,7 @@ def generate_answer(image, prompt, device, model_name=VLM_ID):
             use_cache=not blip,
             repetition_penalty=1.2,
             no_repeat_ngram_size=2,
-            max_new_tokens=24,
+            max_new_tokens=24 if blip else 48,
             return_dict_in_generate=False,
         )
         ids = sequences[0].tolist()
@@ -371,6 +413,7 @@ def generate_answer(image, prompt, device, model_name=VLM_ID):
         return {
             "model": VLM_MODELS[model_name],
             "model_id": model_name,
+            "method": "LayerCAM" if blip else "GradCAM",
             "prompt": prompt,
             "input_image": model_input,
             "grid_shape": grid,
@@ -394,15 +437,32 @@ def explain_answer_token(result, token_index, device):
         inputs = answer_inputs(result, token_index, device)
         token_id = result["generated_ids"][token_index]
         if model.config.model_type == "blip":
-            layer = model.text_decoder.bert.encoder.layer[-1].crossattention.self.dropout
+            layers = [model.text_decoder.bert.encoder.layer[-1].crossattention.self.dropout]
             # Last text query attends to CLS followed by the row-major patch grid; CLS has no pixel location.
             reshape = lambda states: states[:, :, -1, 1:].reshape(
                 states.shape[0], states.shape[1], *result["grid_shape"]
             )
         else:
-            layer, reshape, _, _ = vlm_target(model, inputs)
-        with LayerCAM(model, layer, reshape_transform=reshape) as extractor:
+            layers, reshape, _, _ = vlm_target(model, inputs)
+            inputs["pixel_values"].requires_grad_(False)
+        with ExitStack() as stack:
+            if model.config.model_type != "blip":
+                # Enable gradients at visual inputs to the decoder; frozen vision encoders need no backward graph.
+                for layer in layers:
+                    stack.enter_context(
+                        layer.register_forward_hook(lambda _, __, output: output.detach().requires_grad_(True))
+                    )
+            method = LayerCAM if model.config.model_type == "blip" else GradCAM
+            extractor = stack.enter_context(method(model, layers, reshape_transform=reshape))
             output = model(**inputs, use_cache=False, logits_to_keep=1)
-            maps = extractor(token_id, output.logits[:, -1])[0]
+            logits = output.logits[:, -1].float()
+            if model.config.model_type == "blip":
+                maps = extractor(token_id, logits)[0]
+            else:
+                # Log-odds explains token confidence, removes common logit shifts and avoids softmax saturation.
+                target = lambda sample: (
+                    sample[token_id] - torch.logsumexp(torch.cat((sample[:token_id], sample[token_id + 1 :])), 0)
+                )
+                maps = extractor.fuse_cams(extractor(scores=logits, targets=target))
         probability = float(output.logits[0, -1].detach().float().softmax(-1)[token_id])
     return maps.float().cpu(), probability
