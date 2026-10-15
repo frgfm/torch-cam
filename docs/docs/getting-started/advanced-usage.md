@@ -420,7 +420,7 @@ with LayerCAM(model, target_layer=visual_layer, reshape_transform=to_spatial_gri
 ```
 
 The method stays the same; each architecture supplies a differentiable visual layer and a spatial reshape.
-The [demo adapters](https://github.com/frgfm/torch-cam/blob/codex/explorer-model-tabs/demo/inference.py)
+The [demo adapters](https://github.com/frgfm/torch-cam/blob/main/demo/inference.py)
 cover BLIP, Qwen3-VL and Gemma 4 with a vision tower. Qwen's grouped patches must be reordered before projection;
 Gemma's explicit patch coordinates exclude padding. Qwen is hooked before the DeepStack branches so every visual
 path contributes gradients. The demo reconstructs the processed pixels to keep the overlay aligned.

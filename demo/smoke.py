@@ -323,18 +323,7 @@ def check_vlm_families():
     image.paste("green", (32, 0, 64, 24))
     image.paste("blue", (0, 24, 32, 48))
     image.paste("white", (32, 24, 64, 48))
-    text = {
-        "vocab_size": 256,
-        "hidden_size": 32,
-        "intermediate_size": 64,
-        "num_hidden_layers": 2,
-        "num_attention_heads": 4,
-        "num_key_value_heads": 2,
-        "head_dim": 8,
-        "pad_token_id": 0,
-        "bos_token_id": 1,
-        "eos_token_id": 2,
-    }
+    text = {**TEXT_CONFIG, "num_key_value_heads": 2, "head_dim": 8}
     for family in ["qwen", "gemma"]:
         if family == "qwen":
             proc = Qwen2VLImageProcessor(patch_size=8, merge_size=2, temporal_patch_size=2, do_resize=False)

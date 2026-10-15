@@ -82,7 +82,9 @@ def load_resource(family, model_name, device):
         elif family == "decision" and model_name in NLI_MODELS:
             checkpoint = NLI_MODELS[model_name]
             processor = AutoTokenizer.from_pretrained(checkpoint, use_fast=True)
-            model = AutoModelForSequenceClassification.from_pretrained(checkpoint, dtype=torch.float32).eval().to(device)
+            model = (
+                AutoModelForSequenceClassification.from_pretrained(checkpoint, dtype=torch.float32).eval().to(device)
+            )
         else:
             raise ValueError("Unknown demo model")
         model.requires_grad_(False)
