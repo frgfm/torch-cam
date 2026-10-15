@@ -21,6 +21,7 @@ from inference import (
     explain_decision,
     generate_answer,
     load_resource,
+    vlm_device_supported,
 )
 from matplotlib import colormaps
 from PIL import Image, ImageOps
@@ -445,7 +446,8 @@ def decision_page():
     if not result or result["request"] != request:
         return
     st.caption(f"{result['model']} · Token ablation on class scores · {result['elapsed']:.2f} s")
-    st.caption("Highlights show how much masking a token lowers a decision score, scaled within each decision.")
+    replacement = "a space" if result["replacement_token"].isspace() else f"`{result['replacement_token']}`"
+    st.caption(f"Highlights show score drops when replacing a token with {replacement}, scaled within each decision.")
     for label, probability, offsets, scores in zip(
         result["labels"],
         result["probabilities"],
@@ -482,7 +484,10 @@ def vlm_page():
         return
     device = "cuda" if torch.cuda.is_available() else "cpu"
     request = (model_name, uploaded.getvalue() if uploaded is not None else None)
-    if st.button("Generate caption", type="primary", disabled=image is None):
+    available = vlm_device_supported(model_name, device)
+    if not available:
+        st.info("Gemma needs a GPU or a BF16-accelerated CPU. Choose BLIP or Qwen on this server.")
+    if st.button("Generate caption", type="primary", disabled=image is None or not available):
         st.session_state.pop("vlm_result", None)
         st.session_state.pop("vlm_map", None)
         st.session_state.pop("vlm-token", None)
@@ -524,7 +529,7 @@ def vlm_page():
         current_map = {"index": token_index, "cam": cam, "probability": probability}
         st.session_state["vlm_map"] = current_map
     cam = current_map["cam"]
-    st.caption(f"LayerCAM · raw next-token probability {current_map['probability']:.1%}")
+    st.caption(f"{result['method']} · raw next-token probability {current_map['probability']:.1%}")
     st.caption(
         "Colors show relative image influence for this token, not an object mask. The model input is shown alongside."
     )

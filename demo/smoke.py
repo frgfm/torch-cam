@@ -43,6 +43,8 @@ from transformers import (
     ModernBertConfig,
     ModernBertModel,
     PreTrainedTokenizerFast,
+    Qwen3_5ForCausalLM,
+    Qwen3_5TextConfig,
     Qwen3VLConfig,
     Qwen3VLForConditionalGeneration,
     RobertaConfig,
@@ -280,6 +282,42 @@ def check_decision_adapters():
                 raise AssertionError("Laya silently explained a truncated ticket")
 
 
+def check_decider_adapter():
+    tokenizer = fixture_tokenizer()
+    tokenizer.add_tokens(["A", "B", "C"])
+    config = Qwen3_5TextConfig(
+        **TEXT_CONFIG,
+        num_key_value_heads=2,
+        head_dim=8,
+        max_position_embeddings=256,
+        linear_key_head_dim=8,
+        linear_value_head_dim=8,
+        linear_num_key_heads=2,
+        linear_num_value_heads=2,
+        layer_types=["linear_attention", "full_attention"],
+    )
+    model = Qwen3_5ForCausalLM(config).eval().requires_grad_(False)
+    model.config.decision_temperature = 1.03
+    text = "Customer José: charged twice refund duplicate payment."
+    encode = tokenizer.encode
+    # The synthetic whitespace tokenizer needs a stand-in ID; the pretrained gate checks the real space token.
+    with (
+        patch.object(tokenizer, "encode", side_effect=lambda value, **kw: [3] if value == " " else encode(value, **kw)),
+        patch.object(inference, "load_resource", return_value=(model, tokenizer, Lock())),
+    ):
+        report = inference.explain_decision(text, "decider", "cpu")
+    expected = (torch.tensor(report["scores"]) / model.config.decision_temperature).softmax(-1)
+    torch.testing.assert_close(torch.tensor(report["probabilities"]), expected)
+    for row, values in zip(report["offsets"], report["attributions"], strict=True):
+        check(all(0 <= a <= b <= len(text) for a, b in row), "Decider offsets exceed the original state")
+        check(
+            all(value == 0 for offset, value in zip(row, values, strict=True) if offset == [0, 0]),
+            "Decider attributed question or option tokens",
+        )
+    check(report["replacement_token"].isspace() and hook_count(model) == 0, "Invalid Decider baseline or leaked hooks")
+    json.dumps(report, allow_nan=False)
+
+
 def check_vlm_adapter():
     torch.manual_seed(7)
     tokenizer = fixture_tokenizer()
@@ -443,6 +481,7 @@ def check_navigation_and_text_ui():
     report = {
         "model": "Local verification fixture",
         "method": "TokenAblation",
+        "replacement_token": fixture_tokenizer().mask_token,
         "text": text,
         "elapsed": 0.1,
         "labels": list(inference.QUESTION["criteria"]),
@@ -530,6 +569,7 @@ def main():
     check_malformed_png_metadata()
     check_navigation_and_text_ui()
     check_decision_adapters()
+    check_decider_adapter()
     check_vlm_adapter()
     check_vlm_families()
     check(app.compatible_methods("vit_b_16") == ("LeGrad",), "ViT compatibility changed")

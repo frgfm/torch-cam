@@ -25,7 +25,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE);
   await page.getByRole('tab',{name:'Decision models',exact:true}).click();
   const decision=page.getByRole('combobox',{name:'Decision model',exact:true});
   await decision.click();
-  await page.getByRole('option',{name:'DeBERTa · zero-shot classifier',exact:true}).waitFor();
+  for(const name of ['Laya','MiniLM · zero-shot classifier','DeBERTa · zero-shot classifier','Decider · 0.8B']) await page.getByRole('option',{name,exact:true}).waitFor();
   await page.screenshot({path:'family-ui/decision-models.png',fullPage:true});
   await page.getByRole('option',{name:'DeBERTa · zero-shot classifier',exact:true}).click();
   await page.getByRole('tab',{name:'VLMs',exact:true}).click();

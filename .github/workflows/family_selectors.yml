@@ -31,7 +31,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/browser" playwright@1.57.0
           "${RUNNER_TEMP}/browser/node_modules/.bin/playwright" install --with-deps chromium
-          uv run streamlit run demo/app.py --server.headless true --server.port 8080 > /tmp/streamlit.log 2>&1 &
+          uv run --no-sync streamlit run demo/app.py --server.headless true --server.port 8080 > /tmp/streamlit.log 2>&1 &
           server=$!
           trap 'kill "$server" 2>/dev/null || true' EXIT
           for i in $(seq 1 30); do curl --fail --silent http://127.0.0.1:8080/_stcore/health && break; sleep 1; done
