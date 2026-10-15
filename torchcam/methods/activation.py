@@ -18,6 +18,18 @@ __all__ = ["CAM", "ISCAM", "SSCAM", "EigenCAM", "ScoreCAM"]
 logger = logging.getLogger(__name__)
 
 
+def _svd_right_vectors(matrix: Tensor, *, cpu_fallback: bool) -> Tensor:
+    # Some MPS builds have no SVD kernel: those fall back to a decomposition on CPU.
+    try:
+        _, _, right_vectors = torch.linalg.svd(matrix, full_matrices=False)
+    except NotImplementedError:
+        if not cpu_fallback:
+            raise
+        _, _, right_vectors = torch.linalg.svd(matrix.cpu(), full_matrices=False)
+        right_vectors = right_vectors.to(matrix.device)
+    return right_vectors
+
+
 class EigenCAM(_CAM):
     r"""Extract a class-independent map using the first principal component of spatial features.
 
@@ -75,13 +87,7 @@ class EigenCAM(_CAM):
             dtype = torch.float64 if activation.dtype == torch.float64 else torch.float32
             features = activation.to(dtype).flatten(2).transpose(1, 2)
             centered_features = features - features.mean(dim=1, keepdim=True)
-            try:
-                _, _, right_vectors = torch.linalg.svd(centered_features, full_matrices=False)
-            except NotImplementedError:
-                if features.device.type != "mps":
-                    raise
-                _, _, right_vectors = torch.linalg.svd(centered_features.cpu(), full_matrices=False)
-                right_vectors = right_vectors.to(features.device)
+            right_vectors = _svd_right_vectors(centered_features, cpu_fallback=features.device.type == "mps")
             direction = right_vectors[:, 0, :]
             pivot = direction.gather(1, direction.abs().argmax(dim=1, keepdim=True))
             weights.append(direction * pivot.sign())

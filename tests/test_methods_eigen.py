@@ -5,6 +5,7 @@ from torch import nn
 from torchvision.models import get_model
 
 from torchcam.methods import EigenCAM
+from torchcam.methods.activation import _svd_right_vectors
 
 
 def _extract(features, *, normalized=True, **kwargs):
@@ -227,3 +228,25 @@ def test_eigencam_mps_svd_fallback(monkeypatch):
     assert devices == ["mps", "cpu"]
     assert actual.device.type == "mps"
     torch.testing.assert_close(actual.cpu(), _extract(features), atol=2e-5, rtol=2e-5)
+
+
+def test_eigencam_svd_cpu_fallback(monkeypatch):
+    """Devices without an SVD kernel should decompose on CPU and move the vectors back."""
+    features = torch.randn(2, 4, 3, 5, generator=torch.Generator().manual_seed(4))
+    matrix = features.flatten(2).transpose(1, 2)
+    centered = matrix - matrix.mean(dim=1, keepdim=True)
+    expected = _svd_right_vectors(centered, cpu_fallback=False)
+    svd = torch.linalg.svd
+    devices = []
+
+    def no_svd_once(matrix, **kwargs):
+        devices.append(matrix.device.type)
+        if len(devices) == 1:
+            raise NotImplementedError("SVD is unavailable on this device")
+        return svd(matrix, **kwargs)
+
+    monkeypatch.setattr(torch.linalg, "svd", no_svd_once)
+    actual = _svd_right_vectors(centered, cpu_fallback=True)
+    assert devices == ["cpu", "cpu"]
+    assert actual.device.type == "cpu"
+    torch.testing.assert_close(actual, expected)
