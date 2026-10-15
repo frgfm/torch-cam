@@ -1,0 +1,55 @@
+name: validate-subject-first
+on:
+  push:
+    branches: [codex/validate-subject-first-467]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  pretrained:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: Qwen/Qwen3-VL-2B-Instruct
+            artifact: qwen-final
+          - model: google/gemma-4-E2B-it
+            artifact: gemma-a
+          - model: google/gemma-4-E2B-it
+            artifact: gemma-b
+          - model: google/gemma-4-E2B-it
+            artifact: gemma-c
+    env:
+      HF_HUB_DISABLE_XET: '1'
+      HF_HUB_DOWNLOAD_TIMEOUT: '60'
+      OMP_NUM_THREADS: '2'
+      MKL_NUM_THREADS: '2'
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      UV_TORCH_BACKEND: cpu
+      MODEL_ID: ${{ matrix.model }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: '0.12.5'
+          activate-environment: true
+      - uses: actions/download-artifact@v5
+        with:
+          name: demo-pretrained-diagnostics
+          run-id: 38746524887
+          github-token: ${{ github.token }}
+          path: fixtures
+      - name: Install dependencies
+        run: make install-demo
+      - name: Validate native inference and token maps
+        run: timeout 900 uv run --no-sync python .github/validate_vlm_families.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: family-${{ matrix.artifact }}
+          path: family-validation/
