@@ -80,12 +80,28 @@ differs between checkpoints. Only ticket tokens are replaced; hypotheses, specia
 
 Recent System One models instead consume a state and typed questions and score the allowed options directly:
 
+The demo includes [Decider-0.8B](https://huggingface.co/Mapika/decider-0.8b), a trained Qwen3.5 decision checkpoint.
+It uses the native state-first prompt and one forward pass, reading option-letter logits without generating text.
+The checkpoint's choice temperature calibrates displayed probabilities; attribution targets the uncalibrated logits.
+Its tokenizer has no mask token, so the adapter explicitly uses one space as the replacement baseline.
+
+The extractor stays the same for this decoder architecture:
+
+```python
+extractor = TokenAblation(model, lambda output: output.logits[:, -1, option_token_ids].float())
+result = extractor(
+    {**native_inputs, "use_cache": False, "logits_to_keep": 1}, space_token_id, token_mask=state_mask,
+)
+```
+
+Further candidates include:
+
 | Family | Small checkpoint | Native scoring interface |
 | --- | --- | --- |
 | [Kev](https://github.com/jaredpalmer/kev) | [Kev-0.8B](https://huggingface.co/jaredpalmer/kev-0.8b) | Qwen3.5 backbone, LoRA and pointer head; checkpoint temperature |
 | [Clef](https://huggingface.co/Cloudflare/clef-flash) | Clef-Flash, 9B | Qwen3.5 backbone and joint schema head; logits for all questions/options |
 
-These are integration candidates, not additional validated demo backends. `TokenAblation` does not depend on an
+Kev and Clef are integration candidates, not additional validated demo backends. `TokenAblation` does not depend on an
 encoder architecture: wrap a native scorer as an `nn.Module` accepting keyword `input_ids` and unchanged batch
 metadata, then select `(N, classes)` option logits with `output_transform`. For multiple questions, select one
 question's options while retaining the entire native layout. Disable caches between perturbed forwards, preserve

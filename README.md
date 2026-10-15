@@ -265,14 +265,16 @@ The Streamlit explorer has three tabs, each with a model selector. Models load o
 
 - **Image classifiers**: pretrained torchvision models, class probabilities, CAMs and overlays.
 - **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base), [Qwen3-VL 2B](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) and [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) generate captions. Select a token to view its LayerCAM and next-token probability. The same extractor uses decoder-to-image attention for BLIP and spatial patch features for Qwen/Gemma.
-- **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya), [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) and [DeBERTa](https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0) route support tickets. `TokenAblation` measures each masked token's score effect, with one probability and heatmap per option; signed effects are downloadable as JSON.
+- **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya) and [Decider-0.8B](https://huggingface.co/Mapika/decider-0.8b) score allowed routing choices directly. [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) and [DeBERTa](https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0) provide NLI baselines. All use `TokenAblation`, with one probability and input-token heatmap per option; signed effects are downloadable as JSON.
 
 The image tabs accept JPEG and PNG uploads, cleared on tab changes; other controls persist. A shared cache retains one
 model at a time, with serialized inference. The text demo explains up to 64 ticket tokens and rejects longer inputs.
 The VLM displays its actual processed image alongside the selected token's map. BLIP uses a square crop; Qwen/Gemma
-preserve the aspect ratio. Larger VLMs use bfloat16 weights; a GPU is recommended for responsive interaction.
-Decision effects compare logits after masking one token; effects can interact and need not add up. Laya's probabilities
-retain its native calibration, while MiniLM/DeBERTa use zero-shot entailment
+preserve the aspect ratio. Gemma uses bfloat16 weights to fit memory; Qwen uses float32 on CPU. A GPU is recommended
+for responsive interaction with these larger checkpoints.
+Decision effects compare logits after replacing one token; effects can interact and need not add up. Laya and Decider
+retain native probability calibration. Decider uses a space replacement; the encoders use their mask tokens.
+MiniLM/DeBERTa use zero-shot entailment
 scores normalized across the three routing options. Maps are estimates of relevance, not proof of bias.
 
 Install the optional demo dependencies ([Streamlit](https://streamlit.io/), Transformers and Laya) to run it locally:

@@ -445,7 +445,8 @@ def decision_page():
     if not result or result["request"] != request:
         return
     st.caption(f"{result['model']} · Token ablation on class scores · {result['elapsed']:.2f} s")
-    st.caption("Highlights show how much masking a token lowers a decision score, scaled within each decision.")
+    replacement = "a space" if result["replacement_token"].isspace() else f"`{result['replacement_token']}`"
+    st.caption(f"Highlights show score drops when replacing a token with {replacement}, scaled within each decision.")
     for label, probability, offsets, scores in zip(
         result["labels"],
         result["probabilities"],
