@@ -6,8 +6,8 @@ than a usage question? Jump to [Troubleshooting](troubleshooting.md).
 
 ## Model and task compatibility
 
-TorchCAM needs a spatial feature tensor and a scalar output target to explain. The integration path depends on
-what your model accepts and returns:
+Spatial CAM methods need a feature tensor and a scalar output target. Text classifiers use `TokenIG` at their input
+embedding layer. The integration path depends on what your model accepts and returns:
 
 | Model or task | Support | What TorchCAM needs |
 | --- | --- | --- |
@@ -20,6 +20,7 @@ what your model accepts and returns:
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
 | Detection, segmentation, embedding, or other output | Native with `targets` | Define a scalar target; gradient methods require it to remain differentiable. |
 | Multimodal language model | State adapter with `TAM` | Final language-model image/text states, context token IDs, and a linear vocabulary head. |
+| Text decision classifier | Native with [`TokenIG`](text-decisions.md) | Differentiable class scores and an input embedding module; optional output selector and token mask. |
 
 ## Use your own model
 

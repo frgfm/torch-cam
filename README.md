@@ -45,7 +45,7 @@
   </a>
 </p>
 
-Simple way to leverage the class-specific activation of convolutional and transformer layers in PyTorch.
+Explain PyTorch decisions with class activation maps for images and token contributions for text classifiers.
 
 Debugging one surprising classifier result? Use the [predicted-versus-expected agent workflow](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/), install the [portable skill](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/SKILL.md) in your coding agent with `npx skills add frgfm/torch-cam`, or start from [`llms.txt`](https://frgfm.github.io/torch-cam/llms.txt).
 
@@ -62,6 +62,7 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 
 - **12 CAM methods plus VLM token maps**: from CAM and Grad-CAM to LeGrad, RefineCAM and [TAM](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms).
 - **CNNs and Vision Transformers**: automatic target-layer resolution for CNNs, LeGrad and reshape transforms for ViTs.
+- **Text decision models**: fast `TokenAblation` measures each token's effect; `TokenIG` provides embedding Integrated Gradients with numerical checks. Both return class-specific signed maps, including for Laya's decision architecture.
 - **Lean**: fully typed, with only 4 runtime dependencies (PyTorch, NumPy, Pillow, Matplotlib).
 - **Measurable**: built-in faithfulness metrics (average drop, increase in confidence, deletion/insertion).
 - **Agent-ready**: `explain()` saves a manifest-backed evidence bundle that humans and coding agents can verify.
@@ -86,6 +87,34 @@ result.save("torchcam-explanation", image)  # CAMs, heatmaps, overlays and manif
 ```
 
 Pass `expected_class_idx` to compare the prediction with the class you expected. See [Debug one prediction](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/) for the full contract.
+
+### Explain a text decision
+
+Use your existing classifier and tokenizer; TorchCAM adds no Transformers or Laya dependency.
+`TokenAblation` and `TokenIG` are available in the development version (install from source below).
+
+<!-- --8<-- [start:quickstart-text] -->
+```python
+from torchcam.methods import TokenAblation
+
+# model and tokenizer are your loaded text classifier and its tokenizer.
+inputs = tokenizer("I was charged twice. Please refund the duplicate payment.", return_tensors="pt", return_special_tokens_mask=True)
+inputs = {key: value.to(next(model.parameters()).device) for key, value in inputs.items()}
+token_mask = inputs["attention_mask"].bool() & ~inputs.pop("special_tokens_mask").bool()
+extractor = TokenAblation(model, output_transform=lambda output: output.logits)
+result = extractor(inputs, replacement_id=tokenizer.mask_token_id, token_mask=token_mask)
+
+probabilities = result.scores.softmax(-1)  # Use the model's calibration instead when applicable.
+contributions = result.attributions      # (batch, classes, input_tokens), signed class-logit changes
+```
+<!-- --8<-- [end:quickstart-text] -->
+
+Positive effects mean replacing a token lowers that class score; other tokens stay fixed. Effects can interact and
+need not add up. Use a replacement ID appropriate to the model, and exclude special/context tokens with `token_mask`.
+For additive embedding-path contributions, use `TokenIG`. Token effects are not probabilities; highlight positive
+values beside each decision's probability for a simple CAM-style display.
+See [Text decision models](https://frgfm.github.io/torch-cam/getting-started/text-decisions/) for masks, baselines,
+efficiency, the result contract, and Laya integration.
 
 ### Setting your CAM
 
