@@ -14,7 +14,14 @@ from time import perf_counter
 
 import streamlit as st
 import torch
-from inference import DECISION_MODELS, explain_answer_token, explain_decision, generate_answer, load_resource
+from inference import (
+    DECISION_MODELS,
+    VLM_MODELS,
+    explain_answer_token,
+    explain_decision,
+    generate_answer,
+    load_resource,
+)
 from matplotlib import colormaps
 from PIL import Image, ImageOps
 from torchvision.models import get_model_weights
@@ -460,7 +467,7 @@ def decision_page():
 def vlm_page():
     st.caption("Generate a caption and explore image evidence for one generated token.")
     with st.sidebar:
-        st.markdown("**BLIP captioner**")
+        model_name = st.selectbox("VLM model", tuple(VLM_MODELS), format_func=VLM_MODELS.__getitem__, key="vlm-model")
         uploaded = st.file_uploader("Input image", type=("png", "jpg", "jpeg"), key="vlm-image")
     try:
         image = read_image(uploaded) if uploaded is not None else None
@@ -468,14 +475,14 @@ def vlm_page():
         st.error("This image cannot be opened safely. Choose a valid PNG or JPEG file.")
         return
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    request = uploaded.getvalue() if uploaded is not None else None
+    request = (model_name, uploaded.getvalue() if uploaded is not None else None)
     if st.button("Generate caption", type="primary", disabled=image is None):
         st.session_state.pop("vlm_result", None)
         st.session_state.pop("vlm_map", None)
         st.session_state.pop("vlm-token", None)
         try:
-            with st.spinner("Loading BLIP and generating a caption…"):
-                result = generate_answer(image, "a picture of", device)
+            with st.spinner(f"Loading {VLM_MODELS[model_name]} and generating a caption…"):
+                result = generate_answer(image, "a picture of", device, model_name)
         except Exception:
             LOGGER.exception("VLM generation failed")
             st.error("The caption could not be generated. Check model availability and available memory, then retry.")
@@ -546,7 +553,7 @@ def main():
     st.caption("Explore what supports a model's output: image regions, visual tokens, or text tokens.")
     # Keep editable controls alive while their tab is not rendered; uploaders cannot be assigned through session state.
     for key in tuple(st.session_state):
-        if key.startswith(("image-", "target-layers-", "decision-", "ticket-")) or key == "vlm-token":
+        if key.startswith(("image-", "target-layers-", "decision-", "ticket-")) or key in {"vlm-model", "vlm-token"}:
             st.session_state[key] = st.session_state[key]
     tabs = st.tabs(("Image classifiers", "VLMs", "Decision models"), key="explorer", on_change="rerun")
     for tab, page in zip(tabs, (image_page, vlm_page, decision_page), strict=True):

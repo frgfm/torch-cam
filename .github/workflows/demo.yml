@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: demo-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'trusted' }}
+  group: demo-preview-467
   cancel-in-progress: true
 
 env:
@@ -99,7 +99,7 @@ jobs:
       - name: Sync demo to existing Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          PREVIEW_SOURCE_SHA: cc70d0e0b1725c0898b9820b9711899c2817b5a8
+          PREVIEW_SOURCE_SHA: e9c6a65d4168778b4423550ffbb23a3f72cc082c
         shell: bash
         run: |
           set -euo pipefail
@@ -178,10 +178,10 @@ jobs:
               image.write_bytes(response.read())
           PY
           PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/torchcam-browser/node_modules/playwright" \
-            DEMO_CHECK_IMAGE="${RUNNER_TEMP}/border-collie.jpg" node .github/raw_cam_check.cjs
+            DEMO_CHECK_IMAGE="${RUNNER_TEMP}/border-collie.jpg" node .github/nav_check.cjs
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: raw-cam-screenshot
-          path: raw-cam-check/
+          name: nav-demo-screenshots
+          path: nav-demo-check/
           if-no-files-found: warn

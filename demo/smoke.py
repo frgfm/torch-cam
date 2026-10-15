@@ -300,15 +300,20 @@ def check_navigation_and_text_ui():
         ui = AppTest.from_file(Path(__file__).with_name("app.py")).run()
         ui.session_state["ticket-input"] = "Edited support ticket"
         ui.session_state["decision-model"] = "minilm"
+        ui.session_state["vlm-model"] = inference.VLM_ID
         ui.session_state["image-model"] = "resnet50"
         ui.session_state["image-method-resnet50"] = "GradCAM"
         for section in ("Decision models", "VLMs", "Image classifiers", "Decision models", "VLMs", "Image classifiers"):
             ui.session_state["explorer"] = section
             ui.run()
             check(len(ui.exception) == 0, f"Navigation failed in {section}")
+            check(len(ui.tabs) == 3, "Task tabs disappeared")
             if section == "Decision models":
                 check(ui.text_area[0].value == "Edited support ticket", "Tab navigation reset the ticket")
                 check(ui.selectbox[0].value == "minilm", "Tab navigation reset the decision model")
+            elif section == "VLMs":
+                check(ui.selectbox[0].label == "VLM model", "VLM model selector disappeared")
+                check(ui.selectbox[0].value == inference.VLM_ID, "Tab navigation reset the VLM model")
             elif section == "Image classifiers":
                 check(ui.selectbox[0].value == "resnet50", "Tab navigation reset the image model")
                 check(ui.selectbox[1].value == "GradCAM", "Tab navigation reset the CAM method")
