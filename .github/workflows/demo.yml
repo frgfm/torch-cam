@@ -2,7 +2,7 @@ name: demo
 
 on:
   push:
-    branches: main
+    branches: [main, codex/preview-pr-467]
     paths:
       - '.github/workflows/demo.yml'
       - 'demo/**'
@@ -92,18 +92,21 @@ jobs:
       - name: Sync demo to existing Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PREVIEW_SOURCE_SHA: 79748356046489c9b9182c81aee378d4b7e8e13d
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${HF_TOKEN}" || { echo "::error::Repository HF_TOKEN is missing"; exit 1; }
           space_dir="$(mktemp -d)"
           trap 'rm -rf "${space_dir}"' EXIT
 
           git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
+          echo "Previous Space revision: $(git -C "${space_dir}" rev-parse HEAD)"
           mkdir -p "${space_dir}/src"
           cp demo/app.py "${space_dir}/src/streamlit_app.py"
           cp demo/inference.py "${space_dir}/src/inference.py"
           printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
-            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" \
+            "${GITHUB_REPOSITORY}" "${PREVIEW_SOURCE_SHA}" \
             >"${space_dir}/requirements.txt"
 
           git -C "${space_dir}" config user.name "github-actions[bot]"
@@ -114,7 +117,44 @@ jobs:
             exit 0
           fi
 
-          git -C "${space_dir}" commit -m "sync(demo): ${GITHUB_SHA::7}"
+          git -C "${space_dir}" commit -m "sync(demo): ${PREVIEW_SOURCE_SHA::7}"
           git -C "${space_dir}" push \
             "https://frgfm:${HF_TOKEN}@huggingface.co/spaces/frgfm/torch-cam" \
             HEAD:main
+      - name: Wait for the Space runtime and health endpoint
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          from urllib.error import URLError
+          from urllib.request import Request, urlopen
+
+          endpoint = 'https://huggingface.co/api/spaces/frgfm/torch-cam/runtime'
+          headers = {'Authorization': 'Bearer ' + os.environ['HF_TOKEN']}
+          last = None
+          time.sleep(15)
+          for attempt in range(48):
+              with urlopen(Request(endpoint, headers=headers), timeout=30) as response:
+                  runtime = json.load(response)
+              stage = runtime['stage']
+              if stage != last:
+                  print('Space stage:', stage, flush=True)
+                  last = stage
+              if 'ERROR' in stage:
+                  raise SystemExit('Space build/runtime failed: ' + stage)
+              if stage == 'RUNNING':
+                  try:
+                      with urlopen('https://frgfm-torch-cam.hf.space/_stcore/health', timeout=30) as response:
+                          if response.status == 200:
+                              print('Live preview: https://huggingface.co/spaces/frgfm/torch-cam', flush=True)
+                              break
+                  except URLError:
+                      pass
+              time.sleep(15)
+          else:
+              raise SystemExit('Timed out waiting for the deployed Space')
+          PY
