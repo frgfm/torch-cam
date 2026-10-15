@@ -1,31 +1,135 @@
 name: demo
+
 on:
   push:
-    branches: [codex/preview-pr-467]
+    branches: [main, codex/preview-pr-467]
+    paths:
+      - '.github/workflows/demo.yml'
+      - 'demo/**'
+      - 'pyproject.toml'
+  pull_request:
+    paths:
+      - '.github/workflows/demo.yml'
+      - 'demo/**'
+      - 'pyproject.toml'
+  workflow_dispatch:  # Allow trusted manual runs from the Actions tab
+
 permissions:
   contents: read
+
+concurrency:
+  group: demo-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'trusted' }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  UV_VERSION: "0.12.5"  # pinned for reproducible installs across all jobs
+
 jobs:
-  diagnose:
+  sync-to-hub:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect Space configuration and runtime
+      - uses: actions/checkout@v7
+      - name: Sync demo to existing Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          PREVIEW_SOURCE_SHA: cb2c1dab0df37a9e2dc5a1a81b37447836cb55d3
+        shell: bash
         run: |
+          set -euo pipefail
           python - <<'PY'
           import json, os
           from urllib.request import Request, urlopen
-          headers = {'Authorization': 'Bearer ' + os.environ['HF_TOKEN']}
-          for url in (
-              'https://huggingface.co/api/spaces/frgfm/torch-cam/runtime',
-              'https://huggingface.co/api/spaces/frgfm/torch-cam',
-              'https://huggingface.co/spaces/frgfm/torch-cam/raw/main/README.md',
-          ):
-              print('Inspect:', url, flush=True)
-              with urlopen(Request(url, headers=headers), timeout=30) as response:
-                  body = response.read().decode()
-              if url.endswith('/torch-cam'):
-                  info = json.loads(body)
-                  body = json.dumps({key: info.get(key) for key in ('sha', 'runtime', 'cardData')})
-              print(body, flush=True)
+          base = 'https://huggingface.co/api/spaces/frgfm/torch-cam'
+          headers = {'Authorization': 'Bearer ' + os.environ['HF_TOKEN'], 'Content-Type': 'application/json'}
+          with urlopen(Request(base + '/runtime', headers=headers), timeout=30) as response:
+              runtime = json.load(response)
+          for key in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS'):
+              payload = json.dumps({'key': key}).encode()
+              with urlopen(Request(base + '/variables', data=payload, headers=headers, method='DELETE'), timeout=30):
+                  pass
+          print('Removed preview thread variables; retaining the Space runtime defaults')
           PY
+          space_dir="$(mktemp -d)"
+          trap 'rm -rf "${space_dir}"' EXIT
+
+          git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
+          mkdir -p "${space_dir}/src"
+          cp demo/app.py "${space_dir}/src/streamlit_app.py"
+          cp demo/inference.py "${space_dir}/src/inference.py"
+          printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
+            "${GITHUB_REPOSITORY}" "${PREVIEW_SOURCE_SHA}" \
+            >"${space_dir}/requirements.txt"
+
+          git -C "${space_dir}" config user.name "github-actions[bot]"
+          git -C "${space_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "${space_dir}" add requirements.txt src
+          if git -C "${space_dir}" diff --cached --quiet; then
+            echo "Space already matches ${GITHUB_SHA}."
+            exit 0
+          fi
+
+          git -C "${space_dir}" commit -m "sync(demo): ${PREVIEW_SOURCE_SHA::7}"
+          git -C "${space_dir}" push \
+            "https://frgfm:${HF_TOKEN}@huggingface.co/spaces/frgfm/torch-cam" \
+            HEAD:main
+      - name: Wait for the Space runtime and health endpoint
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          from urllib.error import URLError
+          from urllib.request import Request, urlopen
+
+          endpoint = 'https://huggingface.co/api/spaces/frgfm/torch-cam/runtime'
+          headers = {'Authorization': 'Bearer ' + os.environ['HF_TOKEN']}
+          last = None
+          time.sleep(15)
+          for attempt in range(48):
+              with urlopen(Request(endpoint, headers=headers), timeout=30) as response:
+                  runtime = json.load(response)
+              stage = runtime['stage']
+              if stage != last:
+                  print('Space stage:', stage, flush=True)
+                  last = stage
+              if 'ERROR' in stage:
+                  raise SystemExit('Space build/runtime failed: ' + json.dumps(runtime))
+              if stage == 'RUNNING':
+                  try:
+                      with urlopen('https://frgfm-torch-cam.hf.space/_stcore/health', timeout=30) as response:
+                          if response.status == 200:
+                              print('Live preview: https://huggingface.co/spaces/frgfm/torch-cam', flush=True)
+                              break
+                  except URLError:
+                      pass
+              time.sleep(15)
+          else:
+              raise SystemExit('Timed out waiting for the deployed Space')
+          PY
+      - name: Verify the live UI with pretrained models
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund --prefix "${RUNNER_TEMP}/torchcam-browser" playwright@1.57.0
+          "${RUNNER_TEMP}/torchcam-browser/node_modules/.bin/playwright" install --with-deps chromium
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
+          image = Path(os.environ['RUNNER_TEMP']) / 'border-collie.jpg'
+          with urlopen(Request('https://www.woopets.fr/assets/races/000/066/big-portrait/border-collie.jpg', headers={'User-Agent': 'TorchCAM demo validation'}), timeout=60) as response:
+              image.write_bytes(response.read())
+          PY
+          PLAYWRIGHT_PACKAGE="${RUNNER_TEMP}/torchcam-browser/node_modules/playwright" \
+            DEMO_CHECK_IMAGE="${RUNNER_TEMP}/border-collie.jpg" node .github/live_demo_check.cjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: live-demo-screenshots
+          path: live-demo-check/
+          if-no-files-found: warn
