@@ -27,11 +27,10 @@ const fs=require('fs');const {chromium}=require(process.env.PLAYWRIGHT_PACKAGE);
    const gemma=which==='gemma',name=gemma?'Gemma 4 · E2B':'Qwen3-VL · 2B',method=gemma?'LayerCAM':'GradCAM';
    await page.getByRole('tab',{name:'VLMs',exact:true}).click();await choose('VLM model',name);
    const hint=page.getByText('Gemma needs a GPU or a BF16-accelerated CPU. Choose BLIP or Qwen on this server.',{exact:true});
-   if(gemma&&await hint.isVisible()){
-    report.models[name]={available:false,reason:await hint.innerText()};await shot('gemma-hardware');return;
-   }
    await page.locator('input[type=file]').setInputFiles('fixtures/border-collie.jpg');
-   await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Generate caption'&&!b.disabled));
+   const enabled=()=>page.waitForFunction(()=>[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Generate caption'&&!b.disabled));
+   const available=gemma?await Promise.race([hint.waitFor().then(()=>false),enabled().then(()=>true)]):await enabled().then(()=>true);
+   if(!available){report.models[name]={available:false,reason:await hint.innerText()};await shot('gemma-hardware');return;}
    report.phase='generate';save();const started=Date.now();await page.getByRole('button',{name:'Generate caption',exact:true}).click();
    const box=page.getByRole('combobox',{name:'Caption token',exact:true});
    await Promise.race([box.waitFor(),page.getByText('The caption could not be generated. Check model availability and available memory, then retry.',{exact:true}).waitFor().then(()=>{throw Error(name+' generation failed')})]);

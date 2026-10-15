@@ -18,7 +18,7 @@ jobs:
           for run_id in 38803145222 38804825870; do
             gh api --method POST "repos/frgfm/torch-cam/actions/runs/${run_id}/cancel" || true
           done
-      - name: Align CPU threads with the validated runtime and restart
+      - name: Restore supported runtime settings and restart
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -28,12 +28,12 @@ jobs:
           base='https://huggingface.co/api/spaces/frgfm/torch-cam'
           headers={'Authorization':'Bearer '+os.environ['HF_TOKEN'],'Content-Type':'application/json'}
           with urlopen(Request(base+'/runtime',headers=headers),timeout=30) as r:runtime=json.load(r)
-          assert runtime['hardware']['current']=='cpu-basic',runtime['hardware']
+          assert runtime['hardware'].get('requested')=='cpu-basic',runtime['hardware']
           for key in ['OMP_NUM_THREADS','MKL_NUM_THREADS']:
-              data=json.dumps({'key':key,'value':'2','description':'Match the CPU thread count used for pretrained demo validation.'}).encode()
-              with urlopen(Request(base+'/variables',headers=headers,data=data,method='POST'),timeout=30):pass
+              data=json.dumps({'key':key}).encode()
+              with urlopen(Request(base+'/variables',headers=headers,data=data,method='DELETE'),timeout=30):pass
           with urlopen(Request(base+'/restart',headers=headers,data=b'{}',method='POST'),timeout=30):pass
-          print('Restarted the existing CPU Space with two inference threads',flush=True)
+          print('Restored the Space runtime defaults and restarted',flush=True)
           time.sleep(10)
           for attempt in range(60):
               with urlopen(Request(base+'/runtime',headers=headers),timeout=30) as r:runtime=json.load(r)
