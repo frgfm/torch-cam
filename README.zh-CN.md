@@ -119,10 +119,15 @@ plt.imshow(activation_map[0].squeeze(0).numpy()); plt.axis('off'); plt.tight_lay
 ```python
 import matplotlib.pyplot as plt
 from torchvision.transforms.v2.functional import to_pil_image
+from torchvision.transforms.functional import center_crop, resize
 from torchcam.utils import overlay_mask
 
-# 调整 CAM 大小并叠加到图片上
-result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
+# 保留模型实际看到的缩放与裁剪区域，不做归一化。
+model_image = center_crop(
+    resize(img, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+    preprocess.crop_size,
+)
+result = overlay_mask(to_pil_image(model_image), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
 
