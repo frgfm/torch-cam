@@ -96,56 +96,30 @@ def load_resource(family, model_name, device):
         )
 
         if family == "vlm" and model_name in VLM_MODELS:
+            checkpoint = model_name
             revision = VLM_REVISIONS.get(model_name)
-            processor = AutoProcessor.from_pretrained(model_name, revision=revision)
+            processor = AutoProcessor.from_pretrained(checkpoint, revision=revision)
             loader = BlipForConditionalGeneration if model_name == VLM_ID else AutoModelForImageTextToText
             full_precision = model_name == VLM_ID or (device == "cpu" and model_name.startswith("Qwen/"))
             dtype = torch.float32 if full_precision else torch.bfloat16
-            model = (
-                loader
-                .from_pretrained(
-                    model_name,
-                    revision=revision,
-                    dtype=dtype,
-                    attn_implementation="eager",
-                )
-                .eval()
-                .to(device)
-            )
-        elif family == "decision" and model_name == "decider":
+            options = {"attn_implementation": "eager"}
+        elif family == "decision" and model_name in {*NLI_MODELS, "decider"}:
+            checkpoint = DECIDER_ID if model_name == "decider" else NLI_MODELS[model_name]
+            revision = DECIDER_REVISION if model_name == "decider" else None
+            processor = AutoTokenizer.from_pretrained(checkpoint, revision=revision, use_fast=True)
+            loader = AutoModelForCausalLM if model_name == "decider" else AutoModelForSequenceClassification
+            dtype, options = torch.float32, {}
+        else:
+            raise ValueError("Unknown demo model")
+        model = loader.from_pretrained(checkpoint, revision=revision, dtype=dtype, **options).eval().to(device)
+        if family == "decision" and model_name == "decider":
             from huggingface_hub import hf_hub_download  # noqa: PLC0415
 
-            processor = AutoTokenizer.from_pretrained(DECIDER_ID, revision=DECIDER_REVISION, use_fast=True)
-            model = (
-                AutoModelForCausalLM
-                .from_pretrained(
-                    DECIDER_ID,
-                    revision=DECIDER_REVISION,
-                    dtype=torch.float32,
-                )
-                .eval()
-                .to(device)
-            )
-            metadata = json.loads(
-                Path(
-                    hf_hub_download(
-                        DECIDER_ID,
-                        "decider_config.json",
-                        revision=DECIDER_REVISION,
-                    )
-                ).read_text(encoding="utf-8")
-            )
+            path = hf_hub_download(checkpoint, "decider_config.json", revision=revision)
+            metadata = json.loads(Path(path).read_text(encoding="utf-8"))
             model.config.decision_temperature = (metadata.get("temperature_by_type") or {}).get(
                 "choice", metadata["temperature"]
             )
-        elif family == "decision" and model_name in NLI_MODELS:
-            checkpoint = NLI_MODELS[model_name]
-            processor = AutoTokenizer.from_pretrained(checkpoint, use_fast=True)
-            model = (
-                AutoModelForSequenceClassification.from_pretrained(checkpoint, dtype=torch.float32).eval().to(device)
-            )
-        else:
-            raise ValueError("Unknown demo model")
         model.requires_grad_(False)
     return model, processor, Lock()
 
@@ -419,7 +393,6 @@ def generate_answer(image, prompt, device, model_name=VLM_ID):
             "input_image": model_input,
             "grid_shape": grid,
             "inputs": {key: value.cpu() for key, value in inputs.items()},
-            "pixel_values": inputs["pixel_values"].cpu(),
             "generated_ids": ids,
             "answer": processor.tokenizer.decode(ids[start:], skip_special_tokens=True),
             "choices": choices,

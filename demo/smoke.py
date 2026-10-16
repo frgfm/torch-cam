@@ -16,6 +16,7 @@ from io import BytesIO
 from pathlib import Path
 from threading import Lock
 from types import SimpleNamespace
+from unittest import TestCase
 from unittest.mock import patch
 from urllib.request import Request, urlopen
 
@@ -32,23 +33,16 @@ from tokenizers.pre_tokenizers import Whitespace
 from tokenizers.processors import TemplateProcessing
 from torchvision.models import get_model
 from transformers import (
-    BlipConfig,
+    AutoConfig,
+    AutoModelForCausalLM,
+    AutoModelForImageTextToText,
+    AutoModelForSequenceClassification,
     BlipForConditionalGeneration,
     BlipImageProcessor,
     BlipProcessor,
-    DebertaV2Config,
-    DebertaV2ForSequenceClassification,
-    Gemma4Config,
-    Gemma4ForConditionalGeneration,
     ModernBertConfig,
     ModernBertModel,
     PreTrainedTokenizerFast,
-    Qwen3_5ForCausalLM,
-    Qwen3_5TextConfig,
-    Qwen3VLConfig,
-    Qwen3VLForConditionalGeneration,
-    RobertaConfig,
-    RobertaForSequenceClassification,
 )
 from transformers.models.gemma4.image_processing_gemma4 import Gemma4ImageProcessor
 from transformers.models.qwen2_vl.image_processing_qwen2_vl import Qwen2VLImageProcessor
@@ -198,43 +192,46 @@ def fixture_tokenizer():
     )
 
 
+def check_decision_report(report, model):
+    check(
+        len(report["probabilities"]) == len(report["attributions"]) == len(report["offsets"]) == 3,
+        "Routing rows do not align",
+    )
+    # Native Laya probabilities are rounded to four decimals.
+    check(abs(sum(report["probabilities"]) - 1) < 1.5e-4, "Routing probabilities do not sum to one")
+    for offsets, values in zip(report["offsets"], report["attributions"], strict=True):
+        check(all(0 <= a <= b <= len(report["text"]) for a, b in offsets), "Offsets exceed the original ticket")
+        check(
+            all(v == 0 for offset, v in zip(offsets, values, strict=True) if offset == [0, 0]),
+            "Attributed fixed context",
+        )
+    check(hook_count(model) == 0, "Decision adapter leaked hooks")
+    json.dumps(report, allow_nan=False)
+
+
 def check_decision_adapters():
     # Native architectures with random weights verify adapters, not learned routing behavior.
     torch.manual_seed(19)
     tokenizer = fixture_tokenizer()
     text = "Customer José: charged twice refund duplicate payment."
-    models = {
-        "minilm": RobertaForSequenceClassification(
-            RobertaConfig(
-                **TEXT_CONFIG,
-                max_position_embeddings=256,
-                id2label={0: "contradiction", 1: "entailment", 2: "neutral"},
-            )
-        ),
-        "deberta": DebertaV2ForSequenceClassification(
-            DebertaV2Config(
-                **TEXT_CONFIG,
-                max_position_embeddings=256,
-                id2label={0: "entailment", 1: "not_entailment"},
-            )
-        ),
-    }
-    for name, model in models.items():
-        model.eval().requires_grad_(False)
-        result, maps, offsets, probabilities, _ = inference.explain_nli(model, tokenizer, text)
-        check(len(maps) == len(offsets) == len(probabilities) == 3, "NLI routing rows do not align")
-        check(abs(sum(probabilities) - 1) < 1e-6, "NLI probabilities do not sum to one")
-        check(bool(result.attributions.isfinite().all()), "NLI token effects are not finite")
-        for row, scores in zip(offsets, maps, strict=True):
-            check(
-                all(score == 0 for offset, score in zip(row, scores, strict=True) if offset == [0, 0]),
-                "NLI attributed fixed hypothesis or special tokens",
-            )
-        check(hook_count(model) == 0, "NLI adapter leaked hooks")
+    for name, architecture, labels in (
+        ("minilm", "roberta", ("contradiction", "entailment", "neutral")),
+        ("deberta", "deberta-v2", ("entailment", "not_entailment")),
+    ):
+        config = AutoConfig.for_model(
+            architecture, **TEXT_CONFIG, max_position_embeddings=256, id2label=dict(enumerate(labels))
+        )
+        model = AutoModelForSequenceClassification.from_config(config).eval().requires_grad_(False)
         with patch.object(inference, "load_resource", return_value=(model, tokenizer, Lock())):
             report = inference.explain_decision(text, name, "cpu")
-        check(len(report["scores"]) == 3 and report["method"] == "TokenAblation", "Routing score columns do not align")
-        json.dumps(report, allow_nan=False)
+        check_decision_report(report, model)
+        hypotheses = [
+            f"This ticket is about {description.lower()}" for description in inference.QUESTION["criteria"].values()
+        ]
+        inputs = tokenizer([text] * 3, hypotheses, padding=True, return_tensors="pt")
+        with torch.no_grad():
+            expected = model(**inputs).logits[:, labels.index("entailment")]
+        torch.testing.assert_close(torch.tensor(report["scores"]), expected)
     for layout in ("sequential", "parallel"):
         with tempfile.TemporaryDirectory(prefix="torchcam-laya-") as directory:
             path = Path(directory)
@@ -264,28 +261,21 @@ def check_decision_adapters():
             )
             save_file(native.state_dict(), str(path / "model.safetensors"))
             agent = Agent(str(path), device="cpu", backend="eager")
-            result, maps, offsets, probabilities, _ = inference.explain_laya(agent, text)
+            with patch.object(inference, "load_resource", return_value=(agent, tokenizer, Lock())):
+                report = inference.explain_decision(text, "laya", "cpu")
+            check_decision_report(report, agent.model)
             temperature = agent.temperature_by_options[temp_bucket(0, 3)]
-            expected = (result.scores[0] / temperature).softmax(-1)
-            torch.testing.assert_close(torch.tensor(probabilities), expected, atol=5.1e-5, rtol=0)
-            check(
-                all(len(row) == len(offset) for row, offset in zip(maps, offsets, strict=True)),
-                "Laya state offsets do not align",
-            )
-            check(bool(result.attributions.isfinite().all()), "Laya token effects are not finite")
-            check(hook_count(agent.model) == 0, "Laya adapter leaked hooks")
-            try:
+            expected = (torch.tensor(report["scores"]) / temperature).softmax(-1)
+            torch.testing.assert_close(torch.tensor(report["probabilities"]), expected, atol=5.1e-5, rtol=0)
+            with TestCase().assertRaisesRegex(ValueError, "Shorten"):  # noqa: PT027 - demo extras do not include pytest.
                 inference.explain_laya(agent, "refund " * 400)
-            except ValueError as error:
-                check("Shorten" in str(error), "Unexpected truncation error")
-            else:
-                raise AssertionError("Laya silently explained a truncated ticket")
 
 
 def check_decider_adapter():
     tokenizer = fixture_tokenizer()
     tokenizer.add_tokens(["A", "B", "C"])
-    config = Qwen3_5TextConfig(
+    config = AutoConfig.for_model(
+        "qwen3_5_text",
         **TEXT_CONFIG,
         num_key_value_heads=2,
         head_dim=8,
@@ -296,7 +286,7 @@ def check_decider_adapter():
         linear_num_value_heads=2,
         layer_types=["linear_attention", "full_attention"],
     )
-    model = Qwen3_5ForCausalLM(config).eval().requires_grad_(False)
+    model = AutoModelForCausalLM.from_config(config).eval().requires_grad_(False)
     model.config.decision_temperature = 1.03
     text = "Customer José: charged twice refund duplicate payment."
     encode = tokenizer.encode
@@ -308,21 +298,36 @@ def check_decider_adapter():
         report = inference.explain_decision(text, "decider", "cpu")
     expected = (torch.tensor(report["scores"]) / model.config.decision_temperature).softmax(-1)
     torch.testing.assert_close(torch.tensor(report["probabilities"]), expected)
-    for row, values in zip(report["offsets"], report["attributions"], strict=True):
-        check(all(0 <= a <= b <= len(text) for a, b in row), "Decider offsets exceed the original state")
-        check(
-            all(value == 0 for offset, value in zip(row, values, strict=True) if offset == [0, 0]),
-            "Decider attributed question or option tokens",
-        )
-    check(report["replacement_token"].isspace() and hook_count(model) == 0, "Invalid Decider baseline or leaked hooks")
-    json.dumps(report, allow_nan=False)
+    check_decision_report(report, model)
+    check(report["replacement_token"].isspace(), "Invalid Decider replacement baseline")
+
+
+def check_vlm_result(model, processor, result, index):
+    with patch.object(inference, "load_resource", return_value=(model, processor, Lock())):
+        cam, probability = inference.explain_answer_token(result, index, "cpu")
+        check(tuple(cam.shape) == (1, *result["grid_shape"]) and cam.isfinite().all(), "Invalid native VLM map")
+        inputs = {key: value.clone() for key, value in result["inputs"].items()}
+        inputs["input_ids"] = torch.tensor([result["generated_ids"][:index]])
+        inputs["attention_mask"] = torch.ones_like(inputs["input_ids"])
+        for key in ("mm_token_type_ids", "token_type_ids"):
+            if key in inputs:
+                inputs[key] = torch.nn.functional.pad(inputs[key], (0, index - inputs[key].shape[1]))
+        with torch.no_grad():
+            output = model(**inputs, use_cache=False, logits_to_keep=1)
+            expected = output.logits[0, -1].float().softmax(-1)[result["generated_ids"][index]]
+        check(abs(float(expected) - probability) < 1e-6, "VLM score differs from native prefix replay")
+        changed = {**result, "generated_ids": [*result["generated_ids"][: index + 1], 99]}
+        future, future_probability = inference.explain_answer_token(changed, index, "cpu")
+        torch.testing.assert_close(cam, future, atol=0, rtol=0)
+        check(probability == future_probability and hook_count(model) == 0, "Future-token leakage or leftover hooks")
 
 
 def check_vlm_adapter():
     torch.manual_seed(7)
     tokenizer = fixture_tokenizer()
     processor = BlipProcessor(BlipImageProcessor(size={"height": 32, "width": 32}), tokenizer)
-    config = BlipConfig(
+    config = AutoConfig.for_model(
+        "blip",
         vision_config={
             "image_size": 32,
             "patch_size": 8,
@@ -338,43 +343,26 @@ def check_vlm_adapter():
     model.generation_config.suppress_tokens = [index for index in range(256) if index not in range(5, 20)]
     with patch.object(inference, "load_resource", return_value=(model, processor, Lock())):
         result = inference.generate_answer(Image.new("RGB", (48, 24), "red"), "describe image", "cpu")
-        index = result["choices"][2]
-        cam, probability = inference.explain_answer_token(result, index, "cpu")
-        prefix = torch.tensor([result["generated_ids"][:index]])
-        with torch.no_grad():
-            reference = model(pixel_values=result["pixel_values"], input_ids=prefix, use_cache=False)
-        expected = float(reference.logits[0, -1].softmax(-1)[result["generated_ids"][index]])
-        check(abs(probability - expected) < 1e-6, "VLM probability differs from native incremental generation")
-        check(tuple(cam.shape) == (1, 4, 4), "VLM map does not match the native visual-token grid")
-        check(bool(cam.isfinite().all()) and 0 < probability < 1, "VLM outputs are not finite")
-        check(result["input_image"].size == (32, 32), "VLM overlay does not show the actual model crop")
-        changed = {**result, "generated_ids": result["generated_ids"][: index + 1] + [6] * 5}
-        future_cam, future_probability = inference.explain_answer_token(changed, index, "cpu")
-        torch.testing.assert_close(cam, future_cam, atol=0, rtol=0)
-        check(probability == future_probability, "VLM explanation leaked future answer tokens")
-        check(hook_count(model) == 0, "VLM adapter leaked hooks")
+        check(result["input_image"].size == (32, 32) and result["grid_shape"] == (4, 4), "Incorrect BLIP crop/grid")
+        check_vlm_result(model, processor, result, result["choices"][2])
 
 
 def check_vlm_families():
     inference.load_resource.clear()
-    with patch.object(inference, "vlm_device_supported", return_value=False):
-        try:
-            inference.load_resource("vlm", "google/gemma-4-E2B-it", "cpu")
-        except ValueError as error:
-            check("BF16" in str(error), "Missing interactive-device explanation")
-        else:
-            raise AssertionError("Unsupported Gemma CPU attempted to load a checkpoint")
+    with (
+        patch.object(inference, "vlm_device_supported", return_value=False),
+        TestCase().assertRaisesRegex(ValueError, "BF16"),  # noqa: PT027 - keep this smoke check dependency-free.
+    ):
+        inference.load_resource("vlm", "google/gemma-4-E2B-it", "cpu")
     torch.manual_seed(13)
-    image = Image.new("RGB", (64, 48), "red")
-    image.paste("green", (32, 0, 64, 24))
-    image.paste("blue", (0, 24, 32, 48))
-    image.paste("white", (32, 24, 64, 48))
+    image = Image.fromarray(torch.randint(0, 256, (48, 64, 3), dtype=torch.uint8).numpy())
     text = {**TEXT_CONFIG, "num_key_value_heads": 2, "head_dim": 8}
     for family in ["qwen", "gemma"]:
         if family == "qwen":
             proc = Qwen2VLImageProcessor(patch_size=8, merge_size=2, temporal_patch_size=2, do_resize=False)
             pixels = proc(images=[image], return_tensors="pt")
-            config = Qwen3VLConfig(
+            config = AutoConfig.for_model(
+                "qwen3_vl",
                 image_token_id=20,
                 vision_start_token_id=21,
                 vision_end_token_id=22,
@@ -392,12 +380,12 @@ def check_vlm_families():
                     "deepstack_visual_indexes": [0],
                 },
             )
-            model = Qwen3VLForConditionalGeneration(config)
         else:
             proc = Gemma4ImageProcessor(patch_size=8, pooling_kernel_size=2, max_soft_tokens=70, do_resize=False)
             pixels = proc(images=[image], return_tensors="pt")
             pixels.pop("num_soft_tokens_per_image")
-            config = Gemma4Config(
+            config = AutoConfig.for_model(
+                "gemma4",
                 image_token_id=20,
                 boi_token_id=21,
                 eoi_token_id=22,
@@ -420,8 +408,7 @@ def check_vlm_families():
                     "position_embedding_size": 64,
                 },
             )
-            model = Gemma4ForConditionalGeneration(config)
-        model.eval().requires_grad_(False)
+        model = AutoModelForImageTextToText.from_config(config).eval().requires_grad_(False)
         ids = [1, 21] + [20] * 12 + [22, 10, 11]
         pixels["input_ids"] = torch.tensor([ids])
         pixels["attention_mask"] = torch.ones_like(pixels["input_ids"])
@@ -432,11 +419,10 @@ def check_vlm_families():
             grid == ((3, 4) if family == "qwen" else (6, 8)) and display.size == image.size,
             "Non-square patch geometry changed",
         )
-        for xy in [(8, 8), (40, 8), (8, 32), (40, 32)]:
-            check(
-                max(abs(a - b) for a, b in zip(display.getpixel(xy), image.getpixel(xy), strict=True)) <= 1,
-                "Patch projection transposes or scrambles pixels",
-            )
+        check(
+            max(abs(a - b) for a, b in zip(display.tobytes(), image.tobytes(), strict=True)) <= 1,
+            "Patch projection transposes or scrambles pixels",
+        )
         result = {
             "inputs": inputs,
             "generated_ids": [*ids, 12, 13, 14],
@@ -444,17 +430,7 @@ def check_vlm_families():
             "grid_shape": grid,
             "model_id": family,
         }
-        with patch.object(inference, "load_resource", return_value=(model, processor, Lock())):
-            cam, prob = inference.explain_answer_token(result, len(ids) + 1, "cpu")
-            check(tuple(cam.shape) == (1, *grid) and cam.isfinite().all(), "Invalid native VLM map")
-            current = inference.answer_inputs(result, len(ids) + 1, "cpu")
-            with torch.no_grad():
-                reference = model(**current, use_cache=False, logits_to_keep=1).logits[0, -1].float().softmax(-1)[13]
-            check(abs(float(reference) - prob) < 1e-6, "VLM score does not match the native prefix replay")
-            changed = {**result, "generated_ids": result["generated_ids"][: len(ids) + 2] + [99] * 3}
-            future, future_prob = inference.explain_answer_token(changed, len(ids) + 1, "cpu")
-            torch.testing.assert_close(cam, future, atol=0, rtol=0)
-            check(prob == future_prob and hook_count(model) == 0, "Future-token leakage or leftover hooks")
+        check_vlm_result(model, processor, result, len(ids) + 1)
 
 
 def check_navigation_and_text_ui():
