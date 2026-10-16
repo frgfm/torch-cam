@@ -3,7 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
@@ -229,7 +229,9 @@ class TokenIG:
             )
 
     @contextmanager
-    def _forward(self, inputs: Mapping[str, Any], replacement: Tensor | None = None) -> Iterator[tuple[Tensor, Tensor]]:
+    def _forward(
+        self, inputs: Mapping[str, Any], replacement: Tensor | None = None
+    ) -> Generator[tuple[Tensor, Tensor], None, None]:
         captured: list[Tensor] = []
         record = True
 
