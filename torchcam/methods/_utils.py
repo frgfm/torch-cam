@@ -54,7 +54,7 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
 
             # forward empty
             with torch.no_grad():
-                _ = mod(torch.zeros((1, *input_shape), device=next(mod.parameters()).device))
+                _ = mod(next(mod.parameters()).new_zeros((1, *input_shape)))
         finally:
             for handle in hook_handles:
                 handle.remove()
