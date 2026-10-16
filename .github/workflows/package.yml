@@ -126,7 +126,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Check the headers
-        uses: frgfm/lint-my-headers@212e4f9d0b863ea869c41ae315b5c6cc5cf6ad2e # v0.7.0
+        uses: frgfm/lint-my-headers@879d4a8d107215724f2848ae40e485a2c4f97adb # v0.8.0
 
   test:
     runs-on: ubuntu-latest
