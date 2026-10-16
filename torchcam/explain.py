@@ -71,10 +71,8 @@ class PredictionExplanation:
         """
         if not isinstance(image, Image):
             raise TypeError("`image` must be a PIL image")
-        if image.mode not in {"1", "L", "I", "F", "I;16", "I;16L", "I;16B", "RGB"}:
-            raise ValueError(
-                f"unsupported image mode {image.mode!r}; use RGB or grayscale (1, L, I, F, I;16, I;16L, I;16B)"
-            )
+        if image.mode not in {"1", "L", "I", "F", "I;16", "I;16B", "RGB"}:
+            raise ValueError(f"unsupported image mode {image.mode!r}; use RGB or grayscale (1, L, I, F, I;16, I;16B)")
         if image.size != (self.input_shape[-1], self.input_shape[-2]):
             raise ValueError("`image` must match the model input size; pass the resized/cropped model-view image")
         if context is not None and (

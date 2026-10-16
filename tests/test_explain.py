@@ -332,7 +332,7 @@ def test_save_preserves_float_and_signed_integer_grayscale(tmp_path, mode):
         np.testing.assert_array_equal(stored_input, values)
 
 
-@pytest.mark.parametrize("mode", ["1", "L", "I;16", "I;16L", "I;16B"])
+@pytest.mark.parametrize("mode", ["1", "L", "I;16", "I;16B"])
 def test_save_preserves_other_grayscale_pixels(tmp_path, mode):
     values = (np.arange(64).reshape(8, 8) * 1024).astype(np.uint16)
     image = Image.fromarray(values).convert(mode)
@@ -344,7 +344,7 @@ def test_save_preserves_other_grayscale_pixels(tmp_path, mode):
         np.testing.assert_array_equal(stored_input, image)
 
 
-@pytest.mark.parametrize("mode", ["YCbCr", "HSV", "LAB", "P", "RGBA", "CMYK"])
+@pytest.mark.parametrize("mode", ["YCbCr", "HSV", "LAB", "P", "RGBA", "CMYK", "I;16L"])
 def test_save_rejects_unsupported_image_modes_before_writing(tmp_path, mode):
     result = explain(_TinyCNN().eval(), torch.randn(1, 3, 8, 8), target_layer="features.1")
     output_dir = tmp_path / "missing-parent" / "bundle"
