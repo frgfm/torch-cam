@@ -1,6 +1,9 @@
 # TorchCAM: class activation explorer
 
-TorchCAM provides a minimal yet flexible way to explore the spatial importance of features on your model's outputs: classes, detected boxes, segmentation masks or VLM tokens. Check out the live demo on [HuggingFace Spaces](https://huggingface.co/spaces/frgfm/torch-cam) 🤗
+TorchCAM explains PyTorch models with spatial activation maps for images (classes, detected boxes, segmentation masks
+or VLM tokens) and signed input-token contributions for text decisions. The [Streamlit explorer](https://github.com/frgfm/torch-cam#playground-app) separates image
+classifiers, VLMs and decision models into lazily rendered tabs. The deployed demo is on
+[HuggingFace Spaces](https://huggingface.co/spaces/frgfm/torch-cam) 🤗
 
 <p align="center">
     <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" alt="CAM visualization" width="70%">
@@ -11,7 +14,7 @@ TorchCAM provides a minimal yet flexible way to explore the spatial importance o
 
 This project is meant for:
 
-* ⚡ **exploration**: easily assess the influence of spatial features on classification outputs
+* ⚡ **exploration**: assess which image regions or input tokens support a classification
 * 🐛 **debugging**: compare predicted and expected classes, and save evidence that humans and AI agents can verify
 * 👩‍🔬 **research**: quickly implement your own ideas for new CAM methods
 
@@ -47,6 +50,11 @@ Display it:
 
 ![overlayed_heatmap](https://github.com/frgfm/torch-cam/releases/download/v0.1.2/overlayed_heatmap.png)
 
+## Text decisions
+
+See [Text decision models](getting-started/text-decisions.md) for input-token attribution, the API contract and
+Laya integration. Install the development version from source until the next release.
+
 ## CAM zoo
 
 ### Activation-based methods
@@ -69,3 +77,7 @@ Display it:
 
 * [Advanced usage](getting-started/advanced-usage.md) — supported model and task boundaries, choosing the target layer, batched inputs, ViT/3D, and picking a method.
 * [Troubleshooting](getting-started/troubleshooting.md) — fixes for the `requires grad` error, `NaN`/blank maps, and hook issues.
+
+## Author
+
+TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)).

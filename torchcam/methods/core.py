@@ -5,7 +5,7 @@
 
 import logging
 from abc import abstractmethod
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Generator, Mapping
 from contextlib import AbstractContextManager, contextmanager
 from difflib import get_close_matches
 from functools import partial
@@ -142,7 +142,7 @@ class _CAM:
         self._hooks_enabled = False
 
     @contextmanager
-    def _hooks_off(self) -> Iterator[None]:
+    def _hooks_off(self) -> Generator[None, None, None]:
         previous = self._hooks_enabled
         self._hooks_enabled = False
         try:

@@ -3,7 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import AbstractContextManager, contextmanager
 from copy import copy
 from typing import Any, Protocol, cast
@@ -33,7 +33,7 @@ class _CAMExtractor(Protocol):
 
 
 @contextmanager
-def _adapt_model_output(model: torch.nn.Module, output_fn: Callable[[Any], Any] | None) -> Iterator[None]:
+def _adapt_model_output(model: torch.nn.Module, output_fn: Callable[[Any], Any] | None) -> Generator[None, None, None]:
     if output_fn is None:
         yield
         return
