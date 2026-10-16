@@ -80,4 +80,4 @@ Laya integration. Install the development version from source until the next rel
 
 ## Author
 
-TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)), founder of [Rimward](https://rimward.ai) (YC S23).
+TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)).

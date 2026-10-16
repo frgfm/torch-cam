@@ -313,7 +313,7 @@ python scripts/eval_latency.py SmoothGradCAMpp
 
 ## 作者
 
-TorchCAM 由 [Rimward](https://rimward.ai)（YC S23）创始人 [François-Guillaume (F-G) Fernandez](https://fgfm.dev)（[@frgfm](https://github.com/frgfm)）创建并维护。
+TorchCAM 由 [François-Guillaume (F-G) Fernandez](https://fgfm.dev)（[@frgfm](https://github.com/frgfm)）创建并维护。
 
 ## 引用
 

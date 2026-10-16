@@ -397,7 +397,7 @@ Each notebook includes setup cells that pin a development snapshot with fixes af
 
 ## Author
 
-TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)), founder of [Rimward](https://rimward.ai) (YC S23).
+TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)).
 
 ## Citation
 
