@@ -1,18 +1,18 @@
 [build-system]
-requires = ["uv_build>=0.12.20,<0.13.0"]
+requires = ["uv_build>=0.13.0,<0.14.0"]
 build-backend = "uv_build"
 
 [project]
 name = "torchcam"
 version = "0.6.0.dev0"
-description = "Class activation maps (Grad-CAM, Score-CAM, LeGrad and more) for PyTorch CNNs and Vision Transformers"
+description = "Class activation maps for PyTorch vision models and input-token attribution for text decision classifiers"
 authors = [
     {name = "François-Guillaume Fernandez", email = "fg-feedback@protonmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.11,<4"
 license = {file = "LICENSE"}
-keywords = ["pytorch", "deep learning", "class activation map", "cnn", "vision-transformer", "gradcam", "grad-cam", "saliency-map", "interpretability", "explainability", "xai"]
+keywords = ["pytorch", "deep learning", "class activation map", "cnn", "vision-transformer", "gradcam", "grad-cam", "saliency-map", "interpretability", "explainability", "xai", "text-classification", "integrated-gradients", "decision-models"]
 classifiers = [
     # https://pypi.org/classifiers/
     "Development Status :: 4 - Beta",
@@ -52,24 +52,27 @@ test = [
 ]
 quality = [
     "lint-my-headers==0.6.0",
-    "ruff==0.16.9",
-    "ty==0.0.84",
-    "prek==0.5.4",
+    "ruff==0.17.0",
+    "ty==0.0.86",
+    "prek==0.5.5",
 ]
 docs = [
     # cf. https://github.com/mkdocs/catalog
     "mkdocs==1.6.1",
     "mkdocs-material[imaging]==9.7.7",
-    "mkdocstrings[python]==1.0.6",
-    "griffe-typingdoc==0.3.1",
+    "mkdocstrings[python]==1.0.7",
+    "pymdown-extensions<12",  # mkdocstrings uses the pre-12 Highlight constructor.
+    "griffe-typingdoc==0.3.2",
     # "termynal==0.13.1",
     # "mkdocs-swagger-ui-tag==0.7.2",
-    "mkdocs-llmstxt==0.5.0",
+    "mkdocs-llmstxt==0.5.1",
 ]
 demo = [
     "Pillow>=12.3.0",
     "streamlit>=1.61.0,<2.0.0",
     "torchvision>=0.19.1,<1.0.0",
+    "transformers==5.19.0",
+    "laya==0.4.6",
 ]
 scripts = [
     "torchvision>=0.19.1,<1.0.0",

@@ -45,3 +45,76 @@ Methods related to gradient-based class activation maps.
             - LayerCAM
             - LeGrad
             - RefineCAM
+
+## Entropy-gradient maps for VLMs
+
+[`EntropyGradient`](#torchcam.methods.EntropyGradient) implements the [paper's](https://arxiv.org/abs/2604.08456)
+map primitive: next-token Shannon entropy, its gradient with respect to projected visual input embeddings,
+then the channel L2 norm. Bright patches indicate sensitivity of uncertainty, not support for a generated word.
+Region selection and iterative cropping are excluded; the full pipeline's answer-accuracy gains are not claimed.
+
+```python
+from torchcam.methods import EntropyGradient
+
+# embeddings: (batch, tokens, channels), requiring gradients BEFORE this forward
+output = language_model(inputs_embeds=embeddings, use_cache=False)
+maps = EntropyGradient((height, width))(
+    output.logits[:, -1], embeddings, visual_tokens=image_positions,
+)  # (batch, height, width), detached and normalized per image
+```
+
+Supply the exact embeddings entering the language model, not final hidden states or post-forward copies/slices.
+`visual_tokens` is an optional boolean mask or ordered integer indices; omit it for an all-visual input.
+Samples must be independent and share a row-major grid and selection. Both forward and attribution need autograd.
+Checkpointed forwards require `use_reentrant=False`.
+`retain_graph=True` permits graph reuse; `normalized=False` retains raw norms. Parameter gradients are preserved.
+Entropy and norms accumulate in float32/float64; they cannot recover gradients lost inside a low-precision model.
+The caller owns model extraction and spatial layout; no automatic VLM adapter or Transformers dependency is added.
+
+::: torchcam.methods.EntropyGradient
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__]
+
+## Input-token attribution for text decisions
+
+`TokenIG` runs embedding Integrated Gradients for each selected classifier score. It returns signed token
+contributions and uncalibrated model scores, with completeness and refinement checks.
+`TokenAblation` instead measures single-token replacement effects using only forwards; effects need not add up.
+See [Text decision models](../getting-started/text-decisions.md) for examples and Laya integration.
+
+::: torchcam.methods.TokenAblation
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__]
+
+::: torchcam.methods.TokenAblationResult
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: []
+
+::: torchcam.methods.TokenIG
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__]
+
+::: torchcam.methods.TokenAttribution
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: []
+
+## Visual token activation maps
+
+Visual explanations for selected vocabulary tokens in multimodal language models. TAM consumes final language-model
+states and a linear vocabulary head directly; it does not use the class CAM hook API.
+
+::: torchcam.methods.TAM
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__]

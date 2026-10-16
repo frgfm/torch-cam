@@ -45,7 +45,7 @@
   </a>
 </p>
 
-Simple way to leverage the class-specific activation of convolutional and transformer layers in PyTorch.
+Explain PyTorch decisions with class activation maps for images and token contributions for text classifiers.
 
 Debugging one surprising classifier result? Use the [predicted-versus-expected agent workflow](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/), install the [portable skill](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/SKILL.md) in your coding agent with `npx skills add frgfm/torch-cam`, or start from [`llms.txt`](https://frgfm.github.io/torch-cam/llms.txt).
 
@@ -60,8 +60,9 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 
 ## Why TorchCAM
 
-- **12 CAM methods, one API**: from CAM and Grad-CAM to Finer-CAM, LeGrad and RefineCAM.
+- **12 CAM methods plus VLM token maps**: from CAM and Grad-CAM to LeGrad, RefineCAM and [TAM](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms).
 - **CNNs and Vision Transformers**: automatic target-layer resolution for CNNs, LeGrad and reshape transforms for ViTs.
+- **Text decision models**: fast `TokenAblation` measures each token's effect; `TokenIG` provides embedding Integrated Gradients with numerical checks. Both return class-specific signed maps, including for Laya's decision architecture.
 - **Lean**: fully typed, with only 4 runtime dependencies (PyTorch, NumPy, Pillow, Matplotlib).
 - **Measurable**: built-in faithfulness metrics (average drop, increase in confidence, deletion/insertion).
 - **Agent-ready**: `explain()` saves a manifest-backed evidence bundle that humans and coding agents can verify.
@@ -93,6 +94,34 @@ result.save("torchcam-explanation", model_image)  # CAMs, heatmaps, overlays and
 ```
 
 Pass `expected_class_idx` to compare the prediction with the class you expected. See [Debug one prediction](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/) for the full contract.
+
+### Explain a text decision
+
+Use your existing classifier and tokenizer; TorchCAM adds no Transformers or Laya dependency.
+`TokenAblation` and `TokenIG` are available in the development version (install from source below).
+
+<!-- --8<-- [start:quickstart-text] -->
+```python
+from torchcam.methods import TokenAblation
+
+# model and tokenizer are your loaded text classifier and its tokenizer.
+inputs = tokenizer("I was charged twice. Please refund the duplicate payment.", return_tensors="pt", return_special_tokens_mask=True)
+inputs = {key: value.to(next(model.parameters()).device) for key, value in inputs.items()}
+token_mask = inputs["attention_mask"].bool() & ~inputs.pop("special_tokens_mask").bool()
+extractor = TokenAblation(model, output_transform=lambda output: output.logits)
+result = extractor(inputs, replacement_id=tokenizer.mask_token_id, token_mask=token_mask)
+
+probabilities = result.scores.softmax(-1)  # Use the model's calibration instead when applicable.
+contributions = result.attributions      # (batch, classes, input_tokens), signed class-logit changes
+```
+<!-- --8<-- [end:quickstart-text] -->
+
+Positive effects mean replacing a token lowers that class score; other tokens stay fixed. Effects can interact and
+need not add up. Use a replacement ID appropriate to the model, and exclude special/context tokens with `token_mask`.
+For additive embedding-path contributions, use `TokenIG`. Token effects are not probabilities; highlight positive
+values beside each decision's probability for a simple CAM-style display.
+See [Text decision models](https://frgfm.github.io/torch-cam/getting-started/text-decisions/) for masks, baselines,
+efficiency, the result contract, and Laya integration.
 
 ### Setting your CAM
 
@@ -209,7 +238,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 
 ## CAM Zoo
 
-This project is developed and maintained by the repo owner, but the implementation was based on the following research papers:
+This project is developed and maintained by [its author](#author), but the implementation was based on the following research papers:
 
 - [Learning Deep Features for Discriminative Localization](https://arxiv.org/abs/1512.04150): the original CAM paper
 - [Grad-CAM](https://arxiv.org/abs/1610.02391): GradCAM paper, generalizing CAM to models without global average pooling.
@@ -244,11 +273,19 @@ The full package documentation is available [here](https://frgfm.github.io/torch
 
 ### Playground app
 
-A minimal demo app is provided for you to play with the supported CAM methods! Feel free to check out the live demo on [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam)
+The Streamlit explorer has three tabs, each with a model selector. Models load only when you request an explanation:
 
-The demo accepts JPEG and PNG uploads.
+- **Image classifiers**: pretrained torchvision models, class probabilities, CAMs and overlays.
+- **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base), [Qwen3-VL 2B](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) and [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) generate captions. Select a token to view its CAM and next-token probability. See [VLM attribution](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms) for architecture-specific targets.
+- **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya) and [Decider-0.8B](https://huggingface.co/Mapika/decider-0.8b) score allowed routing choices directly. [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) and [DeBERTa](https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0) provide NLI baselines. All use `TokenAblation`, with one probability and input-token heatmap per option; signed effects are downloadable as JSON.
 
-If you prefer running the demo by yourself, you will need an extra dependency ([Streamlit](https://streamlit.io/)) for the app to run:
+Uploads accept JPEG/PNG and clear on tab changes; other controls persist. The cache retains one model, with serialized
+inference per model; active requests can keep an evicted model alive during replacement. A GPU is recommended for the
+larger VLMs; Gemma requires CUDA or a BF16-accelerated CPU. The VLM displays its actual processed image beside the map.
+Text explanations are limited to 64 ticket tokens. See [text decision models](https://frgfm.github.io/torch-cam/getting-started/text-decisions/)
+for replacement baselines, native probability calibration and interpretation limits.
+
+Install the optional demo dependencies ([Streamlit](https://streamlit.io/), Transformers and Laya) to run it locally:
 
 ```
 pip install -e ".[demo]"
@@ -259,6 +296,14 @@ You can then easily run your app in your default browser by running:
 ```
 streamlit run demo/app.py
 ```
+
+The first computation downloads the selected pretrained checkpoint; later computations use the local model cache.
+For offline verification, `python demo/smoke.py` checks navigation, UI state, input alignment and native model adapters
+using small random-weight fixtures. These fixtures are only tests; the app always requests pretrained checkpoints.
+`python demo/smoke.py --pretrained` downloads the deployed models, checks routing examples and verifies that masking
+high-ranked regions reduces subject-token confidence more than masking low-ranked regions across multiple removal
+fractions. Gemma is skipped on CPUs without BF16 acceleration. Trusted deployments run it.
+The deployed version is available on [Hugging Face Spaces](https://huggingface.co/spaces/frgfm/torch-cam).
 
 ![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/torchcam_demo.png)
 
@@ -361,6 +406,10 @@ Each notebook includes setup cells that pin a development snapshot with fixes af
 | [Vision Transformers](https://github.com/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb) | Explain a torchvision ViT with LeGrad and token-based GradCAM | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb) |
 | [Latency benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) | Measure CAM extraction and end-to-end latency on your hardware | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) |
 | [Performance benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) | Evaluate confidence and deletion/insertion faithfulness with an explicit baseline | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) |
+
+## Author
+
+TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)).
 
 ## Citation
 
