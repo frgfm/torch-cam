@@ -6,8 +6,8 @@ than a usage question? Jump to [Troubleshooting](troubleshooting.md).
 
 ## Model and task compatibility
 
-TorchCAM needs a spatial feature tensor and a scalar output target to explain. The integration path depends on
-what your model accepts and returns:
+Spatial CAM methods need a feature tensor and a scalar output target. Text classifiers use `TokenIG` at their input
+embedding layer. The integration path depends on what your model accepts and returns:
 
 | Model or task | Support | What TorchCAM needs |
 | --- | --- | --- |
@@ -20,6 +20,7 @@ what your model accepts and returns:
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
 | Detection, segmentation, embedding, or other output | Native with `targets` | Define a scalar target; gradient methods require it to remain differentiable. |
 | Multimodal language model | State adapter with `TAM` | Final language-model image/text states, context token IDs, and a linear vocabulary head. |
+| Text decision classifier | Native with [`TokenIG`](text-decisions.md) | Differentiable class scores and an input embedding module; optional output selector and token mask. |
 
 ## Use your own model
 
@@ -403,6 +404,38 @@ See the latency and faithfulness benchmarks in the [README](https://github.com/f
 for concrete numbers, and the [methods reference](../reference/methods.md) for the full API.
 
 ## Token activation maps for VLMs
+
+### Gradient-based token maps across architectures
+
+`LayerCAM` and `GradCAM` can explain a selected next-token logit with the same API used for image classifiers:
+
+```python
+from torchcam.methods import LayerCAM
+
+# inputs include the processed image and prompt plus earlier answer tokens, excluding the target token.
+inputs["pixel_values"] = inputs["pixel_values"].clone().requires_grad_(True)
+with LayerCAM(model, target_layer=visual_layer, reshape_transform=to_spatial_grid) as extractor:
+    output = model(**inputs, use_cache=False, logits_to_keep=1)
+    maps = extractor(token_id, output.logits[:, -1])
+```
+
+The CAM API stays the same; each architecture supplies a differentiable visual layer and a spatial reshape.
+The [demo adapters](https://github.com/frgfm/torch-cam/blob/main/demo/inference.py)
+cover BLIP, Qwen3-VL and Gemma 4 with a vision tower. Qwen's grouped patches must be reordered before projection;
+Gemma's explicit patch coordinates exclude padding. Qwen uses GradCAM on its main merger and all DeepStack
+injections; Gemma uses LayerCAM at the input normalization of its final vision block. These are feature/method
+presets using the same CAM API. Both target the selected token's log-odds against the rest of the vocabulary,
+removing common logit shifts without softmax saturation. Gradients start at the target features, so earlier frozen
+vision layers need no backward graph. Reconstructed processed pixels keep the overlay aligned. BLIP retains
+decoder cross-attention LayerCAM. Each map is conditional on the preceding caption tokens; a word predictable
+from text alone can have little image dependence.
+
+This interface also applies to other differentiable VLMs; it does not automatically infer arbitrary patch layouts,
+video frames, crops or image stitching. Validate spatial ordering with an asymmetric image, compare the score with
+native prefix replay, and compare masking high- and low-ranked regions for several image-sensitive tokens.
+Gradient sensitivity alone does not establish causal relevance. Quantized inference engines may not expose gradients.
+
+### Gradient-free TAM
 
 [`TAM`](../reference/methods.md#torchcam.methods.TAM) explains which image regions activate a selected vocabulary token.
 It uses final **language-model** states, rather than the vision encoder's features, and requires no gradients,
