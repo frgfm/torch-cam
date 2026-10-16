@@ -138,7 +138,7 @@ class PredictionExplanation:
                 "input_image": input_image,
                 "alpha": alpha,
             }
-            if context is not None:
+            if context:
                 manifest["context"] = dict(context)
             (output_dir / "manifest.json").write_text(
                 json.dumps(manifest, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8"

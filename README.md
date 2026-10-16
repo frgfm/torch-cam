@@ -190,7 +190,7 @@ plt.imshow(activation_map[0].squeeze(0).numpy()); plt.axis('off'); plt.tight_lay
 Or if you wish to overlay it on your input image:
 
 <!-- --8<-- [start:quickstart-overlay] -->
-```python hl_lines="3 6"
+```python hl_lines="4 11"
 import matplotlib.pyplot as plt
 from torchvision.transforms.v2.functional import to_pil_image
 from torchvision.transforms.functional import center_crop, resize

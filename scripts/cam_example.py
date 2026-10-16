@@ -18,7 +18,7 @@ from PIL import Image
 from torchvision.models import get_model, get_model_weights
 from torchvision.models.swin_transformer import SwinTransformer
 from torchvision.models.vision_transformer import VisionTransformer
-from torchvision.transforms.functional import to_pil_image, to_tensor
+from torchvision.transforms.functional import center_crop, resize, to_pil_image, to_tensor
 
 from torchcam import methods
 
@@ -121,6 +121,11 @@ def main(args):
     # Preprocess image
     img_tensor = preprocess(to_tensor(pil_img)).to(device=device)
     img_tensor.requires_grad_(True)
+    # Overlay maps on the resized/cropped view the model sees, not the original frame
+    model_view = center_crop(
+        resize(pil_img, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+        preprocess.crop_size,
+    )
 
     cam_methods = args.method or (
         ["GradCAM"]
@@ -143,7 +148,7 @@ def main(args):
     _, axes = plt.subplots(args.rows, num_cols, figsize=(6, 4), squeeze=False)
     # Display input
     ax = axes.flat[0]
-    ax.imshow(pil_img)
+    ax.imshow(model_view)
     ax.set_title("Input", size=8)
 
     for idx, name in enumerate(cam_methods, 1):
@@ -157,7 +162,7 @@ def main(args):
         # The indexing below means first image in batch
         heatmap = to_pil_image(activation_map, mode="F")
         # Plot the result
-        result = overlay_mask(pil_img, heatmap, alpha=args.alpha)
+        result = overlay_mask(model_view, heatmap, alpha=args.alpha)
 
         ax = axes.flat[idx]
 
