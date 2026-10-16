@@ -46,12 +46,7 @@ class PredictionExplanation:
     class_names: tuple[str, ...] | None = None
 
     def save(
-        self,
-        directory: str | Path,
-        image: Image,
-        alpha: float = 0.5,
-        *,
-        context: Mapping[str, str] | None = None,
+        self, directory: str | Path, image: Image, alpha: float = 0.5, *, context: Mapping[str, str] | None = None
     ) -> Path:
         """Save NumPy maps, heatmaps, overlays, and a completion manifest to a new directory.
 

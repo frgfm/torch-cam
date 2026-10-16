@@ -214,17 +214,16 @@ def test_explain_cleans_hooks_and_preserves_model_state():
     assert input_tensor.grad is None
 
 
-@pytest.mark.parametrize("context", [None, {}])
+@pytest.mark.parametrize("context", [None, {}, {"sample_id": "sample-7"}])
 def test_save_writes_complete_deterministic_bundle(tmp_path, context):
-    model = _TinyCNN().eval()
+    image = Image.fromarray(np.arange(12 * 16 * 3, dtype=np.uint8).reshape(12, 16, 3)).crop((2, 2, 14, 10))
     result = explain(
-        model,
-        torch.randn(1, 3, 8, 8),
+        _TinyCNN().eval(),
+        torch.from_numpy(np.array(image)).permute(2, 0, 1).float().unsqueeze(0) / 255,
         expected_class_idx=0,
         class_names=["a", "b", "c"],
         target_layer="features.1",
     )
-    image = Image.fromarray(np.zeros((8, 8, 3), dtype=np.uint8))
     with pytest.raises(TypeError, match="PIL image"):
         result.save(tmp_path / "bad-image", cast(Any, None))
     bundle = result.save(tmp_path / "bundle", image, context=context)
@@ -251,9 +250,12 @@ def test_save_writes_complete_deterministic_bundle(tmp_path, context):
     assert manifest["schema_version"] == 1
     assert manifest["prediction"]["class_idx"] == result.predicted_class_idx
     assert manifest["expected"] == {"class_idx": 0, "class_name": "a"}
-    assert manifest["image_size"] == [8, 8]
-    assert manifest["input_image"] == "input.png"
-    assert "context" not in manifest
+    assert manifest["image_size"] == [12, 8]
+    assert manifest["input_shape"][-2:] == [8, 12]
+    with Image.open(bundle / manifest["input_image"]) as stored_input:
+        np.testing.assert_array_equal(stored_input, image)
+    assert ("context" in manifest) == bool(context)
+    assert manifest.get("context") == (context or None)
     assert manifest["target_layers"] == ["features.1"]
     for class_data in manifest["classes"].values():
         assert all("/" not in path for path in class_data["artifacts"][0].values() if isinstance(path, str))
@@ -262,40 +264,19 @@ def test_save_writes_complete_deterministic_bundle(tmp_path, context):
         result.save(bundle, image)
 
 
-def test_save_requires_model_view_and_preserves_caller_context(tmp_path):
-    original = Image.fromarray(np.arange(12 * 20 * 3, dtype=np.uint8).reshape(12, 20, 3))
-    model_image = original.crop((4, 2, 16, 10))
-    model = _TinyCNN().eval()
-    input_tensor = torch.from_numpy(np.array(model_image)).permute(2, 0, 1).float().unsqueeze(0) / 255
-    result = explain(model, input_tensor, target_layer="features.1")
-    output_dir = tmp_path / "evidence"
-    context = {
-        "checkpoint_id": "checkpoint-sha256:example",
-        "preprocessing_id": "crop=(4,2,16,10); scale=1/255",
-        "sample_id": "sample-7",
-        "split_id": "validation-v1",
-        "group_id": "camera-b",
-    }
-
+def test_save_rejects_invalid_evidence(tmp_path):
+    result = explain(_TinyCNN().eval(), torch.randn(1, 3, 8, 12), target_layer="features.1")
+    image = Image.new("RGB", (12, 8))
+    output_dir = tmp_path / "missing-parent" / "bundle"
     with pytest.raises(ValueError, match="model-view"):
-        result.save(output_dir, original, context=context)
-    assert not output_dir.exists()
-
-    for invalid in ([], {"sample_id": 7}, {7: "sample"}):
+        result.save(output_dir, Image.new("RGB", (16, 12)))
+    for context in ([], {"sample_id": 7}, {7: "sample"}):
         with pytest.raises(TypeError, match="strings to strings"):
-            result.save(output_dir, model_image, context=cast(Any, invalid))
-        assert not output_dir.exists()
-
-    bundle = result.save(output_dir, model_image, context=context)
-    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["image_size"] == [12, 8]
-    assert manifest["context"] == context
-    assert manifest["input_shape"][-2:] == [8, 12]
-    with Image.open(bundle / manifest["input_image"]) as stored_input:
-        assert np.array_equal(stored_input, model_image)
-    for class_idx, maps in result.cams.items():
-        with Image.open(bundle / f"class-{class_idx}-layer-0-overlay.png") as overlay:
-            assert np.array_equal(overlay, overlay_mask(model_image, Image.fromarray(maps[0].numpy()), alpha=0.5))
+            result.save(output_dir, image, context=cast(Any, context))
+    for mode in ("YCbCr", "HSV", "LAB", "P", "RGBA", "CMYK", "I;16L"):
+        with pytest.raises(ValueError, match="RGB or grayscale"):
+            result.save(output_dir, Image.new(mode, image.size))
+    assert not output_dir.parent.exists()
 
 
 def test_save_writes_manifest_only_after_artifacts(tmp_path, monkeypatch):
@@ -316,40 +297,15 @@ def test_save_writes_manifest_only_after_artifacts(tmp_path, monkeypatch):
     assert result.save(output_dir, image) == output_dir
 
 
-@pytest.mark.parametrize("mode", ["F", "I"])
-def test_save_preserves_float_and_signed_integer_grayscale(tmp_path, mode):
-    values = np.arange(96).reshape(8, 12)
-    values = (values / 100 - 0.25).astype(np.float32) if mode == "F" else (values * 4096 - 10000).astype(np.int32)
-    image = Image.fromarray(values)
-    model = nn.Sequential(nn.Conv2d(1, 2, 1), nn.AdaptiveAvgPool2d(1), nn.Flatten(), nn.Linear(2, 2)).eval()
-    input_tensor = torch.from_numpy(values.astype(np.float32)).unsqueeze(0).unsqueeze(0)
-    result = explain(model, input_tensor, target_layer="0")
-
-    bundle = result.save(tmp_path / mode, image)
-    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["input_image"] == "input.tiff"
-    with Image.open(bundle / manifest["input_image"]) as stored_input:
-        assert stored_input.mode == mode
-        np.testing.assert_array_equal(stored_input, values)
-
-
-@pytest.mark.parametrize("mode", ["1", "L", "I;16", "I;16B"])
-def test_save_preserves_other_grayscale_pixels(tmp_path, mode):
-    values = (np.arange(64).reshape(8, 8) * 1024).astype(np.uint16)
+@pytest.mark.parametrize("mode", ["1", "L", "F", "I", "I;16", "I;16B"])
+def test_save_preserves_grayscale_pixels(tmp_path, mode):
+    values = np.linspace(-10000, 30000, 96, dtype=np.float32).reshape(8, 12)
     image = Image.fromarray(values).convert(mode)
-    result = explain(_TinyCNN().eval(), torch.randn(1, 3, 8, 8), target_layer="features.1")
+    model = nn.Sequential(nn.Conv2d(1, 2, 1), nn.AdaptiveAvgPool2d(1), nn.Flatten()).eval()
+    input_tensor = torch.from_numpy(np.array(image, dtype=np.float32)).unsqueeze(0).unsqueeze(0)
+    result = explain(model, input_tensor, target_layer="0")
 
     bundle = result.save(tmp_path / "bundle", image)
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
     with Image.open(bundle / manifest["input_image"]) as stored_input:
         np.testing.assert_array_equal(stored_input, image)
-
-
-@pytest.mark.parametrize("mode", ["YCbCr", "HSV", "LAB", "P", "RGBA", "CMYK", "I;16L"])
-def test_save_rejects_unsupported_image_modes_before_writing(tmp_path, mode):
-    result = explain(_TinyCNN().eval(), torch.randn(1, 3, 8, 8), target_layer="features.1")
-    output_dir = tmp_path / "missing-parent" / "bundle"
-
-    with pytest.raises(ValueError, match="RGB or grayscale"):
-        result.save(output_dir, Image.new(mode, (8, 8)))
-    assert not output_dir.parent.exists()

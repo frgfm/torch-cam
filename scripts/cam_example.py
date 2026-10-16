@@ -121,7 +121,7 @@ def main(args):
     # Preprocess image
     img_tensor = preprocess(to_tensor(pil_img)).to(device=device)
     img_tensor.requires_grad_(True)
-    # Overlay maps on the resized/cropped view the model sees, not the original frame
+    # Retain the model's resize/crop for overlays.
     model_view = center_crop(
         resize(pil_img, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
         preprocess.crop_size,
