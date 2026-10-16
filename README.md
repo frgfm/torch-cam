@@ -261,11 +261,19 @@ The full package documentation is available [here](https://frgfm.github.io/torch
 
 ### Playground app
 
-A minimal demo app is provided for you to play with the supported CAM methods! Feel free to check out the live demo on [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/frgfm/torch-cam)
+The Streamlit explorer has three tabs, each with a model selector. Models load only when you request an explanation:
 
-The demo accepts JPEG and PNG uploads.
+- **Image classifiers**: pretrained torchvision models, class probabilities, CAMs and overlays.
+- **VLMs**: [BLIP](https://huggingface.co/Salesforce/blip-image-captioning-base), [Qwen3-VL 2B](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) and [Gemma 4 E2B](https://huggingface.co/google/gemma-4-E2B-it) generate captions. Select a token to view its CAM and next-token probability. See [VLM attribution](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms) for architecture-specific targets.
+- **Decision models**: [Laya](https://huggingface.co/convaiinnovations/laya) and [Decider-0.8B](https://huggingface.co/Mapika/decider-0.8b) score allowed routing choices directly. [MiniLM](https://huggingface.co/cross-encoder/nli-MiniLM2-L6-H768) and [DeBERTa](https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0) provide NLI baselines. All use `TokenAblation`, with one probability and input-token heatmap per option; signed effects are downloadable as JSON.
 
-If you prefer running the demo by yourself, you will need an extra dependency ([Streamlit](https://streamlit.io/)) for the app to run:
+Uploads accept JPEG/PNG and clear on tab changes; other controls persist. The cache retains one model, with serialized
+inference per model; active requests can keep an evicted model alive during replacement. A GPU is recommended for the
+larger VLMs; Gemma requires CUDA or a BF16-accelerated CPU. The VLM displays its actual processed image beside the map.
+Text explanations are limited to 64 ticket tokens. See [text decision models](https://frgfm.github.io/torch-cam/getting-started/text-decisions/)
+for replacement baselines, native probability calibration and interpretation limits.
+
+Install the optional demo dependencies ([Streamlit](https://streamlit.io/), Transformers and Laya) to run it locally:
 
 ```
 pip install -e ".[demo]"
@@ -276,6 +284,14 @@ You can then easily run your app in your default browser by running:
 ```
 streamlit run demo/app.py
 ```
+
+The first computation downloads the selected pretrained checkpoint; later computations use the local model cache.
+For offline verification, `python demo/smoke.py` checks navigation, UI state, input alignment and native model adapters
+using small random-weight fixtures. These fixtures are only tests; the app always requests pretrained checkpoints.
+`python demo/smoke.py --pretrained` downloads the deployed models, checks routing examples and verifies that masking
+high-ranked regions reduces subject-token confidence more than masking low-ranked regions across multiple removal
+fractions. Gemma is skipped on CPUs without BF16 acceleration. Trusted deployments run it.
+The deployed version is available on [Hugging Face Spaces](https://huggingface.co/spaces/frgfm/torch-cam).
 
 ![torchcam_demo](https://github.com/frgfm/torch-cam/releases/download/v0.2.0/torchcam_demo.png)
 

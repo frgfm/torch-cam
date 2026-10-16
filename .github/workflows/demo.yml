@@ -44,13 +44,20 @@ jobs:
           UV_TORCH_BACKEND: cpu
         run: make install-demo
       - name: Run demo smoke check
-        run: uv run python demo/smoke.py
+        run: uv run --no-sync python demo/smoke.py
+      - name: Check pretrained models before deployment
+        if: github.event_name != 'pull_request'
+        env:
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: uv run --no-sync python demo/smoke.py --pretrained
       - name: Start demo and wait for health
         shell: bash
         run: |
           set -euo pipefail
           log_file="${RUNNER_TEMP}/torchcam-demo.log"
-          uv run streamlit run demo/app.py \
+          uv run --no-sync streamlit run demo/app.py \
             --server.headless true \
             --server.port 8080 \
             >"${log_file}" 2>&1 &
@@ -102,6 +109,7 @@ jobs:
           git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
           mkdir -p "${space_dir}/src"
           cp demo/app.py "${space_dir}/src/streamlit_app.py"
+          cp demo/inference.py "${space_dir}/src/inference.py"
           printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
             "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" \
             >"${space_dir}/requirements.txt"

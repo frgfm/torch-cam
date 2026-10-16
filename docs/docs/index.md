@@ -1,7 +1,9 @@
 # TorchCAM: class activation explorer
 
 TorchCAM explains PyTorch classifiers with spatial activation maps for images and signed input-token contributions
-for text decisions. Check out the image demo on [HuggingFace Spaces](https://huggingface.co/spaces/frgfm/torch-cam) 🤗
+for text decisions. The [Streamlit explorer](https://github.com/frgfm/torch-cam#playground-app) separates image
+classifiers, VLMs and decision models into lazily rendered tabs. The deployed demo is on
+[HuggingFace Spaces](https://huggingface.co/spaces/frgfm/torch-cam) 🤗
 
 <p align="center">
     <img src="https://github.com/frgfm/torch-cam/releases/download/v0.3.1/example.png" alt="CAM visualization" width="70%">
