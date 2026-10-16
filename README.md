@@ -226,7 +226,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 
 ## CAM Zoo
 
-This project is developed and maintained by the repo owner, but the implementation was based on the following research papers:
+This project is developed and maintained by [its author](#author), but the implementation was based on the following research papers:
 
 - [Learning Deep Features for Discriminative Localization](https://arxiv.org/abs/1512.04150): the original CAM paper
 - [Grad-CAM](https://arxiv.org/abs/1610.02391): GradCAM paper, generalizing CAM to models without global average pooling.
@@ -394,6 +394,10 @@ Each notebook includes setup cells that pin a development snapshot with fixes af
 | [Vision Transformers](https://github.com/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb) | Explain a torchvision ViT with LeGrad and token-based GradCAM | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/vision_transformers.ipynb) |
 | [Latency benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) | Measure CAM extraction and end-to-end latency on your hardware | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/latency_benchmark.ipynb) |
 | [Performance benchmark](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) | Evaluate confidence and deletion/insertion faithfulness with an explicit baseline | [Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) |
+
+## Author
+
+TorchCAM is created and maintained by [François-Guillaume (F-G) Fernandez](https://fgfm.dev) ([@frgfm](https://github.com/frgfm)).
 
 ## Citation
 
