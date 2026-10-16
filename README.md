@@ -45,7 +45,7 @@
   </a>
 </p>
 
-Explain PyTorch decisions with class activation maps for images and token contributions for text classifiers.
+Explain PyTorch decisions: activation maps for image classifiers, detectors, segmenters and VLMs, and token contributions for text classifiers.
 
 Debugging one surprising classifier result? Use the [predicted-versus-expected agent workflow](https://frgfm.github.io/torch-cam/getting-started/debug-prediction/), install the [portable skill](https://github.com/frgfm/torch-cam/blob/main/.agents/skills/torchcam-debug-prediction/SKILL.md) in your coding agent with `npx skills add frgfm/torch-cam`, or start from [`llms.txt`](https://frgfm.github.io/torch-cam/llms.txt).
 
@@ -62,6 +62,7 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 
 - **12 CAM methods plus VLM token maps**: from CAM and Grad-CAM to LeGrad, RefineCAM and [TAM](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms).
 - **CNNs and Vision Transformers**: automatic target-layer resolution for CNNs, LeGrad and reshape transforms for ViTs.
+- **Beyond classification**: explain [detections, segmentation masks and embeddings](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#understanding-targets-and-the-call-signature) with the same extractors.
 - **Text decision models**: fast `TokenAblation` measures each token's effect; `TokenIG` provides embedding Integrated Gradients with numerical checks. Both return class-specific signed maps, including for Laya's decision architecture.
 - **Lean**: fully typed, with only 4 runtime dependencies (PyTorch, NumPy, Pillow, Matplotlib).
 - **Measurable**: built-in faithfulness metrics (average drop, increase in confidence, deletion/insertion).
