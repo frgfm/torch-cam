@@ -3,7 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import partial
 
@@ -14,7 +14,7 @@ __all__ = ["locate_candidate_layer"]
 
 
 @contextmanager
-def _model_eval(model: nn.Module) -> Iterator[None]:
+def _model_eval(model: nn.Module) -> Generator[None, None, None]:
     modes = [(module, module.training) for module in model.modules()]
     try:
         model.eval()
