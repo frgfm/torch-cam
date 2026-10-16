@@ -23,7 +23,7 @@ def overlay_mask(img: Image, mask: Image, colormap: Colormap | str = "jet", alph
         ```
 
     Args:
-        img: background image
+        img: background image; non-8-bit samples are min-max scaled to 0-255, with constants mapped to black
         mask: mask to be overlayed in grayscale
         colormap: colormap to be applied on the mask
         alpha: transparency of the background image

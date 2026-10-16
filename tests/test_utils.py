@@ -61,7 +61,14 @@ def test_overlay_mask_preserves_raw_band_modes(mode: str, shape: tuple[int, ...]
     assert np.abs(expected.astype(np.int16) - actual.astype(np.int16)).max() <= 1
 
 
-@pytest.mark.parametrize("pixels", [np.array([[-10000, 30000]], dtype=np.int32), np.array([[0.2, 0.8]], np.float32)])
+@pytest.mark.parametrize(
+    "pixels",
+    [
+        np.array([[-10000, 30000]], dtype=np.int32),
+        np.array([[0.2, 0.8]], dtype=np.float32),
+        np.array([[1024, 3072]], dtype=np.uint16),
+    ],
+)
 def test_overlay_mask_scales_wide_range_images(pixels: np.ndarray):
     mask = Image.fromarray(np.zeros((1, 2), dtype=np.float32))
 

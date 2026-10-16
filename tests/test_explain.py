@@ -214,7 +214,8 @@ def test_explain_cleans_hooks_and_preserves_model_state():
     assert input_tensor.grad is None
 
 
-def test_save_writes_complete_deterministic_bundle(tmp_path):
+@pytest.mark.parametrize("context", [None, {}])
+def test_save_writes_complete_deterministic_bundle(tmp_path, context):
     model = _TinyCNN().eval()
     result = explain(
         model,
@@ -226,7 +227,7 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
     image = Image.fromarray(np.zeros((8, 8, 3), dtype=np.uint8))
     with pytest.raises(TypeError, match="PIL image"):
         result.save(tmp_path / "bad-image", cast(Any, None))
-    bundle = result.save(tmp_path / "bundle", image)
+    bundle = result.save(tmp_path / "bundle", image, context=context)
 
     expected_files = {"manifest.json", "input.png"}
     for class_idx in result.cams:

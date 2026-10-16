@@ -111,7 +111,7 @@ For custom preprocessing, retain a display copy after resize/crop and before nor
 
 Supported PIL modes are `RGB` and grayscale `1`, `L`, `I`, `F`, `I;16`, and `I;16B`. Other modes fail before any output is written. The `I;16L` alias is excluded because older supported Pillow versions cannot save it as TIFF. If your model uses RGB, convert color images in its preprocessing path before inference; `save` does not change their color mode.
 
-It saves `RGB` and `L` images as `input.png` and the other supported grayscale modes as `input.tiff`, preserving pixel values. Read the filename from `input_image` in the manifest. Overlays are 8-bit previews; use the saved input and NumPy maps for numeric inspection. It then writes the following files for each class and returned map:
+It saves `RGB` and `L` images as `input.png` and the other supported grayscale modes as `input.tiff`, preserving pixel values. Read the filename from `input_image` in the manifest. Overlays are 8-bit previews. Non-8-bit backgrounds use min-max scaling to 0–255; constant backgrounds map to black. Use the saved input and NumPy maps for numeric inspection. It then writes the following files for each class and returned map:
 
 - `class-<class_idx>-layer-<layer_idx>.npy`: the finite `float32` CAM;
 - `class-<class_idx>-layer-<layer_idx>-heatmap.png`: an 8-bit grayscale heatmap;
@@ -119,7 +119,7 @@ It saves `RGB` and `L` images as `input.png` and the other supported grayscale m
 
 It writes `manifest.json` last. Its presence marks a complete bundle. Schema version 1 contains `prediction`, optional `expected`, per-class logits/probabilities and relative artifact paths, the contributing `target_layers` for each map, `method`, all resolved target layers, `model`, `input_shape`, `versions`, `[width, height]` `image_size`, `input_image`, and `alpha`. A directory with artifacts but no manifest is incomplete. Earlier schema-v1 bundles may omit `input_image` and `context`.
 
-Optional `context` is a mapping of string keys to string values, copied into the manifest without changing schema version 1. Use it to record the owner's checkpoint identity, preprocessing recipe, sample identity, split, or group. For local checkpoints, prefer an immutable revision or checksum over a path that can be overwritten. These identifiers are caller-supplied records; TorchCAM does not load or verify their contents. Omit `context` to retain the existing manifest fields.
+Optional `context` is a mapping of string keys to string values, copied into the manifest without changing schema version 1. An empty mapping is treated as omitted. Use it to record the owner's checkpoint identity, preprocessing recipe, sample identity, split, or group. For local checkpoints, prefer an immutable revision or checksum over a path that can be overwritten. These identifiers are caller-supplied records; TorchCAM does not load or verify their contents. Omit `context` to retain the existing manifest fields.
 
 When upgrading from 0.5.0, replace original-image overlays with model-view overlays. Old bundles remain readable, but an overlay alone cannot establish whether its source image matched the model's crop.
 
