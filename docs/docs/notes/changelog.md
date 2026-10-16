@@ -4,7 +4,7 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 
 ## Unreleased
 
-`PredictionExplanation.save()` now requires a display image matching the model input's spatial dimensions. Pass the actual resize/crop view instead of the untouched original image. Bundles save that view losslessly and add `input_image` plus optional caller-supplied `context` identifiers to schema version 1.
+`PredictionExplanation.save()` now requires an RGB or supported grayscale display image matching the model input's spatial dimensions. Pass the actual resize/crop view instead of the untouched original image. Bundles save that view losslessly and add `input_image` plus optional caller-supplied `context` identifiers to schema version 1. Unsupported color modes fail before any output is written.
 
 ## v0.5.0 (2026-10-03)
 

@@ -109,7 +109,9 @@ A distinct expected class gets a fresh model forward. If expected and predicted 
 
 For custom preprocessing, retain a display copy after resize/crop and before normalization. Do not guess an inverse transform. The examples above apply the same native spatial transforms specified by the torchvision weights. They avoid floating-point normalization round trips when retaining the display pixels.
 
-It saves the model-view image as `input.png` for 8-bit RGB/grayscale images and as `input.tiff` for other supported modes, preserving floating-point and signed integer pixels. Read the filename from `input_image` in the manifest. It then writes the following files for each class and returned map:
+Supported PIL modes are `RGB` and grayscale `1`, `L`, `I`, `F`, `I;16`, `I;16L`, and `I;16B`. Other modes fail before any output is written. If your model uses RGB, convert color images in its preprocessing path before inference; `save` does not change their color mode.
+
+It saves `RGB` and `L` images as `input.png` and the other supported grayscale modes as `input.tiff`, preserving pixel values. Read the filename from `input_image` in the manifest. Overlays are 8-bit previews; use the saved input and NumPy maps for numeric inspection. It then writes the following files for each class and returned map:
 
 - `class-<class_idx>-layer-<layer_idx>.npy`: the finite `float32` CAM;
 - `class-<class_idx>-layer-<layer_idx>-heatmap.png`: an 8-bit grayscale heatmap;

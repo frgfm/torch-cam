@@ -330,3 +330,25 @@ def test_save_preserves_float_and_signed_integer_grayscale(tmp_path, mode):
     with Image.open(bundle / manifest["input_image"]) as stored_input:
         assert stored_input.mode == mode
         np.testing.assert_array_equal(stored_input, values)
+
+
+@pytest.mark.parametrize("mode", ["1", "L", "I;16", "I;16L", "I;16B"])
+def test_save_preserves_other_grayscale_pixels(tmp_path, mode):
+    values = (np.arange(64).reshape(8, 8) * 1024).astype(np.uint16)
+    image = Image.fromarray(values).convert(mode)
+    result = explain(_TinyCNN().eval(), torch.randn(1, 3, 8, 8), target_layer="features.1")
+
+    bundle = result.save(tmp_path / "bundle", image)
+    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
+    with Image.open(bundle / manifest["input_image"]) as stored_input:
+        np.testing.assert_array_equal(stored_input, image)
+
+
+@pytest.mark.parametrize("mode", ["YCbCr", "HSV", "LAB", "P", "RGBA", "CMYK"])
+def test_save_rejects_unsupported_image_modes_before_writing(tmp_path, mode):
+    result = explain(_TinyCNN().eval(), torch.randn(1, 3, 8, 8), target_layer="features.1")
+    output_dir = tmp_path / "missing-parent" / "bundle"
+
+    with pytest.raises(ValueError, match="RGB or grayscale"):
+        result.save(output_dir, Image.new(mode, (8, 8)))
+    assert not output_dir.parent.exists()

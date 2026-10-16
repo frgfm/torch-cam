@@ -57,7 +57,7 @@ class PredictionExplanation:
 
         Args:
             directory: new output directory
-            image: model-view image after the input's spatial transforms, before normalization
+            image: RGB or grayscale model-view image after spatial transforms, before normalization
             alpha: source-image opacity in the overlay
             context: caller-supplied identifiers, such as checkpoint, preprocessing, sample, split, and group
 
@@ -66,11 +66,15 @@ class PredictionExplanation:
 
         Raises:
             TypeError: if the image is not a PIL image or context does not map strings to strings
-            ValueError: if the image dimensions differ from the model input
+            ValueError: if the image mode is unsupported or dimensions differ from the model input
             FileExistsError: if the output directory already exists
         """
         if not isinstance(image, Image):
             raise TypeError("`image` must be a PIL image")
+        if image.mode not in {"1", "L", "I", "F", "I;16", "I;16L", "I;16B", "RGB"}:
+            raise ValueError(
+                f"unsupported image mode {image.mode!r}; use RGB or grayscale (1, L, I, F, I;16, I;16L, I;16B)"
+            )
         if image.size != (self.input_shape[-1], self.input_shape[-2]):
             raise ValueError("`image` must match the model input size; pass the resized/cropped model-view image")
         if context is not None and (
