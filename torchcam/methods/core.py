@@ -5,7 +5,7 @@
 
 import logging
 from abc import abstractmethod
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Mapping
 from contextlib import AbstractContextManager, contextmanager
 from difflib import get_close_matches
 from functools import partial
@@ -42,8 +42,12 @@ def _target_scores(output: Any, targets: OutputTarget | list[OutputTarget]) -> T
         samples: tuple[Any, ...] | list[Any] = output.unbind(0)
     elif isinstance(output, list):
         samples = output
+    elif isinstance(output, Mapping) and all(isinstance(value, Tensor) for value in output.values()):
+        # e.g. torchvision segmentation or Hugging Face outputs; scalars such as a loss are shared by every sample
+        batched = {key: value.unbind(0) for key, value in output.items() if value.ndim > 0}
+        samples = [{**output, **dict(zip(batched, row, strict=True))} for row in zip(*batched.values(), strict=True)]
     else:
-        raise TypeError("model output must be a tensor or a per-sample list")
+        raise TypeError("model output must be a tensor, a per-sample list, or a mapping of batched tensors")
 
     values = [target(sample) for target, sample in zip(_resolve_targets(targets, len(samples)), samples, strict=True)]
     if any(not isinstance(value, Tensor) for value in values):
@@ -171,10 +175,12 @@ class _CAM:
         return target_name
 
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
-        """Activation hook."""
+        """Activation hook."""  # noqa: DOC501
         if self._hooks_enabled:
             if self._reshape_transform is not None:
                 output = self._reshape_transform(output)
+            if not isinstance(output, Tensor):
+                raise TypeError(f"layer '{self.target_names[idx]}' returned {type(output).__name__}, not a tensor")
             self.hook_a[idx] = output.detach()
 
     def reset_hooks(self) -> None:

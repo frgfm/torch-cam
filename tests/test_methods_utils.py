@@ -13,6 +13,32 @@ def test_locate_candidate_layer_skips_non_tensor_outputs():
     assert _utils.locate_candidate_layer(DictOutput(nn.Conv2d(3, 4, 3)), (3, 8, 8)) == "0"
 
 
+def test_locate_candidate_layer_skips_region_and_shared_outputs():
+    class Detector(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.backbone = nn.Conv2d(3, 4, 3)
+            self.head = nn.Conv2d(4, 4, 1)
+            self.rois = nn.Identity()
+
+        def forward(self, x):
+            x = self.backbone(x)
+            self.head(self.head(x))
+            return self.rois(x.expand(2, -1, -1, -1))
+
+    assert _utils.locate_candidate_layer(Detector(), (3, 8, 8)) == "backbone"
+
+
+@pytest.mark.parametrize(
+    ("arch", "expected"),
+    [("fasterrcnn_mobilenet_v3_large_320_fpn", "backbone.body.16"), ("lraspp_mobilenet_v3_large", "backbone.16")],
+)
+def test_locate_candidate_layer_stops_at_feature_dicts(arch, expected):
+    # Per-level FPN outputs and single-proposal ROI heads come after the backbone's feature dict
+    mod = get_model(arch, weights=None, weights_backbone=None).eval()
+    assert _utils.locate_candidate_layer(mod) == expected
+
+
 def test_locate_candidate_layer(mock_img_model, monkeypatch):
     # ResNet-18
     mod = get_model("resnet18", weights=None).eval()
