@@ -22,6 +22,7 @@ Methods related to activation-based class activation maps.
         show_root_toc_entry: false
         members:
             - CAM
+            - EigenCAM
             - ScoreCAM
             - SSCAM
             - ISCAM
