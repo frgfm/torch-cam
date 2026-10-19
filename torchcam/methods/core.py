@@ -322,6 +322,8 @@ class _CAM:
     def fuse_cams(cls, cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor:
         """Fuse class activation maps from different layers.
 
+        An explicit target shape also resizes a single input map.
+
         Args:
             cams: the list of activation maps (for the same input)
             target_shape: expected spatial shape of the fused activation map (default to the biggest spatial shape
@@ -340,6 +342,8 @@ class _CAM:
         if len(cams) == 0:
             raise ValueError("argument `cams` cannot be an empty list")
         if len(cams) == 1:
+            if target_shape is not None and cams[0].shape[1:] != target_shape:
+                return cls._fuse_cams(cams, target_shape)
             return cams[0]
         # Resize to the biggest CAM if no value was provided for `target_shape`
         if isinstance(target_shape, tuple):

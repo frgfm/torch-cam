@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from torchcam import metrics
-from torchcam.methods import GradCAM, GradCAMpp, SmoothGradCAMpp, core
+from torchcam.methods import GradCAM, GradCAMpp, LayerCAM, SmoothGradCAMpp, core
 
 
 class _PartlyNaNGradient(torch.autograd.Function):
@@ -273,6 +273,27 @@ def test_fuse_cams():
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (1, 16, 16)
+
+
+@pytest.mark.parametrize("cam_method", [GradCAM, LayerCAM])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize("target_shape", [(6, 8), (2, 3), (3, 4)])
+@pytest.mark.parametrize("requires_grad", [False, True])
+def test_fuse_single_cam_target_shape(cam_method, dtype, target_shape, requires_grad):
+    cam = torch.arange(24, dtype=dtype).reshape(2, 3, 4).requires_grad_(requires_grad)
+    original = cam.detach().clone()
+    expected = torch.nn.functional.interpolate(
+        cam.unsqueeze(1), target_shape, mode="bilinear", align_corners=False
+    ).squeeze(1)
+
+    fused = cam_method.fuse_cams([cam], target_shape)
+
+    torch.testing.assert_close(fused, expected)
+    torch.testing.assert_close(cam, original)
+    if requires_grad:
+        actual_grad = torch.autograd.grad(fused.sum(), cam)
+        expected_grad = torch.autograd.grad(expected.sum(), cam)
+        torch.testing.assert_close(actual_grad, expected_grad)
 
 
 @pytest.mark.parametrize("requires_grad", [False, True])
