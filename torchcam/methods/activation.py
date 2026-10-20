@@ -272,11 +272,11 @@ class ScoreCAM(_CAM):
         targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
-        self.hook_a: list[Tensor]  # type: ignore[assignment]
+        hook_a = cast(list[Tensor], self.hook_a)
 
         # Normalize the activation
         # (N, C, H', W')
-        activations = [self._normalize(act.clone(), act.ndim - 2) for act in self.hook_a]
+        activations = [self._normalize(act.clone(), act.ndim - 2) for act in hook_a]
 
         with self._hooks_off(), self._eval_mode():
             return self._get_score_weights(activations, class_idx, targets)
