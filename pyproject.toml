@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.13.0,<0.14.0"]
+requires = ["uv_build>=0.13.4,<0.14.0"]
 build-backend = "uv_build"
 
 [project]
@@ -52,8 +52,8 @@ test = [
 ]
 quality = [
     "lint-my-headers==0.6.0",
-    "ruff==0.17.0",
-    "ty==0.0.86",
+    "ruff==0.17.1",
+    "ty==0.0.90",
     "prek==0.5.5",
 ]
 docs = [
