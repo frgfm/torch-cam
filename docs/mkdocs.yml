@@ -1,7 +1,7 @@
 # Project information
 site_name: TorchCAM
 site_url: https://frgfm.github.io/torch-cam
-site_description: Class activation maps for your PyTorch CNNs and Vision Transformers (CAM, Grad-CAM, Grad-CAM++, Smooth Grad-CAM++, Score-CAM, SS-CAM, IS-CAM, XGrad-CAM, Layer-CAM, Finer-CAM, LeGrad, RefineCAM).
+site_description: Class activation maps for PyTorch vision models and input-token attribution for text decision classifiers.
 site_author: François-Guillaume Fernandez
 copyright: Copyright &copy; 2020-2026, François-Guillaume Fernandez
 
@@ -80,6 +80,7 @@ plugins:
         - getting-started/installation.md
         - getting-started/notebooks.md
         - getting-started/debug-prediction.md
+        - getting-started/text-decisions.md
         - getting-started/advanced-usage.md
         - getting-started/troubleshooting.md
       Package Reference:
@@ -181,6 +182,7 @@ nav:
     - getting-started/installation.md
     - getting-started/notebooks.md
     - Debug one prediction: getting-started/debug-prediction.md
+    - Text decision models: getting-started/text-decisions.md
     - getting-started/advanced-usage.md
     - getting-started/troubleshooting.md
   - Package Reference:

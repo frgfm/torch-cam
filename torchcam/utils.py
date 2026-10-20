@@ -23,7 +23,7 @@ def overlay_mask(img: Image, mask: Image, colormap: Colormap | str = "jet", alph
         ```
 
     Args:
-        img: background image
+        img: background image; non-8-bit samples are min-max scaled to 0-255, with constants mapped to black
         mask: mask to be overlayed in grayscale
         colormap: colormap to be applied on the mask
         alpha: transparency of the background image
@@ -52,4 +52,8 @@ def overlay_mask(img: Image, mask: Image, colormap: Colormap | str = "jet", alph
         return blend(fromarray(overlay), img.convert("RGB"), alpha)
     # Overlay the image with the mask
     bg_img = np.asarray(img) if len(img.getbands()) == 3 else np.asarray(img)[..., np.newaxis].repeat(3, axis=-1)
+    if bg_img.dtype != np.uint8:
+        # Scale wide-range pixels (e.g. "I" or "F" modes) instead of wrapping them into bytes
+        pixels = bg_img.astype(np.float64)
+        bg_img = 255 * (pixels - np.min(pixels)) / max(np.ptp(pixels), 1e-12)
     return fromarray((alpha * bg_img + (1 - alpha) * overlay).astype(np.uint8))

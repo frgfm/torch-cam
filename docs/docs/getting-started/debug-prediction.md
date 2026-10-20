@@ -6,6 +6,8 @@ TorchCAM deliberately does not load models, checkpoints, labels, or preprocessin
 
 Run the [prediction debugging notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/debug_prediction.ipynb)) to compare classes, visualize overlays, and inspect a saved evidence bundle.
 
+Model-view saving and `context` require a [source revision](installation.md) after 0.5.0. The notebook pins its own revision.
+
 ## CNN example
 
 This complete example uses automatic CNN target-layer resolution and writes predicted-versus-expected evidence:
@@ -13,6 +15,7 @@ This complete example uses automatic CNN target-layer resolution and writes pred
 ```python
 from PIL import Image
 from torchvision.models import ResNet18_Weights, resnet18
+from torchvision.transforms.functional import center_crop, resize
 
 from torchcam.explain import explain
 
@@ -20,7 +23,12 @@ image = Image.open("surprising.jpg").convert("RGB")
 weights = ResNet18_Weights.DEFAULT
 model = resnet18(weights=weights).eval()
 class_names = weights.meta["categories"]
-input_tensor = weights.transforms()(image).unsqueeze(0)
+preprocess = weights.transforms()
+input_tensor = preprocess(image).unsqueeze(0)
+model_image = center_crop(
+    resize(image, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+    preprocess.crop_size,
+)
 
 result = explain(
     model,
@@ -28,26 +36,18 @@ result = explain(
     expected_class_idx=207,  # repository class index, for example "golden retriever"
     class_names=class_names,
 )
-result.save("torchcam-explanation", image, alpha=0.5)
+context = {"checkpoint_id": weights.url, "sample_id": "surprising.jpg"}
+result.save("torchcam-explanation", model_image, context=context)
 ```
 
 The default method is [`GradCAM`][torchcam.methods.GradCAM]. If automatic target resolution is unsuitable for a custom CNN, pass the repository's feature layer, such as `target_layer="backbone.layer4"`.
 
 ## Vision Transformer example
 
-ViTs require an explicit method and target blocks. Torchvision `VisionTransformer` is supported directly by [`LeGrad`][torchcam.methods.LeGrad]:
+For torchvision `vit_b_16`, prepare the model, input tensor, and display image with `ViT_B_16_Weights.DEFAULT` using the steps above. Pass [`LeGrad`][torchcam.methods.LeGrad] and explicit target blocks:
 
 ```python
-from PIL import Image
-from torchvision.models import ViT_B_16_Weights, vit_b_16
-
-from torchcam.explain import explain
 from torchcam.methods import LeGrad
-
-image = Image.open("surprising.jpg").convert("RGB")
-weights = ViT_B_16_Weights.DEFAULT
-model = vit_b_16(weights=weights).eval()
-input_tensor = weights.transforms()(image).unsqueeze(0)
 
 result = explain(
     model,
@@ -57,7 +57,7 @@ result = explain(
     method=LeGrad,
     target_layer=list(model.encoder.layers)[-4:],
 )
-result.save("torchcam-vit-explanation", image)
+result.save("torchcam-vit-explanation", model_image)
 ```
 
 For another supported ViT, pass its `score_projection`, `prefix_tokens`, or `grid_shape` through `method_kwargs`. Do not rely on automatic architecture detection; see [advanced usage](advanced-usage.md#legrad-for-torchvision-vision-transformers) for compatibility details.
@@ -81,13 +81,22 @@ Copy this prompt into an agent running inside the repository that owns the model
 
 A distinct expected class gets a fresh model forward. If expected and predicted indices match, TorchCAM reuses the predicted map.
 
-`result.save(directory, image, alpha=0.5)` creates a new directory and never overwrites one. For each class and returned map it writes:
+`result.save(directory, image, alpha=0.5, context=None)` creates a new directory. Retain `image` after inference's resize/crop and before normalization. Its width and height must match the input tensor; matching dimensions alone do not prove matching pixels.
 
+Supported modes are `RGB`, `1`, `L`, `I`, `F`, `I;16`, and `I;16B`. `RGB`/`L` use PNG; the rest use TIFF. Other modes fail before writing, including `I;16L`, which older Pillow versions cannot save as TIFF.
+
+The bundle contains:
+
+- `input.png` or `input.tiff`: lossless model-view pixels, referenced by `input_image`;
 - `class-<class_idx>-layer-<layer_idx>.npy`: the finite `float32` CAM;
 - `class-<class_idx>-layer-<layer_idx>-heatmap.png`: an 8-bit grayscale heatmap;
-- `class-<class_idx>-layer-<layer_idx>-overlay.png`: a full-size overlay matching the source image.
+- `class-<class_idx>-layer-<layer_idx>-overlay.png`: an overlay in model-view coordinates.
 
-It writes `manifest.json` last. Its presence marks a complete bundle. Schema version 1 contains `prediction`, optional `expected`, per-class logits/probabilities and relative artifact paths, the contributing `target_layers` for each map, `method`, all resolved target layers, `model`, `input_shape`, `versions`, `[width, height]` `image_size`, and `alpha`. A directory with artifacts but no manifest is incomplete.
+Overlays scale non-8-bit backgrounds to 0–255; constant backgrounds map to black. Use the saved input and NumPy maps for numeric inspection.
+
+`manifest.json` is written last and marks completion. Schema 1 records `prediction`, optional `expected`, `classes` (scores and artifacts), `method`, `target_layers`, `model`, `input_shape`, `versions`, `image_size` (`[width, height]`), `input_image`, and `alpha`. Older bundles may omit `input_image` and `context`; their overlay alignment is unverified.
+
+`context` stores caller-supplied string IDs for checkpoints, preprocessing, samples, splits, or groups. Use immutable checkpoint IDs or checksums. TorchCAM does not verify these values; empty mappings are omitted.
 
 ## Boundaries and troubleshooting
 

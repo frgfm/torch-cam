@@ -1,7 +1,7 @@
 ---
 name: torchcam-debug-prediction
 description: Debug one surprising 2D image-classification prediction in an existing PyTorch repository with TorchCAM. Use when an owner asks for predicted-versus-expected CAM evidence, a saved explanation bundle, GradCAM on a CNN, or LeGrad on a supported Vision Transformer. Reuse the repository's trusted model loader, checkpoint, class mapping, and preprocessing instead of inventing replacements.
-compatibility: Requires local Python execution, PyTorch, Pillow, and torchcam>=0.5.0.
+compatibility: Requires local Python execution, PyTorch, Pillow, and a post-0.5.0 TorchCAM revision with model-view bundle saving.
 metadata:
   author: frgfm
   version: "1.0"
@@ -18,7 +18,8 @@ Find and reuse the code that already defines:
 - the model architecture and trusted checkpoint loader;
 - evaluation preprocessing, including resize, crop, normalization, and color conversion;
 - the ordered class-name mapping;
-- the original image before normalization.
+- the model-view display image after the same spatial transforms, before normalization;
+- available checkpoint, preprocessing, sample, split, and group identifiers.
 
 Search the repository before writing code. Prefer its test or inference entry point over reconstructing the model. Load only checkpoints already trusted by the owner; TorchCAM does not load checkpoints or preprocessing.
 
@@ -47,10 +48,14 @@ result = explain(
     class_names=class_names,
     target_layer=target_layer,  # omit for automatic CNN resolution
 )
-bundle = result.save("torchcam-explanation", image=original_image, alpha=0.5)
+bundle = result.save("torchcam-explanation", image=model_image, alpha=0.5, context=run_context)
 ```
 
 For a ViT, also pass `method=LeGrad` and the explicit blocks. Use a new output directory; `save` refuses to overwrite an existing one.
+
+Retain `model_image` after inference's resize/crop and before normalization. Do not infer an inverse transform; matching dimensions alone do not prove matching pixels. The debugging guide shows torchvision transforms.
+
+`run_context` contains available string IDs for checkpoint, preprocessing, sample, split, or group. Use immutable checkpoint IDs/checksums; omit unavailable context.
 
 ## 4. Validate the evidence bundle
 
@@ -59,7 +64,7 @@ Treat `manifest.json` as the completion marker. Before reporting success:
 1. Parse it and require `schema_version == 1`.
 2. Read artifacts from `manifest["classes"][str(class_idx)]["artifacts"]`. Resolve every relative `map`, `heatmap`, and `overlay` path under the bundle directory and require each file to exist. Prediction and expected entries contain class references; logits and probabilities live in the corresponding class entry.
 3. Load each `.npy` map with `allow_pickle=False`; require a finite two-dimensional `float32` array.
-4. Open every overlay and require its dimensions to match `manifest.json`'s `image_size`.
+4. Open `manifest["input_image"]` and every overlay. Their size must equal `tuple(manifest["image_size"]) == (manifest["input_shape"][-1], manifest["input_shape"][-2])` (width, height). Verify the crop and context against the owner's records. If `input_image` is absent, report alignment as unverified.
 5. Confirm the prediction and optional expected class indices match the repository's class ordering.
 
 No manifest means the bundle is incomplete, even if some images exist.
