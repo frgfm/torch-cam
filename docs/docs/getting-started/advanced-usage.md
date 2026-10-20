@@ -6,20 +6,21 @@ than a usage question? Jump to [Troubleshooting](troubleshooting.md).
 
 ## Model and task compatibility
 
-TorchCAM needs a spatial feature tensor and a scalar output target to explain. The integration path depends on
-what your model accepts and returns:
+Spatial CAM methods need a feature tensor and a scalar output target. Text classifiers use `TokenIG` at their input
+embedding layer. The integration path depends on what your model accepts and returns:
 
 | Model or task | Support | What TorchCAM needs |
 | --- | --- | --- |
 | CNN classifier | Native | Class logits shaped `(N, num_classes)` and a spatial target layer. |
 | Batched, 3D, or video classifier | Native | One class index per sample and the correct `input_shape`. |
 | Multi-input model | Adapter required | Wrap the inputs into one tensor argument while preserving the hooked path. |
-| Tensor or per-sample list output | Native with `targets` | Reduce each sample output to one scalar tensor. |
+| Tensor, per-sample list, or dictionary output | Native with `targets` | Reduce each sample output to one scalar tensor. |
 | torchvision VisionTransformer | Native with `LeGrad` | Target supported encoder blocks; other CAM methods need `reshape_transform`. |
 | timm or Hugging Face CNN | Native (timm) or logits wrapper (Hugging Face) | See [timm and Hugging Face models](#timm-and-hugging-face-models). |
 | Other ViT or Swin classifier | Adapter required | Set `target_layer` and reshape tokens with `reshape_transform`; `LeGrad` only supports the contract below. |
 | Detection, segmentation, embedding, or other output | Native with `targets` | Define a scalar target; gradient methods require it to remain differentiable. |
 | Multimodal language model | State adapter with `TAM` | Final language-model image/text states, context token IDs, and a linear vocabulary head. |
+| Text decision classifier | Native with [`TokenIG`](text-decisions.md) | Differentiable class scores and an input embedding module; optional output selector and token mask. |
 
 ## Use your own model
 
@@ -45,8 +46,9 @@ cam_extractor = SmoothGradCAMpp(model, target_layer=model.features[7])   # by mo
 ```
 
 If you omit `target_layer`, TorchCAM runs a dummy forward of shape `(1, *input_shape)` (default
-`(3, 224, 224)`), picks the last layer whose output still has spatial dimensions, and logs the choice. If your
-model expects a different input, set `input_shape` accordingly — otherwise the dummy forward will fail or pick
+`(3, 224, 224)`), picks the last layer whose output still has spatial dimensions, and logs the choice. The search
+stops at the first layer returning a dictionary, such as a detection or segmentation backbone, and skips layers that
+run more than once or change the batch size. If your model expects a different input, set `input_shape` accordingly — otherwise the dummy forward will fail or pick
 the wrong layer:
 
 ```python
@@ -136,7 +138,7 @@ cam_extractor(class_idx=None, scores=None, normalized=True, *, targets=None)
   To explain the top prediction use the argmax (`out.squeeze(0).argmax().item()`), but you can pass **any** valid
   index to see where the model looks for that class. For a batch, pass one index per sample (see below).
 - **`scores`** — the raw model output. `class_idx` expects a tensor shaped `(N, num_classes)`; `targets` accepts a
-  batched tensor or one list item per sample. Required by gradient methods; ignored by `LeGrad`,
+  batched tensor, one list item per sample, or a dictionary of batched tensors. Required by gradient methods; ignored by `LeGrad`,
   `SmoothGradCAMpp`, and `CAM`. The Score-CAM family re-runs the stored input, so `scores` can be omitted.
 - **`targets`** — one callable shared by the batch or one callable per sample. Each callable receives one sample's
   model output and must return a scalar tensor. Pass exactly one of `class_idx` or `targets`.
@@ -151,13 +153,26 @@ Gradient-based extractors also accept `retain_graph=True` (forwarded to the grad
 the extractor several times after a single forward — see
 [Troubleshooting](troubleshooting.md#runtimeerror-trying-to-backward-through-the-graph-a-second-time).
 
-`targets` opens the same extractor API to dense predictions and embeddings without a task-specific adapter. For a
-segmentation tensor shaped `(N, classes, H, W)`, explain class 5 inside a region mask:
+`targets` opens the same extractor API to detection, dense predictions and embeddings without a task-specific
+adapter. For a torchvision detector, explain the top-scoring box:
 
 ```python
-with LayerCAM(model, target_layer="backbone.layer4") as cam_extractor:
-    output = model(input_batch)
-    cams = cam_extractor(scores=output, targets=lambda sample: sample[5][region_mask].mean())
+from torchvision.models.detection import fasterrcnn_resnet50_fpn_v2
+from torchcam.methods import GradCAM
+
+model = fasterrcnn_resnet50_fpn_v2(weights="DEFAULT").eval()
+with GradCAM(model) as cam_extractor:  # resolves to backbone.body.layer4, which feeds every FPN level
+    detections = model(input_batch)
+    cams = cam_extractor(scores=detections, targets=lambda sample: sample["scores"][0])
+```
+
+For a torchvision segmentation model, which returns a dictionary of batched tensors, explain class 5 inside a
+region mask:
+
+```python
+with LayerCAM(model) as cam_extractor:  # resolves to backbone.layer4 for DeepLabV3 and FCN ResNets
+    output = model(input_batch)  # {"out": (N, classes, H, W), ...}
+    cams = cam_extractor(scores=output, targets=lambda sample: sample["out"][5][region_mask].mean())
 ```
 
 For an embedding tensor shaped `(N, embedding_dim)`, the target can be its similarity to another embedding:
@@ -172,7 +187,8 @@ with LayerCAM(model, target_layer="visual.layer4") as cam_extractor:
 ```
 
 Tensor outputs are split along their batch dimension. A model may instead return a list with one item per sample,
-such as detection dictionaries; in that case each target receives the corresponding item. `GradCAM`,
+such as detection dictionaries; in that case each target receives the corresponding item. Dictionaries of batched
+tensors, such as segmentation or Hugging Face outputs, are split into one dictionary per sample. `GradCAM`,
 `GradCAMpp`, `SmoothGradCAMpp`, `XGradCAM`, `LayerCAM`, `ScoreCAM`, `SSCAM`, and `ISCAM` support this contract, as
 does `RefineCAM` when its base method supports it. `CAM`, `FinerCAM`, and `LeGrad` retain their specialized
 class-based objectives.
@@ -192,11 +208,11 @@ with GradCAM(model) as cam_extractor:
     cams = cam_extractor(class_ids, out)         # cams[0] has shape (3, H, W)
 ```
 
-## Models with multiple inputs or batched dictionary outputs
+## Models with multiple inputs or tuple outputs
 
-The hooked layer must output a tensor. `targets` handles a batched tensor or a list containing one output per sample.
-Tuple outputs such as `(logits, aux)`, one dictionary containing batched tensors, and models taking several inputs
-(e.g. a siamese network) need a thin wrapper around that boundary:
+The hooked layer must output a tensor. `targets` handles a batched tensor, a list containing one output per sample,
+or a dictionary of batched tensors. Tuple outputs such as `(logits, aux)`, `class_idx` on dictionary outputs, and
+models taking several inputs (e.g. a siamese network) need a thin wrapper around that boundary:
 
 ```python
 import torch.nn as nn
@@ -403,6 +419,38 @@ See the latency and faithfulness benchmarks in the [README](https://github.com/f
 for concrete numbers, and the [methods reference](../reference/methods.md) for the full API.
 
 ## Token activation maps for VLMs
+
+### Gradient-based token maps across architectures
+
+`LayerCAM` and `GradCAM` can explain a selected next-token logit with the same API used for image classifiers:
+
+```python
+from torchcam.methods import LayerCAM
+
+# inputs include the processed image and prompt plus earlier answer tokens, excluding the target token.
+inputs["pixel_values"] = inputs["pixel_values"].clone().requires_grad_(True)
+with LayerCAM(model, target_layer=visual_layer, reshape_transform=to_spatial_grid) as extractor:
+    output = model(**inputs, use_cache=False, logits_to_keep=1)
+    maps = extractor(token_id, output.logits[:, -1])
+```
+
+The CAM API stays the same; each architecture supplies a differentiable visual layer and a spatial reshape.
+The [demo adapters](https://github.com/frgfm/torch-cam/blob/main/demo/inference.py)
+cover BLIP, Qwen3-VL and Gemma 4 with a vision tower. Qwen's grouped patches must be reordered before projection;
+Gemma's explicit patch coordinates exclude padding. Qwen uses GradCAM on its main merger and all DeepStack
+injections; Gemma uses LayerCAM at the input normalization of its final vision block. These are feature/method
+presets using the same CAM API. Both target the selected token's log-odds against the rest of the vocabulary,
+removing common logit shifts without softmax saturation. Gradients start at the target features, so earlier frozen
+vision layers need no backward graph. Reconstructed processed pixels keep the overlay aligned. BLIP retains
+decoder cross-attention LayerCAM. Each map is conditional on the preceding caption tokens; a word predictable
+from text alone can have little image dependence.
+
+This interface also applies to other differentiable VLMs; it does not automatically infer arbitrary patch layouts,
+video frames, crops or image stitching. Validate spatial ordering with an asymmetric image, compare the score with
+native prefix replay, and compare masking high- and low-ranked regions for several image-sensitive tokens.
+Gradient sensitivity alone does not establish causal relevance. Quantized inference engines may not expose gradients.
+
+### Gradient-free TAM
 
 [`TAM`](../reference/methods.md#torchcam.methods.TAM) explains which image regions activate a selected vocabulary token.
 It uses final **language-model** states, rather than the vision encoder's features, and requires no gradients,

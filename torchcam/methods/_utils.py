@@ -3,7 +3,7 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Iterator
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from functools import partial
 
@@ -14,7 +14,7 @@ __all__ = ["locate_candidate_layer"]
 
 
 @contextmanager
-def _model_eval(model: nn.Module) -> Iterator[None]:
+def _model_eval(model: nn.Module) -> Generator[None, None, None]:
     modes = [(module, module.training) for module in model.modules()]
     try:
         model.eval()
@@ -35,10 +35,14 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
         the candidate layer for CAM
     """
     output_shapes: list[tuple[str | None, tuple[int, ...]]] = []
+    feature_dicts: list[str | None] = []
 
     def _record_output_shape(_: nn.Module, _input: Tensor, output: object, name: str | None = None) -> None:
         """Activation hook."""
-        if isinstance(output, Tensor):
+        # Layers after a feature dict (e.g. detection or segmentation backbones) only feed some levels or heads
+        if isinstance(output, Mapping):
+            feature_dicts.append(name)
+        elif isinstance(output, Tensor) and not feature_dicts:
             output_shapes.append((name, output.shape))
 
     hook_handles: list[torch.utils.hooks.RemovableHandle] = []
@@ -57,9 +61,15 @@ def locate_candidate_layer(mod: nn.Module, input_shape: tuple[int, ...] = (3, 22
 
     # Check output shapes
     candidate_layer = None
+    names = [name for name, _ in output_shapes]
     for layer_name, output_shape in reversed(output_shapes):
-        # Stop before flattening or global pooling
-        if len(output_shape) == (len(input_shape) + 1) and any(v != 1 for v in output_shape[2:]):
+        # Stop before flattening or global pooling; skip per-region outputs and modules shared across feature levels
+        if (
+            len(output_shape) == (len(input_shape) + 1)
+            and output_shape[0] == 1
+            and names.count(layer_name) == 1
+            and any(v != 1 for v in output_shape[2:])
+        ):
             candidate_layer = layer_name
             break
 

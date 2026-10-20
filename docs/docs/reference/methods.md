@@ -77,7 +77,38 @@ The caller owns model extraction and spatial layout; no automatic VLM adapter or
         show_root_heading: true
         members: [__call__]
 
-## Token activation maps
+## Input-token attribution for text decisions
+
+`TokenIG` runs embedding Integrated Gradients for each selected classifier score. It returns signed token
+contributions and uncalibrated model scores, with completeness and refinement checks.
+`TokenAblation` instead measures single-token replacement effects using only forwards; effects need not add up.
+See [Text decision models](../getting-started/text-decisions.md) for examples and Laya integration.
+
+::: torchcam.methods.TokenAblation
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__]
+
+::: torchcam.methods.TokenAblationResult
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: []
+
+::: torchcam.methods.TokenIG
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: [__call__]
+
+::: torchcam.methods.TokenAttribution
+    options:
+        heading_level: 3
+        show_root_heading: true
+        members: []
+
+## Visual token activation maps
 
 Visual explanations for selected vocabulary tokens in multimodal language models. TAM consumes final language-model
 states and a linear vocabulary head directly; it does not use the class CAM hook API.
