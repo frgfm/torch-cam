@@ -119,10 +119,15 @@ plt.imshow(activation_map[0].squeeze(0).numpy()); plt.axis('off'); plt.tight_lay
 ```python
 import matplotlib.pyplot as plt
 from torchvision.transforms.v2.functional import to_pil_image
+from torchvision.transforms.functional import center_crop, resize
 from torchcam.utils import overlay_mask
 
-# 调整 CAM 大小并叠加到图片上
-result = overlay_mask(to_pil_image(img), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
+# 保留模型实际看到的缩放与裁剪区域，不做归一化。
+model_image = center_crop(
+    resize(img, preprocess.resize_size, interpolation=preprocess.interpolation, antialias=preprocess.antialias),
+    preprocess.crop_size,
+)
+result = overlay_mask(to_pil_image(model_image), to_pil_image(activation_map[0].squeeze(0), mode='F'), alpha=0.5)
 plt.imshow(result); plt.axis('off'); plt.tight_layout(); plt.show()
 ```
 
@@ -158,7 +163,7 @@ pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"
 
 ## CAM 方法一览
 
-本项目由仓库所有者开发和维护，其实现基于以下研究论文：
+本项目由[作者](#作者)开发和维护，其实现基于以下研究论文：
 
 - [Learning Deep Features for Discriminative Localization](https://arxiv.org/abs/1512.04150)：最初的 CAM 论文
 - [Grad-CAM](https://arxiv.org/abs/1610.02391)：GradCAM 论文，将 CAM 推广到没有全局平均池化的模型。
@@ -310,6 +315,10 @@ python scripts/eval_latency.py SmoothGradCAMpp
 [同济子豪兄（TommyZihao）](https://github.com/TommyZihao) 的中文 [CAM 视频教程](https://www.bilibili.com/video/BV1JG4y1s74x)介绍了 TorchCAM 和 pytorch-grad-cam，并提供用于图像、视频和摄像头的 [TorchCAM 示例笔记本](https://github.com/TommyZihao/Train_Custom_Dataset/tree/main/图像分类/6-可解释性分析、显著性分析/1.torch-cam工具包：CAM热力图)。
 
 这些示例发布于 2022 年。调整环境配置和代码时，请参阅当前的[安装说明](#安装)和[文档](https://frgfm.github.io/torch-cam/)。
+
+## 作者
+
+TorchCAM 由 [François-Guillaume (F-G) Fernandez](https://fgfm.dev)（[@frgfm](https://github.com/frgfm)）创建并维护。
 
 ## 引用
 

@@ -171,14 +171,28 @@ def test_output_target_validation(mock_img_model):
 
     with pytest.raises(ValueError, match="batch dimension"):
         core._target_scores(torch.tensor(1.0), itemgetter(0))
-    with pytest.raises(TypeError, match="tensor or a per-sample list"):
+    with pytest.raises(TypeError, match="per-sample list"):
         core._target_scores((torch.ones(1), torch.ones(1)), itemgetter(0))
+    with pytest.raises(TypeError, match="mapping of batched tensors"):
+        core._target_scores({"out": [1.0]}, itemgetter("out"))
+    output = {"logits": torch.arange(4.0).view(2, 2), "loss": torch.tensor(1.0)}
+    assert core._target_scores(output, lambda sample: sample["logits"][1] + sample["loss"]).tolist() == [2.0, 4.0]
 
     def number_target(_output):
         return 1
 
     with pytest.raises(TypeError, match="return a tensor"):
         core._target_scores(torch.ones(1, 1), number_target)
+
+
+def test_cam_rejects_non_tensor_layer_output():
+    class DictOutput(torch.nn.Sequential):
+        def forward(self, x):
+            return {"out": super().forward(x)}
+
+    model = torch.nn.Sequential(DictOutput(torch.nn.Identity()))
+    with core._CAM(model, "0"), pytest.raises(TypeError, match="'0' returned dict"):
+        model(torch.rand(1, 3, 4, 4))
 
 
 @pytest.mark.parametrize(

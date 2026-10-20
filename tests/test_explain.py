@@ -214,21 +214,21 @@ def test_explain_cleans_hooks_and_preserves_model_state():
     assert input_tensor.grad is None
 
 
-def test_save_writes_complete_deterministic_bundle(tmp_path):
-    model = _TinyCNN().eval()
+@pytest.mark.parametrize("context", [None, {}, {"sample_id": "sample-7"}])
+def test_save_writes_complete_deterministic_bundle(tmp_path, context):
+    image = Image.fromarray(np.arange(12 * 16 * 3, dtype=np.uint8).reshape(12, 16, 3)).crop((2, 2, 14, 10))
     result = explain(
-        model,
-        torch.randn(1, 3, 8, 8),
+        _TinyCNN().eval(),
+        torch.from_numpy(np.array(image)).permute(2, 0, 1).float().unsqueeze(0) / 255,
         expected_class_idx=0,
         class_names=["a", "b", "c"],
         target_layer="features.1",
     )
-    image = Image.fromarray(np.zeros((13, 19, 3), dtype=np.uint8))
     with pytest.raises(TypeError, match="PIL image"):
         result.save(tmp_path / "bad-image", cast(Any, None))
-    bundle = result.save(tmp_path / "bundle", image)
+    bundle = result.save(tmp_path / "bundle", image, context=context)
 
-    expected_files = {"manifest.json"}
+    expected_files = {"manifest.json", "input.png"}
     for class_idx in result.cams:
         expected_files.update({
             f"class-{class_idx}-layer-0.npy",
@@ -250,13 +250,33 @@ def test_save_writes_complete_deterministic_bundle(tmp_path):
     assert manifest["schema_version"] == 1
     assert manifest["prediction"]["class_idx"] == result.predicted_class_idx
     assert manifest["expected"] == {"class_idx": 0, "class_name": "a"}
-    assert manifest["image_size"] == [19, 13]
+    assert manifest["image_size"] == [12, 8]
+    assert manifest["input_shape"][-2:] == [8, 12]
+    with Image.open(bundle / manifest["input_image"]) as stored_input:
+        np.testing.assert_array_equal(stored_input, image)
+    assert ("context" in manifest) == bool(context)
+    assert manifest.get("context") == (context or None)
     assert manifest["target_layers"] == ["features.1"]
     for class_data in manifest["classes"].values():
         assert all("/" not in path for path in class_data["artifacts"][0].values() if isinstance(path, str))
 
     with pytest.raises(FileExistsError):
         result.save(bundle, image)
+
+
+def test_save_rejects_invalid_evidence(tmp_path):
+    result = explain(_TinyCNN().eval(), torch.randn(1, 3, 8, 12), target_layer="features.1")
+    image = Image.new("RGB", (12, 8))
+    output_dir = tmp_path / "missing-parent" / "bundle"
+    with pytest.raises(ValueError, match="model-view"):
+        result.save(output_dir, Image.new("RGB", (16, 12)))
+    for context in ([], {"sample_id": 7}, {7: "sample"}):
+        with pytest.raises(TypeError, match="strings to strings"):
+            result.save(output_dir, image, context=cast(Any, context))
+    for mode in ("YCbCr", "HSV", "LAB", "P", "RGBA", "CMYK", "I;16L"):
+        with pytest.raises(ValueError, match="RGB or grayscale"):
+            result.save(output_dir, Image.new(mode, image.size))
+    assert not output_dir.parent.exists()
 
 
 def test_save_writes_manifest_only_after_artifacts(tmp_path, monkeypatch):
@@ -275,3 +295,17 @@ def test_save_writes_manifest_only_after_artifacts(tmp_path, monkeypatch):
 
     assert not output_dir.exists()
     assert result.save(output_dir, image) == output_dir
+
+
+@pytest.mark.parametrize("mode", ["1", "L", "F", "I", "I;16", "I;16B"])
+def test_save_preserves_grayscale_pixels(tmp_path, mode):
+    values = np.linspace(-10000, 30000, 96, dtype=np.float32).reshape(8, 12)
+    image = Image.fromarray(values).convert(mode)
+    model = nn.Sequential(nn.Conv2d(1, 2, 1), nn.AdaptiveAvgPool2d(1), nn.Flatten()).eval()
+    input_tensor = torch.from_numpy(np.array(image, dtype=np.float32)).unsqueeze(0).unsqueeze(0)
+    result = explain(model, input_tensor, target_layer="0")
+
+    bundle = result.save(tmp_path / "bundle", image)
+    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
+    with Image.open(bundle / manifest["input_image"]) as stored_input:
+        np.testing.assert_array_equal(stored_input, image)
