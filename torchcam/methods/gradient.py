@@ -324,7 +324,6 @@ class SmoothGradCAMpp(_GradCAM):
     ) -> list[Tensor]:
         # Keep initial activation
         hook_a = cast(list[Tensor], self.hook_a)
-        hook_g = cast(list[Tensor], self.hook_g)
         init_fmap = [act.clone() for act in hook_a]
         # Initialize our gradient estimates
         # Accumulate all moments in at least float32; half-precision epsilon rounds to zero.
@@ -341,7 +340,10 @@ class SmoothGradCAMpp(_GradCAM):
             self._backprop(out, class_idx, **kwargs)
 
             # Sum partial derivatives
-            gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in hook_g]
+            gradients = [
+                grad.to(dtype=torch.promote_types(grad.dtype, torch.float32))
+                for grad in cast(list[Tensor], self.hook_g)
+            ]
             grad_1 = [g1.add_(grad) for g1, grad in zip(grad_1, gradients, strict=True)]
             grad_2 = [g2.add_(grad.pow(2)) for g2, grad in zip(grad_2, gradients, strict=True)]
             grad_3 = [g3.add_(grad.pow(3)) for g3, grad in zip(grad_3, gradients, strict=True)]
