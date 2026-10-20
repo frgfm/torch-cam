@@ -305,6 +305,25 @@ def test_cam_normalize_constant_dtype(dtype, constant):
     torch.testing.assert_close(normalized, torch.zeros_like(cams))
 
 
+def test_cam_normalize_mixed_half_precision_channels():
+    """Normalize each spatial map independently when some channels are constant."""
+    cams = torch.tensor(
+        [
+            [[[4.0, 4.0], [4.0, 4.0]], [[2.0, 4.0], [6.0, 10.0]]],
+            [[[-3.0, -1.0], [1.0, 5.0]], [[7.0, 7.0], [7.0, 7.0]]],
+        ],
+        dtype=torch.float16,
+    )
+    expected = torch.tensor(
+        [
+            [[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.25], [0.5, 1.0]]],
+            [[[0.0, 0.25], [0.5, 1.0]], [[0.0, 0.0], [0.0, 0.0]]],
+        ],
+        dtype=torch.float16,
+    )
+    torch.testing.assert_close(core._CAM._normalize(cams, spatial_dims=2), expected)
+
+
 @pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
 def test_cam_normalize_nonconstant_dtype(dtype):
     cams = torch.tensor([[[0.0, 1.0], [0.5, 0.25]]], dtype=dtype)
