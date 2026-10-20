@@ -74,7 +74,7 @@ def test_locate_candidate_layer(mock_img_model, monkeypatch):
     assert [module.training for module in mod.modules()] == modes
 
 
-@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.float64])
 @pytest.mark.parametrize("default_dtype", [torch.float32, torch.float64])
 def test_locate_candidate_layer_model_dtype(dtype, default_dtype):
     model = nn.Sequential(nn.Conv2d(3, 4, 3, dtype=dtype), nn.ReLU(), nn.AdaptiveAvgPool2d(1))
