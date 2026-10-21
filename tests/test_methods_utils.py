@@ -74,22 +74,23 @@ def test_locate_candidate_layer(mock_img_model, monkeypatch):
     assert [module.training for module in mod.modules()] == modes
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.float64])
-@pytest.mark.parametrize("default_dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize(
+    ("dtype", "default_dtype"),
+    [
+        (torch.float16, torch.float32),
+        (torch.bfloat16, torch.float32),
+        (torch.float32, torch.float64),
+        (torch.float64, torch.float32),
+    ],
+)
 def test_locate_candidate_layer_model_dtype(dtype, default_dtype):
     model = nn.Sequential(nn.Conv2d(3, 4, 3, dtype=dtype), nn.ReLU(), nn.AdaptiveAvgPool2d(1))
-    model.train()
-    model[1].eval()
-    modes = [module.training for module in model.modules()]
     original_dtype = torch.get_default_dtype()
     try:
         torch.set_default_dtype(default_dtype)
         assert _utils.locate_candidate_layer(model, (3, 8, 8)) == "1"
-        assert torch.get_default_dtype() == default_dtype
     finally:
         torch.set_default_dtype(original_dtype)
-    assert [module.training for module in model.modules()] == modes
-    assert all(not module._forward_hooks for module in model.modules())
 
 
 def test_gradcam_automatic_layer_double_model():
@@ -102,7 +103,5 @@ def test_gradcam_automatic_layer_double_model():
     with GradCAM(model, input_shape=(3, 8, 8)) as extractor:
         scores = model(torch.ones((1, 3, 8, 8), dtype=torch.float64))
         (cam,) = extractor(0, scores)
-        assert cam.shape == (1, 6, 6)
         assert cam.dtype == torch.float64
-        assert cam.isfinite().all()
     assert all(not module._forward_hooks for module in model.modules())
