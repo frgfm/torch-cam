@@ -57,6 +57,9 @@ cam_extractor = LayerCAM(model, input_shape=(3, 384, 384))
 
 ## Choosing the target layer
 
+For 1D classifiers, use inputs shaped `(N, C, L)` and set `input_shape=(C, L)` for automatic layer discovery. CAMs
+have the target layer's feature length, which may be shorter than `L`; PIL overlays are for 2D images.
+
 A CAM is computed on the activation map of a **convolutional (spatial)** layer. The default — the last
 convolutional layer before global pooling — is the most class-discriminative but also the coarsest. Earlier
 layers give finer, less semantic maps. Rules of thumb for common torchvision backbones:
