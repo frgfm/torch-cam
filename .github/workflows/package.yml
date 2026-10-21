@@ -23,7 +23,7 @@ on:
     types: [published]
 
 env:
-  UV_VERSION: "0.12.5"
+  UV_VERSION: "0.13.4"
   PYTHON_VERSION: "3.11"
 
 

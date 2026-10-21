@@ -7,7 +7,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.12.5"
+  UV_VERSION: "0.13.4"
 
 jobs:
   is-properly-labeled:

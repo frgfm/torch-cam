@@ -20,6 +20,8 @@ import yaml
 
 PRECOMMIT_CONFIG = ".pre-commit-config.yaml"
 PYPROJECTS = ["./pyproject.toml"]
+MINIMUM_UV_VERSION = "0.13.4"
+EXPECTED_UV_BUILD_REQUIREMENT = f"uv_build>={MINIMUM_UV_VERSION},<1.0.0"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -51,6 +53,9 @@ def main():  # noqa: PLR0912
         "ty": [],
         "pre-commit": [],
     }
+    troubles = []
+    minimum_uv_version = tuple(map(int, MINIMUM_UV_VERSION.split(".")))
+    expected_uv_build_version = EXPECTED_UV_BUILD_REQUIREMENT.removeprefix("uv_build")
     # Parse precommit
     with Path(PRECOMMIT_CONFIG).open("r", encoding="utf-8") as f:
         precommit = yaml.safe_load(f)
@@ -61,6 +66,12 @@ def main():  # noqa: PLR0912
     for pyproject_path in PYPROJECTS:
         with Path(pyproject_path).open("rb") as f:
             pyproject = tomllib.load(f)
+
+        # Check the build backend version used by this project.
+        build_deps = [parse_dep_str(dep) for dep in pyproject["build-system"]["requires"]]
+        uv_build_deps = [dep for dep in build_deps if dep["pkg"] == "uv_build"]
+        if len(uv_build_deps) != 1 or uv_build_deps[0]["version"] != expected_uv_build_version:
+            troubles.append(f"{pyproject_path}: build-system requires {EXPECTED_UV_BUILD_REQUIREMENT}")
 
         # Parse dependencies
         core_deps = [parse_dep_str(dep) for dep in pyproject["project"]["dependencies"]]
@@ -80,14 +91,31 @@ def main():  # noqa: PLR0912
     for workflow_file in Path(".github/workflows").glob("*.yml"):
         with workflow_file.open("r") as f:
             workflow = yaml.safe_load(f)
-            if "env" in workflow and "UV_VERSION" in workflow["env"]:
-                deps_dict["uv"].append({
-                    "file": str(workflow_file),
-                    "version": f"=={workflow['env']['UV_VERSION'].lstrip('v')}",
-                })
+        uv_steps = [
+            step
+            for job in (workflow.get("jobs") or {}).values()
+            for step in job.get("steps", [])
+            if (step.get("uses") or "").startswith("astral-sh/setup-uv@")
+        ]
+        workflow_env = workflow.get("env") or {}
+        uv_version = workflow_env.get("UV_VERSION")
+        if uv_steps and not uv_version:
+            troubles.append(f"{workflow_file}: setup-uv requires a top-level UV_VERSION")
+        if uv_version is not None:
+            uv_version = str(uv_version).lstrip("v")
+            deps_dict["uv"].append({"file": str(workflow_file), "version": f"=={uv_version}"})
+            try:
+                installed_uv_version = tuple(map(int, uv_version.split(".")))
+            except ValueError:
+                troubles.append(f"{workflow_file}: invalid UV_VERSION {uv_version!r}")
+            else:
+                if installed_uv_version < minimum_uv_version:
+                    troubles.append(f"{workflow_file}: UV_VERSION must be at least {MINIMUM_UV_VERSION}")
+        for step in uv_steps:
+            if (step.get("with") or {}).get("version") != "${{ env.UV_VERSION }}":
+                troubles.append(f"{workflow_file}: setup-uv version must use ${{{{ env.UV_VERSION }}}}")
 
     # Assert all deps are in sync
-    troubles = []
     for dep, versions in deps_dict.items():
         versions_ = {v["version"] for v in versions}
         if len(versions_) > 1:

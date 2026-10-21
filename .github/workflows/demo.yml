@@ -24,7 +24,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.12.5"  # pinned for reproducible installs across all jobs
+  UV_VERSION: "0.13.4"  # pinned for reproducible installs across all jobs
 
 jobs:
   build:
