@@ -261,6 +261,9 @@ def test_fuse_cams():
 
     # Single CAM
     assert torch.equal(cams[0], core._CAM.fuse_cams(cams[:1]))
+    assert torch.equal(cams[0], core._CAM.fuse_cams(cams[:1], (32, 32)))
+    with pytest.raises(ValueError, match="single CAM"):
+        core._CAM.fuse_cams(cams[:1], (16, 16))
 
     # Fusion
     cam = core._CAM.fuse_cams(cams)
@@ -269,10 +272,23 @@ def test_fuse_cams():
     assert cam.shape == (1, 32, 32)
 
     # Specify target shape
-    cam = core._CAM.fuse_cams(cams, (16, 16))
+    with pytest.warns(UserWarning, match="downsample"):
+        cam = core._CAM.fuse_cams(cams, (16, 16))
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (1, 16, 16)
+
+
+def test_fuse_cams_uses_an_input_shape_and_warns_for_custom_shape():
+    cams = [torch.ones((1, 32, 16)), torch.zeros((1, 16, 32))]
+
+    with pytest.warns(UserWarning, match="downsample"):
+        fused = core._CAM.fuse_cams(cams)
+    assert fused.shape == cams[0].shape
+
+    with pytest.warns(UserWarning, match="all 2 CAMs will be interpolated"):
+        fused = core._CAM.fuse_cams(cams, (24, 24))
+    assert fused.shape == (1, 24, 24)
 
 
 @pytest.mark.parametrize("requires_grad", [False, True])
@@ -289,7 +305,8 @@ def test_fuse_cams_preserves_first_max(requires_grad, nonfinite, dtype):
         torch.nn.functional.interpolate(cam.unsqueeze(1), (4, 4), mode="bilinear", align_corners=False) for cam in cams
     ]
     expected = torch.stack(resized).max(0).values.squeeze(1)
-    fused = core._CAM.fuse_cams(cams, (4, 4))
+    with pytest.warns(UserWarning, match="all 3 CAMs will be interpolated"):
+        fused = core._CAM.fuse_cams(cams, (4, 4))
     torch.testing.assert_close(fused, expected, equal_nan=True)
     if requires_grad:
         actual_grads = torch.autograd.grad(fused.sum(), cams)

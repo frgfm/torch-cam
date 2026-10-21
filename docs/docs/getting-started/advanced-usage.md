@@ -95,6 +95,13 @@ with LayerCAM(model, ["layer2", "layer3", "layer4"]) as cam_extractor:
     fused = cam_extractor.fuse_cams(cams)       # single fused map
 ```
 
+With multiple maps of different shapes, fusion uses the shape of the input map with the most spatial locations by
+default and interpolates the other maps to match. A custom `target_shape` that matches none of the maps warns that
+every map will be interpolated; downsampling also warns because it can remove detail. A single map cannot be resized
+through `fuse_cams`; use `torch.nn.functional.interpolate` to resize one map or choose another interpolation
+mode. Two-dimensional maps use bilinear interpolation and three-dimensional maps use trilinear interpolation, both
+with `align_corners=False`.
+
 `RefineCAM` formalizes multi-layer fusion by normalizing and multiplying the maps. It requires at least two target
 layers and uses `GradCAMpp` as its base method by default. Pass another extractor class to reuse its weighting:
 
