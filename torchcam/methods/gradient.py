@@ -388,6 +388,8 @@ class XGradCAM(_GradCAM):
     where $A_k(x, y)$ is the activation of node $k$ in the target layer of the model at
     position $(x, y)$,
     and $Y^{(c)}$ is the model output score for class $c$ before softmax.
+    For float16 and bfloat16 inputs, products and spatial sums use float32 to keep epsilon and intermediate values
+    representable. Float64 inputs retain their precision.
 
     Example:
         ```python
@@ -418,9 +420,10 @@ class XGradCAM(_GradCAM):
 
         hook_a = cast(list[Tensor], self.hook_a)
         hook_g = cast(list[Tensor], self.hook_g)
+        gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in hook_g]
         return [
-            (grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1).add(eps)
-            for act, grad in zip(hook_a, hook_g, strict=True)
+            (grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1, dtype=grad.dtype).add(eps)
+            for act, grad in zip(hook_a, gradients, strict=True)
         ]
 
 
