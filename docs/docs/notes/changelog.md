@@ -6,6 +6,8 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 
 `PredictionExplanation.save()` requires the resized/cropped model view at input dimensions. Bundles add lossless `input_image` and optional string `context` to schema 1. Unsupported image modes fail before writing.
 
+CAM fusion now rejects resizing a single map; resize it explicitly with `torch.nn.functional.interpolate`.
+
 ## v0.5.0 (2026-10-03)
 
 Release note: [v0.5.0](https://github.com/frgfm/torch-cam/releases/tag/v0.5.0)
