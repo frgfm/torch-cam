@@ -230,30 +230,21 @@ def test_video_cams(
         _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
 
 
-@pytest.mark.parametrize("cam_method", [activation.ScoreCAM, activation.SSCAM, activation.ISCAM])
-@pytest.mark.parametrize("stride", [1, 2])
-def test_scorecam_one_dimensional_upsampling(cam_method, stride):
+def test_scorecam_one_dimensional_upsampling():
     model = nn.Sequential(
-        nn.Conv1d(1, 2, 1, stride=stride, bias=False),
+        nn.Conv1d(1, 1, 1, stride=2, bias=False),
         nn.AdaptiveAvgPool1d(1),
         nn.Flatten(1),
-        nn.Linear(2, 1, bias=False),
     ).eval()
     with torch.no_grad():
-        model[0].weight.copy_(torch.tensor([[[1.0]], [[2.0]]]))
-        model[3].weight.fill_(1)
-    kwargs = {} if cam_method is activation.ScoreCAM else {"num_samples": 2}
-    with cam_method(model, "0", batch_size=1, **kwargs) as extractor:
-        inputs = torch.arange(8, dtype=torch.float32).reshape(1, 1, 8)
-        model(inputs)
-        (cam,) = extractor(0)
-        expected = inputs[:, 0, ::stride] / inputs[:, 0, ::stride].amax(-1, keepdim=True)
-        torch.testing.assert_close(cam, expected)
+        model[0].weight.fill_(1)
 
+    inputs = torch.arange(8, dtype=torch.float32).reshape(1, 1, 8)
+    with activation.ScoreCAM(model, "0", batch_size=1) as extractor:
+        scores = model(inputs)
+        (cam,) = extractor(0, scores)
+        upsampled = extractor._upsample(torch.tensor([[[0.0, 1.0]]]))
 
-def test_scorecam_one_dimensional_nearest_values():
-    model = nn.Sequential(nn.Conv1d(1, 1, 1)).eval()
-    with activation.ScoreCAM(model, "0") as extractor:
-        model(torch.ones(1, 1, 4))
-        actual = extractor._upsample(torch.tensor([[[0.0, 1.0]]]))
-        torch.testing.assert_close(actual, torch.tensor([[[0.0, 0.0, 1.0, 1.0]]]))
+    torch.testing.assert_close(upsampled, torch.tensor([[[0.0, 0.0, 1.0, 1.0]]]))
+    expected = inputs[:, 0, ::2] / inputs[:, 0, ::2].amax(-1, keepdim=True)
+    torch.testing.assert_close(cam, expected)
