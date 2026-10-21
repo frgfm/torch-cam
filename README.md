@@ -60,7 +60,7 @@ Debugging one surprising classifier result? Use the [predicted-versus-expected a
 
 ## Why TorchCAM
 
-- **12 CAM methods plus VLM token maps**: from CAM and Grad-CAM to LeGrad, RefineCAM and [TAM](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms).
+- **13 CAM methods plus VLM token maps**: from CAM and Grad-CAM to class-independent EigenCAM, LeGrad, RefineCAM and [TAM](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#token-activation-maps-for-vlms).
 - **CNNs and Vision Transformers**: automatic target-layer resolution for CNNs, LeGrad and reshape transforms for ViTs.
 - **Beyond classification**: explain [detections, segmentation masks and embeddings](https://frgfm.github.io/torch-cam/getting-started/advanced-usage/#understanding-targets-and-the-call-signature) with the same extractors.
 - **Text decision models**: fast `TokenAblation` measures each token's effect; `TokenIG` provides embedding Integrated Gradients with numerical checks. Both return class-specific signed maps, including for Laya's decision architecture.
