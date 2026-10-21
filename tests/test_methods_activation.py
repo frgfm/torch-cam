@@ -239,7 +239,7 @@ def test_scorecam_one_dimensional_upsampling():
     with torch.no_grad():
         model[0].weight.fill_(1)
 
-    inputs = torch.arange(8, dtype=torch.float32).reshape(1, 1, 8)
+    inputs = torch.arange(4, dtype=torch.float32).reshape(1, 1, 4)
     with activation.ScoreCAM(model, "0", batch_size=1) as extractor:
         scores = model(inputs)
         (cam,) = extractor(0, scores)
