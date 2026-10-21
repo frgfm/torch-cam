@@ -14,7 +14,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from .core import _CAM, OutputTarget, _target_scores
+from .core import _CAM, OutputTarget, _resolve_fusion_shape, _target_scores
 
 __all__ = ["FinerCAM", "GradCAM", "GradCAMpp", "LayerCAM", "LeGrad", "RefineCAM", "SmoothGradCAMpp", "XGradCAM"]
 
@@ -922,16 +922,22 @@ class RefineCAM(_CAMWrapper):
     ) -> Tensor:
         """Normalize, resize, and multiply maps from multiple layers.
 
+        The input map with the most spatial locations sets the output shape when ``target_shape`` is omitted. For 2D
+        maps, interpolation is bilinear; for 3D maps, it is trilinear. Both use ``align_corners=False``. A target shape
+        outside the input shapes interpolates every map and emits a warning; downsampling also emits a warning because
+        it can remove spatial detail. A single map cannot be resized here. Resize maps explicitly before fusion to
+        choose a different interpolation mode.
+
         Raises:
             TypeError: if ``cams`` is not a list of tensors
-            ValueError: if ``cams`` is empty
+            ValueError: if ``cams`` is empty or a single map is paired with a different target shape
         """  # noqa: DOC201
         if not isinstance(cams, list) or any(not isinstance(cam, Tensor) for cam in cams):
             raise TypeError("invalid argument type for `cams`")
         if not cams:
             raise ValueError("argument `cams` cannot be an empty list")
 
-        shape = target_shape or tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams], strict=True)))
+        shape = _resolve_fusion_shape(cams, target_shape)
         interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
         resize_kwargs = {} if interpolation_mode == "nearest" else {"align_corners": False}
         resized_cams = [
@@ -1133,7 +1139,7 @@ class FinerCAM(_CAMWrapper):
         contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
         return self.base_cam.compute_cams([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
 
-    def fuse_cams(self, cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor:
+    def fuse_cams(self, cams: list[Tensor], target_shape: tuple[int, ...] | None = None) -> Tensor:
         """Fuse maps using the selected base extractor."""  # noqa: DOC201
         return self.base_cam.fuse_cams(cams, target_shape)
 
