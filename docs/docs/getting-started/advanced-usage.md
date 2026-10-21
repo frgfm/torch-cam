@@ -57,10 +57,8 @@ cam_extractor = LayerCAM(model, input_shape=(3, 384, 384))
 
 ## Choosing the target layer
 
-For 1D classifiers, pass inputs shaped `(N, C, L)` and set `input_shape=(C, L)` when using automatic layer discovery.
-Score-based methods such as `ScoreCAM` resize their masks with nearest-neighbor interpolation along the input length.
-The returned CAM follows the target layer's feature length, which may be shorter than `L`. The PIL overlay helper is
-intended for 2D images and does not visualize these 1D maps.
+For 1D classifiers, use inputs shaped `(N, C, L)` and set `input_shape=(C, L)` for automatic layer discovery. CAMs
+have the target layer's feature length, which may be shorter than `L`; PIL overlays are for 2D images.
 
 A CAM is computed on the activation map of a **convolutional (spatial)** layer. The default — the last
 convolutional layer before global pooling — is the most class-discriminative but also the coarsest. Earlier
