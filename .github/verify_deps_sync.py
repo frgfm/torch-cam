@@ -74,10 +74,7 @@ def parse_workflow_uv_versions(
             else:
                 if installed_uv_version < minimum_uv_version:
                     troubles.append(f"{workflow_file}: UV_VERSION must be at least {MINIMUM_UV_VERSION}")
-        if any(
-            (step.get("with") or {}).get("version") != "${{ env.UV_VERSION }}"
-            for step in uv_steps
-        ):
+        if any((step.get("with") or {}).get("version") != "${{ env.UV_VERSION }}" for step in uv_steps):
             troubles.append(f"{workflow_file}: setup-uv version must use ${{{{ env.UV_VERSION }}}}")
     return dependencies, troubles
 
