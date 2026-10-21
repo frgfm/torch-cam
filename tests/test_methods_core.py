@@ -295,3 +295,44 @@ def test_fuse_cams_preserves_first_max(requires_grad, nonfinite, dtype):
         actual_grads = torch.autograd.grad(fused.sum(), cams)
         expected_grads = torch.autograd.grad(expected.sum(), cams)
         torch.testing.assert_close(actual_grads, expected_grads, equal_nan=True)
+
+
+def test_cam_normalize_mixed_half_precision_channels():
+    """Normalize each spatial map independently when some channels are constant."""
+    cams = torch.tensor(
+        [
+            [[[4.0, 4.0], [4.0, 4.0]], [[2.0, 4.0], [6.0, 10.0]]],
+            [[[-3.0, -1.0], [1.0, 5.0]], [[7.0, 7.0], [7.0, 7.0]]],
+        ],
+        dtype=torch.float16,
+    )
+    expected = torch.tensor(
+        [
+            [[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.25], [0.5, 1.0]]],
+            [[[0.0, 0.25], [0.5, 1.0]], [[0.0, 0.0], [0.0, 0.0]]],
+        ],
+        dtype=torch.float16,
+    )
+    torch.testing.assert_close(core._CAM._normalize(cams, spatial_dims=2), expected)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+def test_gradcam_blank_map_dtype(dtype):
+    model = (
+        torch.nn
+        .Sequential(
+            torch.nn.Conv2d(1, 1, 1, bias=False),
+            torch.nn.AdaptiveAvgPool2d(1),
+            torch.nn.Flatten(1),
+            torch.nn.Linear(1, 1, bias=False),
+        )
+        .to(dtype=dtype)
+        .eval()
+    )
+    with torch.no_grad():
+        model[0].weight.fill_(1)
+        model[3].weight.fill_(-1)
+    with GradCAM(model, "0") as extractor:
+        scores = model(torch.ones((1, 1, 2, 2), dtype=dtype))
+        (cam,) = extractor(0, scores)
+        torch.testing.assert_close(cam, torch.zeros((1, 2, 2), dtype=dtype))
