@@ -4,17 +4,13 @@ on:
   pull_request:
     paths:
       - '.github/workflows/scripts.yml'
+      - '.github/actions/setup/**'
       - 'torchcam/**'
       - 'scripts/**'
       - 'pyproject.toml'
 
 permissions:
   contents: read
-
-env:
-  PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.13.4"
-
 
 jobs:
   scripts:
@@ -36,13 +32,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+      - uses: $/.github/actions/setup
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
+          activate-environment: 'false'
       - name: Install dependencies
         env:
           UV_TORCH_BACKEND: cpu

@@ -5,12 +5,14 @@ on:
     branches: main
     paths:
       - '.github/workflows/demo.yml'
+      - '.github/actions/setup/**'
       - 'demo/**'
       - 'pyproject.toml'
       - 'Makefile'
   pull_request:
     paths:
       - '.github/workflows/demo.yml'
+      - '.github/actions/setup/**'
       - 'demo/**'
       - 'pyproject.toml'
       - 'Makefile'
@@ -28,10 +30,6 @@ concurrency:
   group: demo-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'trusted' }}
   cancel-in-progress: true
 
-env:
-  PYTHON_VERSION: "3.13"
-  UV_VERSION: "0.13.4"  # pinned for reproducible installs across all jobs
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -39,14 +37,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+      - uses: $/.github/actions/setup
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
+          python-version: '3.13'
       - name: Install dependencies
         env:
           UV_TORCH_BACKEND: cpu
@@ -140,8 +133,9 @@ jobs:
           printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
             "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" >"${space_dir}/requirements.txt"
           # Keep the Space-owned image and apply transport limits before Streamlit starts.
-          sed -i '/^ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=/d' "${space_dir}/Dockerfile"
-          printf 'ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10\n' >>"${space_dir}/Dockerfile"
+          sed '/^ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=/d' "${space_dir}/Dockerfile" >"${space_dir}/Dockerfile.new"
+          printf 'ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10\n' >>"${space_dir}/Dockerfile.new"
+          mv "${space_dir}/Dockerfile.new" "${space_dir}/Dockerfile"
 
           git -C "${space_dir}" config user.name "github-actions[bot]"
           git -C "${space_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
