@@ -241,6 +241,7 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
       - name: Install package
+        shell: bash
         env:
           UV_TORCH_BACKEND: cpu
           PACKAGE_VERSION: ${{ needs.test.outputs.package_version }}
