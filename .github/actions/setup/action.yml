@@ -1,0 +1,20 @@
+name: Set up Python and uv
+description: Install the shared CI toolchain without a dependency cache.
+inputs:
+  python-version:
+    description: Python version; override for compatibility tests or the demo.
+    default: '3.11'
+  activate-environment:
+    description: Create and activate a virtual environment.
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+      with:
+        python-version: ${{ inputs.python-version }}
+    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      with:
+        version: '0.13.4'
+        activate-environment: ${{ inputs.activate-environment }}
+        enable-cache: false

@@ -4,7 +4,6 @@ on:
   push:
     branches: main
   pull_request:
-    branches: main
 
 permissions:
   contents: read
@@ -13,23 +12,14 @@ concurrency:
   group: ${{ github.event_name == 'push' && 'pages' || github.run_id }}
   cancel-in-progress: false
 
-env:
-  PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.13.4"
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
+          persist-credentials: false
+      - uses: $/.github/actions/setup
       - name: Build documentation
         env:
           UV_TORCH_BACKEND: cpu
@@ -40,7 +30,7 @@ jobs:
         run: test -e docs/site/index.html || exit
       - name: Upload documentation artifact
         if: github.event_name == 'push'
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: docs/site
 
@@ -56,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

@@ -5,15 +5,16 @@ on:
     branches: main
     paths:
       - '.github/workflows/package.yml'
+      - '.github/actions/setup/**'
       - 'torchcam/**'
       - 'scripts/**'
       - 'tests/**'
       - 'pyproject.toml'
       - 'Makefile'
   pull_request:
-    branches: main
     paths:
       - '.github/workflows/package.yml'
+      - '.github/actions/setup/**'
       - 'torchcam/**'
       - 'scripts/**'
       - 'tests/**'
@@ -22,10 +23,8 @@ on:
   release:
     types: [published]
 
-env:
-  UV_VERSION: "0.13.4"
-  PYTHON_VERSION: "3.11"
-
+permissions:
+  contents: read
 
 jobs:
   install:
@@ -36,15 +35,12 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ['3.11', '3.12', '3.13', '3.14']
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
         with:
           python-version: ${{ matrix.python }}
-      - uses: astral-sh/setup-uv@v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
-          enable-cache: false
       - name: Build the package
         run: make build
       - name: Install the engine
@@ -65,15 +61,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         numpy: ['numpy==1.26.4', 'numpy>=2,<3']
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - uses: astral-sh/setup-uv@v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
-          enable-cache: false
+          persist-credentials: false
+      - uses: $/.github/actions/setup
       - name: Build the wheel
         run: uv build --wheel
       - name: Install with minimum PyTorch and Matplotlib and selected NumPy
@@ -98,15 +89,10 @@ jobs:
     if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - uses: astral-sh/setup-uv@v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
-          enable-cache: false
+          persist-credentials: false
+      - uses: $/.github/actions/setup
       - name: Run quality checks
         env:
           UV_TORCH_BACKEND: cpu
@@ -122,7 +108,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Check the headers
@@ -133,15 +119,10 @@ jobs:
     outputs:
       package_version: ${{ steps.version.outputs.package_version }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - uses: astral-sh/setup-uv@v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
-          enable-cache: false
+          persist-credentials: false
+      - uses: $/.github/actions/setup
       - name: Check release version
         if: github.event_name == 'release'
         id: version
@@ -167,11 +148,11 @@ jobs:
           python -c "import sys; from pathlib import Path; import torchcam; path = Path(torchcam.__file__); assert path.is_relative_to(sys.prefix), path; assert path.with_name('py.typed').is_file(); print(torchcam.__version__, path)"
           python -m pytest "$GITHUB_WORKSPACE/tests" --import-mode=importlib --cov-report "xml:$GITHUB_WORKSPACE/coverage.xml"
           uv publish --dry-run --trusted-publishing never --token dry-run "$GITHUB_WORKSPACE"/dist/*
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           path: ./coverage.xml
           name: coverage-reports
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: github.event_name == 'release'
         with:
           path: dist/
@@ -182,13 +163,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coverage-reports
-      - uses: codecov/codecov-action@v7
+      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests
@@ -203,11 +184,10 @@ jobs:
       # For PyPI's trusted publishing.
       id-token: write
     steps:
-      - uses: astral-sh/setup-uv@v10.3.0
+      - uses: $/.github/actions/setup
         with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: false
-      - uses: actions/download-artifact@v8
+          activate-environment: 'false'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: release-distributions
           path: dist/
@@ -222,16 +202,15 @@ jobs:
         python: ['3.11', '3.12', '3.13', '3.14']
     needs: [test, publish]
     steps:
-      - uses: actions/setup-python@v7
+      - uses: $/.github/actions/setup
         with:
           python-version: ${{ matrix.python }}
-      - uses: astral-sh/setup-uv@v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          activate-environment: 'false'
       - name: Install package
+        shell: bash
         env:
           UV_TORCH_BACKEND: cpu
+          PACKAGE_VERSION: ${{ needs.test.outputs.package_version }}
         run: |
-          uv pip install --system torchcam==${{ needs.test.outputs.package_version }}
+          uv pip install --system "torchcam==$PACKAGE_VERSION"
           python -c "import torchcam; print(torchcam.__version__)"

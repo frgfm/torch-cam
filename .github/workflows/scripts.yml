@@ -2,17 +2,15 @@ name: scripts
 
 on:
   pull_request:
-    branches: main
     paths:
       - '.github/workflows/scripts.yml'
+      - '.github/actions/setup/**'
       - 'torchcam/**'
       - 'scripts/**'
       - 'pyproject.toml'
 
-env:
-  PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.13.4"
-
+permissions:
+  contents: read
 
 jobs:
   scripts:
@@ -31,14 +29,12 @@ jobs:
               python scripts/eval_latency.py LayerCAM --weights none --size 64 --it 3 --warmup 1 --repeat 2 --scope end-to-end --output latency.json
               python scripts/eval_latency.py ScoreCAM --arch mobilenet_v3_small --weights none --size 64 --it 1 --warmup 0 --repeat 1 --output score.json
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@v10.3.0
+          persist-credentials: false
+      - uses: $/.github/actions/setup
         with:
-          version: ${{ env.UV_VERSION }}
+          activate-environment: 'false'
       - name: Install dependencies
         env:
           UV_TORCH_BACKEND: cpu
@@ -50,7 +46,7 @@ jobs:
         run: |
           python -c "from PIL import Image; Image.new('RGB', (256, 256), 'red').save('sample.png')"
           ${{ matrix.command }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ matrix.name }}-results
           path: |

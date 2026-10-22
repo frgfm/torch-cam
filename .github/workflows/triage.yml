@@ -4,6 +4,9 @@ on:
   pull_request_target:
     branches: main
 
+permissions:
+  contents: read
+
 jobs:
   autolabel:
     permissions:
@@ -11,6 +14,6 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/labeler@v7
+    - uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7
       with:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"

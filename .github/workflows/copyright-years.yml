@@ -9,8 +9,8 @@ concurrency:
   group: annual-copyright-refresh
   cancel-in-progress: false
 
-env:
-  UV_VERSION: "0.13.4"
+permissions:
+  contents: read
 
 jobs:
   refresh:
@@ -25,11 +25,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.repository.default_branch }}
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+          persist-credentials: false
+      - uses: $/.github/actions/setup
         with:
-          version: ${{ env.UV_VERSION }}
-          python-version: "3.11"
-          enable-cache: false
+          activate-environment: 'false'
       - name: Refresh years and open a review pull request
         shell: bash
         env:
@@ -38,6 +37,7 @@ jobs:
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
+          gh auth setup-git
 
           copyright_year="$(date +%Y)"
           branch_name="automation/update-copyright-years-$copyright_year"
