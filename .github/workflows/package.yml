@@ -83,7 +83,7 @@ jobs:
           NUMPY_REQUIREMENT: ${{ matrix.numpy }}
         run: |
           for wheel in dist/*.whl; do
-            uv pip install "${wheel}[test]" "torch==2.13.0" "torchvision==0.28.0" "matplotlib==3.8.4" "Pillow==13.0.0" "$NUMPY_REQUIREMENT"
+            uv pip install "${wheel}[test]" -r .github/requirements-min.txt "$NUMPY_REQUIREMENT"
           done
       - name: Test minimum supported dependencies
         shell: bash
