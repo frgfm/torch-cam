@@ -367,7 +367,7 @@ def image_page():
             selected_image = read_image(uploaded_file) if uploaded_file is not None else None
         except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
             selected_image = None
-            st.error("This image cannot be opened safely. Choose a valid PNG or JPEG file.")
+            st.error("This image cannot be opened safely. Use a PNG/JPEG up to 8 MiB, 8 megapixels and 32:1 aspect ratio.")
 
         st.header("Configuration")
         model_name = st.selectbox(
@@ -546,7 +546,7 @@ def vlm_page():
     try:
         image = read_image(uploaded) if uploaded is not None else None
     except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
-        st.error("This image cannot be opened safely. Choose a valid PNG or JPEG file.")
+        st.error("This image cannot be opened safely. Use a PNG/JPEG up to 8 MiB, 8 megapixels and 32:1 aspect ratio.")
         return
     device = "cuda" if torch.cuda.is_available() else "cpu"
     request = (model_name, uploaded.getvalue() if uploaded is not None else None)
