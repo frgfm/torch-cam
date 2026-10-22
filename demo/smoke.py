@@ -32,7 +32,7 @@ from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.pre_tokenizers import Whitespace
 from tokenizers.processors import TemplateProcessing
-from torchvision.models import get_model
+from torchvision.models import get_model, get_model_weights
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -131,6 +131,12 @@ def check_image_decoding():
 
 
 def check_upload_limits():
+    wide_upload = image_upload(Image.new("RGB", (65_535, 1)), "PNG")
+    with (
+        patch.object(Image.Image, "load", side_effect=AssertionError("extreme aspect ratio reached decoding")),
+        TestCase().assertRaisesRegex(OSError, "aspect ratio"),  # noqa: PT027 - dependency-free smoke check.
+    ):
+        app.read_image(wide_upload)
     upload = image_upload(Image.new("RGB", (2, 2)), "PNG")
     with (
         patch.object(app, "MAX_UPLOAD_BYTES", 1),
@@ -651,6 +657,8 @@ def main():
     check("RefineCAM" in app.compatible_methods("resnet18"), "RefineCAM is missing")
 
     for model_name in app.MODEL_LABELS:
+        resize_side = get_model_weights(model_name).DEFAULT.transforms().resize_size[0]
+        check(32 * resize_side**2 <= app.MAX_IMAGE_PIXELS, f"{model_name}: resize exceeds the pixel budget")
         model = get_model(model_name, weights=None)
         module_names = dict(model.named_modules())
         for method_name in app.compatible_methods(model_name):

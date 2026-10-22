@@ -139,8 +139,9 @@ def read_image(source):
         warnings.simplefilter("error", Image.DecompressionBombWarning)
         try:
             with Image.open(source, formats=("JPEG", "PNG")) as image:
-                if image.width * image.height > MAX_IMAGE_PIXELS:
-                    raise OSError("Image exceeds the 8-megapixel limit")
+                # Short-edge resizing happens before cropping and can amplify thin images.
+                if image.width * image.height > MAX_IMAGE_PIXELS or max(image.size) > 32 * min(image.size):
+                    raise OSError("Image exceeds the 8-megapixel or 32:1 aspect ratio limit")
                 image.load()
                 return ImageOps.exif_transpose(image).convert("RGB")
         except (ValueError, SyntaxError, IndexError, TypeError, struct.error) as exc:

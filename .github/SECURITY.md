@@ -15,7 +15,8 @@ Dockerfile and immutable TorchCAM source revision. `make install-demo` is a deve
 Maintain OS packages, models and the host separately; a source or image test does not verify deployment.
 
 One Streamlit process admits one active computation and one waiter, with a 15-second queue timeout.
-Uploads are limited to 8 MiB and 8 million pixels. CAM limits are four layers, batch size 32 and eight
+Uploads are limited to 8 MiB, 8 million pixels and a 32:1 aspect ratio to bound resize amplification.
+CAM limits are four layers, batch size 32 and eight
 FinerCAM comparison classes; generation limits are 24 new BLIP tokens or 48 Qwen/Gemma tokens.
 Work retains its slot until it returns or raises. Hard CPU/GPU cancellation requires process isolation;
 additional workers require shared admission and memory budgeting. Total sessions and process memory are not capped.
