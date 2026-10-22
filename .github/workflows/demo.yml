@@ -8,14 +8,12 @@ on:
       - 'demo/**'
       - 'pyproject.toml'
       - 'Makefile'
-      - '.streamlit/**'
   pull_request:
     paths:
       - '.github/workflows/demo.yml'
       - 'demo/**'
       - 'pyproject.toml'
       - 'Makefile'
-      - '.streamlit/**'
   workflow_dispatch:  # Allow trusted manual runs from the Actions tab
     inputs:
       pretrained:
@@ -65,24 +63,34 @@ jobs:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
         run: uv run --no-sync python demo/smoke.py
-      - name: Build and check the Space image without publishing
+      - name: Check pretrained models with read-only access
+        if: >-
+          github.event_name == 'workflow_dispatch' && inputs.pretrained &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          HF_TOKEN: ${{ secrets.HF_MODEL_READ_TOKEN }}
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
         run: |
-          space_dir="${RUNNER_TEMP}/space-build"
-          sh demo/prepare_space.sh "${space_dir}"
-          docker build -t torchcam-demo-validation "${space_dir}"
-          docker run --rm --entrypoint python \
-            -e PYTHONPATH=/app/src -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
-            torchcam-demo-validation -c 'import os, inference, streamlit_app, torchcam; from pathlib import Path; assert os.getuid() == 1000 and os.access(Path.home(), os.W_OK)'
-      - name: Start Space image and wait for health
+          if test -z "$HF_TOKEN"; then
+            echo '::error::Configure HF_MODEL_READ_TOKEN with model-read access only; see .github/SECURITY.md.'
+            exit 1
+          fi
+          uv run --no-sync python demo/smoke.py --pretrained
+      - name: Start demo and wait for health
         shell: bash
         run: |
           set -euo pipefail
-          container_id="$(docker run -d -p 127.0.0.1:8080:8501 \
-            -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 -e STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
-            torchcam-demo-validation)"
+          log_file="${RUNNER_TEMP}/torchcam-demo.log"
+          HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+            STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10 \
+            uv run --no-sync streamlit run demo/app.py --server.headless true --server.port 8080 \
+            >"${log_file}" 2>&1 &
+          server_pid=$!
 
           cleanup() {
-            docker rm -f "${container_id}" >/dev/null 2>&1 || true
+            kill "${server_pid}" 2>/dev/null || true
+            wait "${server_pid}" 2>/dev/null || true
           }
           trap cleanup EXIT
 
@@ -104,53 +112,16 @@ jobs:
           raise SystemExit(f"Streamlit health check timed out: {last_error}")
           PY
           then
-            docker logs "${container_id}"
+            cat "${log_file}"
             exit 1
           fi
-
-  pretrained:
-    if: >-
-      github.event_name == 'workflow_dispatch' && inputs.pretrained &&
-      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
-      - name: Install resolved environment
-        env:
-          UV_TORCH_BACKEND: cpu
-        run: |
-          uv pip sync demo/requirements.txt
-          uv pip install --no-deps .
-      - name: Check pretrained models with read-only access
-        env:
-          HF_TOKEN: ${{ secrets.HF_MODEL_READ_TOKEN }}
-          OMP_NUM_THREADS: '2'
-          MKL_NUM_THREADS: '2'
-        run: |
-          if test -z "$HF_TOKEN"; then
-            echo '::error::Configure HF_MODEL_READ_TOKEN with model-read access only; see .github/SECURITY.md.'
-            exit 1
-          fi
-          uv run --no-sync python demo/smoke.py --pretrained
 
   sync-to-hub:
     if: >-
-      always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
-      needs.build.result == 'success' &&
-      (needs.pretrained.result == 'success' || needs.pretrained.result == 'skipped')
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
-    needs: [build, pretrained]
+    needs: build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -165,11 +136,19 @@ jobs:
           trap 'rm -rf "${space_dir}"' EXIT
 
           git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
-          sh demo/prepare_space.sh "${space_dir}"
+          mkdir -p "${space_dir}/src"
+          cp demo/app.py "${space_dir}/src/streamlit_app.py"
+          cp demo/inference.py "${space_dir}/src/inference.py"
+          cp demo/requirements.txt "${space_dir}/requirements.txt"
+          printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
+            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" >>"${space_dir}/requirements.txt"
+          # Keep the Space-owned image and apply transport limits before Streamlit starts.
+          sed -i '/^ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=/d' "${space_dir}/Dockerfile"
+          printf 'ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10\n' >>"${space_dir}/Dockerfile"
 
           git -C "${space_dir}" config user.name "github-actions[bot]"
           git -C "${space_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C "${space_dir}" add Dockerfile requirements.txt src .streamlit
+          git -C "${space_dir}" add Dockerfile requirements.txt src
           if git -C "${space_dir}" diff --cached --quiet; then
             echo "Space already matches ${GITHUB_SHA}."
             exit 0

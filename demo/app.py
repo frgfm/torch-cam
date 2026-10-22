@@ -16,7 +16,6 @@ from time import perf_counter
 import streamlit as st
 import torch
 from inference import (
-    COMPUTE_ADMISSIONS,
     COMPUTE_LOCK,
     DECISION_MODELS,
     VLM_MODELS,
@@ -37,7 +36,6 @@ from torchcam.utils import overlay_mask
 LOGGER = logging.getLogger(__name__)
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 MAX_IMAGE_PIXELS = 8_000_000
-COMPUTE_WAIT_SECONDS = 15
 MODEL_LABELS = {
     "resnet18": "ResNet-18",
     "resnet50": "ResNet-50",
@@ -80,24 +78,18 @@ SLOW_METHODS = {"ScoreCAM", "SSCAM", "ISCAM"}
 
 
 class ComputeBusyError(RuntimeError):
-    """The demo has no free compute slot or the bounded queue wait expired."""
+    """The demo is already computing another request."""
 
 
 @contextmanager
 def expensive_work():
     # shortcut: process-local admission; add shared coordination before adding server workers.
-    if not COMPUTE_ADMISSIONS.acquire(blocking=False):
+    if not COMPUTE_LOCK.acquire(blocking=False):
         raise ComputeBusyError("The demo is busy. Wait a moment, then retry.")
-    locked = False
     try:
-        locked = COMPUTE_LOCK.acquire(timeout=COMPUTE_WAIT_SECONDS)
-        if not locked:
-            raise ComputeBusyError("The demo is busy. Wait a moment, then retry.")
         yield
     finally:
-        if locked:
-            COMPUTE_LOCK.release()
-        COMPUTE_ADMISSIONS.release()
+        COMPUTE_LOCK.release()
 
 
 def compatible_methods(model_name):

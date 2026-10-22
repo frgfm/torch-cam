@@ -115,7 +115,7 @@ check-demo-lock: ${PYPROJECT_FILE} demo/requirements.txt ## Check the deployed d
 
 # Run the Streamlit demo
 run-demo: ${DEMO_FILE}
-	uv run streamlit run ${DEMO_FILE}
+	STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10 uv run streamlit run ${DEMO_FILE}
 
 ########################################################
 # Local setup

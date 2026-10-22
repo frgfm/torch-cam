@@ -6,33 +6,22 @@ Please report security issues using https://github.com/frgfm/torch-cam/security/
 
 ## Dependency and deployment checks
 
-Load only trusted models. The public demo also parses uploads and downloads allow-listed models;
-immutable revisions and clean advisory scans do not establish runtime safety.
+Load only trusted models. Immutable model revisions and clean advisory scans do not establish runtime safety.
 
 `demo/requirements.txt` records the Linux x86_64, Python 3.13 CPU environment. Refresh it with `make lock-demo`
-using uv 0.13.4, then run `make check-demo-lock` and the offline checks below. CI and Space use the same resolution,
-Dockerfile and immutable TorchCAM source revision. `make install-demo` is a development install.
-Maintain OS packages, models and the host separately; a source or image test does not verify deployment.
+then run `make check-demo-lock` and the offline check below. CI and the Space install that resolution;
+Space requirements also pin TorchCAM's source revision. The Space owns its Dockerfile and OS maintenance.
+`make install-demo` is a development install; passing CI does not verify deployment.
 
-One Streamlit process admits one active computation and one waiter, with a 15-second queue timeout.
-Uploads are limited to 8 MiB, 8 million pixels and a 32:1 aspect ratio to bound resize amplification.
-CAM limits are four layers, batch size 32 and eight
-FinerCAM comparison classes; generation limits are 24 new BLIP tokens or 48 Qwen/Gemma tokens.
-Work retains its slot until it returns or raises. Hard CPU/GPU cancellation requires process isolation;
-additional workers require shared admission and memory budgeting. Total sessions and process memory are not capped.
+One Streamlit process admits one active computation; concurrent requests receive a busy message without queuing.
+Upload, image, CAM and generation limits are enforced in `demo/app.py` and `demo/inference.py`.
+`make run-demo` and Space synchronization set Streamlit's server transport limits before startup.
+Work keeps its slot until it returns or raises. Hard cancellation or more workers require process isolation
+and shared resource budgets. Total sessions and process memory are not capped.
 
-Scheduled audits check the unchanged demo lock and fresh current/minimum core/test resolutions, without
-advisory exclusions. Only advisory lookup strips PyTorch's `+cpu` suffix; any skipped package fails the audit.
-Update and re-audit dependencies when new advisories appear.
-
-Offline validation needs no Hugging Face credential:
-
-```sh
-OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
-  uv run --no-sync python demo/smoke.py
-```
+Offline check: `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --no-sync python demo/smoke.py`.
 
 Optional model checks run on the default branch with `pretrained: true`. An owner must first configure
-**HF_MODEL_READ_TOKEN** with read-only access to the listed models and accept Gemma's access conditions;
-missing credentials fail before downloads. Restrict existing **HF_TOKEN** to writing `spaces/frgfm/torch-cam`.
-Use it only for Space synchronization, never model checks or Space runtime. Offline checks need no token.
+**HF_MODEL_READ_TOKEN** with model-read access and accept Gemma's conditions; missing credentials fail before downloads.
+Restrict existing **HF_TOKEN** to writing `spaces/frgfm/torch-cam`; use it only in the separate synchronization job.
+Offline checks need no token.

@@ -14,8 +14,7 @@ import tempfile
 import zlib
 from io import BytesIO
 from pathlib import Path
-from threading import Event, Lock, Thread
-from time import monotonic, sleep
+from threading import Lock
 from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -218,7 +217,7 @@ def check_algorithm_limits():
 
 
 def check_compute_admission():
-    with patch.object(app, "COMPUTE_WAIT_SECONDS", 0.01), app.expensive_work():
+    with app.expensive_work():
         app.st.cache_resource.clear()
         with TestCase().assertRaises(app.ComputeBusyError), app.expensive_work():  # noqa: PT027
             pass
@@ -230,28 +229,6 @@ def check_compute_admission():
             raise error
         with app.expensive_work():
             pass
-
-    admissions = app.COMPUTE_ADMISSIONS
-    waiting_started = Event()
-    waiting_entered = Event()
-
-    def wait_for_slot():
-        waiting_started.set()
-        with app.expensive_work():
-            waiting_entered.set()
-
-    with patch.object(app, "COMPUTE_WAIT_SECONDS", 2), app.expensive_work():
-        waiter = Thread(target=wait_for_slot)
-        waiter.start()
-        check(waiting_started.wait(1), "Queued compute request did not start")
-        deadline = monotonic() + 1
-        while admissions._value and monotonic() < deadline:  # noqa: SLF001
-            sleep(0.001)
-        check(admissions._value == 0, "Admission did not reserve one active and one waiting slot")  # noqa: SLF001
-        with TestCase().assertRaises(app.ComputeBusyError), app.expensive_work():  # noqa: PT027
-            pass
-    waiter.join(timeout=2)
-    check(waiting_entered.is_set() and not waiter.is_alive(), "Queued compute request did not run after release")
 
 
 def check_malformed_png_metadata():
