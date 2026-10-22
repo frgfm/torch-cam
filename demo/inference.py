@@ -7,7 +7,7 @@ import json
 from contextlib import ExitStack
 from operator import itemgetter
 from pathlib import Path
-from threading import Lock
+from threading import BoundedSemaphore, Lock
 from time import perf_counter
 
 import streamlit as st
@@ -16,6 +16,9 @@ from PIL import ImageOps
 from torchvision.transforms.functional import to_pil_image
 
 from torchcam.methods import GradCAM, LayerCAM, TokenAblation
+
+# Clients can clear Streamlit caches; admission must also survive script reruns.
+COMPUTE_ADMISSIONS, COMPUTE_LOCK = BoundedSemaphore(2), Lock()
 
 DECISION_MODELS = {
     "laya": "Laya",

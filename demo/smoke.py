@@ -173,6 +173,7 @@ def check_algorithm_limits():
 
 def check_compute_admission():
     with patch.object(app, "COMPUTE_WAIT_SECONDS", 0.01), app.expensive_work():
+        app.st.cache_resource.clear()
         try:
             with app.expensive_work():
                 pass
@@ -189,7 +190,7 @@ def check_compute_admission():
         with app.expensive_work():
             pass
 
-    admissions, _ = app._compute_gate()  # noqa: SLF001
+    admissions = app.COMPUTE_ADMISSIONS
     waiting_started = Event()
     waiting_entered = Event()
 

@@ -11,12 +11,13 @@ import struct
 import warnings
 from contextlib import contextmanager
 from io import BytesIO
-from threading import BoundedSemaphore, Lock
 from time import perf_counter
 
 import streamlit as st
 import torch
 from inference import (
+    COMPUTE_ADMISSIONS,
+    COMPUTE_LOCK,
     DECISION_MODELS,
     VLM_MODELS,
     explain_answer_token,
@@ -82,27 +83,21 @@ class ComputeBusyError(RuntimeError):
     """The demo has no free compute slot or the bounded queue wait expired."""
 
 
-@st.cache_resource(show_spinner=False)
-def _compute_gate():
-    # shortcut: this gate is process-local; add shared coordination if deployment adds workers.
-    return BoundedSemaphore(2), Lock()
-
-
 @contextmanager
 def expensive_work():
-    admissions, compute_lock = _compute_gate()
-    if not admissions.acquire(blocking=False):
+    # shortcut: process-local admission; add shared coordination before adding server workers.
+    if not COMPUTE_ADMISSIONS.acquire(blocking=False):
         raise ComputeBusyError("The demo is busy. Wait a moment, then retry.")
     locked = False
     try:
-        locked = compute_lock.acquire(timeout=COMPUTE_WAIT_SECONDS)
+        locked = COMPUTE_LOCK.acquire(timeout=COMPUTE_WAIT_SECONDS)
         if not locked:
             raise ComputeBusyError("The demo is busy. Wait a moment, then retry.")
         yield
     finally:
         if locked:
-            compute_lock.release()
-        admissions.release()
+            COMPUTE_LOCK.release()
+        COMPUTE_ADMISSIONS.release()
 
 
 def compatible_methods(model_name):

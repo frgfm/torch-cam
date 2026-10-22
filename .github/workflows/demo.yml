@@ -72,7 +72,7 @@ jobs:
         env:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
-        run: uv run --no-sync --with pytest==9.1.1 python -m pytest tests/test_demo_loaders.py --no-cov
+        run: uv run --no-sync --with pytest==9.1.1 python -m pytest -o addopts= tests/test_demo_loaders.py
       - name: Start demo and wait for health
         shell: bash
         run: |
