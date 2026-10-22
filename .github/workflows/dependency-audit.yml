@@ -58,7 +58,7 @@ jobs:
           else
             set --
             if [[ "$STACK" == minimum ]]; then
-              set -- -c .github/requirements-min.txt
+              set -- -c .github/requirements-min.txt --resolution lowest-direct
             fi
             uv pip compile pyproject.toml --extra test --python-version "$PYTHON_VERSION" \
               --python-platform x86_64-unknown-linux-gnu --torch-backend cpu \
