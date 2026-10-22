@@ -11,7 +11,6 @@ on:
       - 'pyproject.toml'
       - 'Makefile'
   pull_request:
-    branches: main
     paths:
       - '.github/workflows/package.yml'
       - 'torchcam/**'

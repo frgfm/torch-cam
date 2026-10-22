@@ -2,7 +2,6 @@ name: scripts
 
 on:
   pull_request:
-    branches: main
     paths:
       - '.github/workflows/scripts.yml'
       - 'torchcam/**'
