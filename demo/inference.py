@@ -29,7 +29,7 @@ DECISION_MODELS = {
 DECIDER_ID = "Mapika/decider-0.8b"
 DECIDER_REVISION = "a0a01d6f8135298f400a8c856b355793012ae971"
 LAYA_ID = "convaiinnovations/laya"
-LAYA_REVISION = "7b928d828b7b0e022f929d9bd2e44165aa270148"
+LAYA_REVISION = "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"  # Reviewed checkpoint in laya 0.4.6.
 NLI_MODELS = {
     "minilm": "cross-encoder/nli-MiniLM2-L6-H768",
     "deberta": "MoritzLaurer/deberta-v3-base-zeroshot-v2.0",
