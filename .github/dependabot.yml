@@ -30,14 +30,6 @@ updates:
     schedule:
       interval: "daily"
       time: "08:00"
-    allow:
-      - dependency-name: "mkdocs*"
-      - dependency-name: "griffe*"
-      - dependency-name: "ruff"
-      - dependency-name: "ty"
-      - dependency-name: "prek"
-      - dependency-name: "uv-build"
-      - dependency-name: "pytest*"
     groups:
       docs:
         patterns:
@@ -54,3 +46,28 @@ updates:
           - "pytest"
           - "pytest-cov"
           - "pytest-pretty"
+      runtime:
+        patterns:
+          - "torch"
+          - "torchvision"
+          - "Pillow"
+          - "numpy"
+      demo:
+        patterns:
+          - "streamlit"
+          - "transformers"
+          - "laya"
+  - package-ecosystem: "pip"
+    directory: "/demo"
+    labels:
+      - "dependencies"
+      - "type: misc"
+    commit-message:
+      prefix: "build(demo-deps)"
+    schedule:
+      interval: "daily"
+      time: "08:00"
+    groups:
+      demo:
+        patterns:
+          - "*"
