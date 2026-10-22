@@ -1,5 +1,6 @@
 import re
 import sys
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -7,7 +8,8 @@ import pytest
 
 pytest.importorskip("streamlit")
 
-from demo import inference
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "demo"))
+import inference
 
 
 def install_transformers(monkeypatch):
