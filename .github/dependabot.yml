@@ -5,6 +5,15 @@
 
 version: 2
 updates:
+  - package-ecosystem: "docker"
+    directory: "/demo"
+    commit-message:
+      prefix: "build(demo-image)"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: "github-actions"
     directory: "/"
     labels:
