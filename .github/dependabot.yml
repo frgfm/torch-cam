@@ -16,7 +16,7 @@ updates:
       - dependency-name: "python"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # Update uv together with the shared workflow/build-tool pins.
-      - dependency-name: "ghcr.io/astral-sh/uv"
+      - dependency-name: "astral-sh/uv"
   - package-ecosystem: "github-actions"
     directory: "/"
     labels:
