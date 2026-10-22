@@ -25,6 +25,8 @@ DECISION_MODELS = {
 }
 DECIDER_ID = "Mapika/decider-0.8b"
 DECIDER_REVISION = "a0a01d6f8135298f400a8c856b355793012ae971"
+LAYA_ID = "convaiinnovations/laya"
+LAYA_REVISION = "7b928d828b7b0e022f929d9bd2e44165aa270148"
 NLI_MODELS = {
     "minilm": "cross-encoder/nli-MiniLM2-L6-H768",
     "deberta": "MoritzLaurer/deberta-v3-base-zeroshot-v2.0",
@@ -36,8 +38,13 @@ VLM_MODELS = {
     "google/gemma-4-E2B-it": "Gemma 4 · E2B",
 }
 VLM_REVISIONS = {
+    VLM_ID: "82a37760796d32b1411fe092ab5d4e227313294b",
     "Qwen/Qwen3-VL-2B-Instruct": "89644892e4d85e24eaac8bacfd4f463576704203",
     "google/gemma-4-E2B-it": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+}
+NLI_REVISIONS = {
+    "cross-encoder/nli-MiniLM2-L6-H768": "b95119ce93d3e065de6214e38cd4a97b0f2f2c6d",
+    "MoritzLaurer/deberta-v3-base-zeroshot-v2.0": "8e7e5af5983a0ddb1a5b45a38b129ab69e2258e8",
 }
 QUESTION = {
     "type": "choice",
@@ -79,7 +86,7 @@ def load_resource(family, model_name, device):
     elif family == "decision" and model_name == "laya":
         from laya import Agent  # noqa: PLC0415
 
-        model = Agent("convaiinnovations/laya", device=device, backend="eager")
+        model = Agent(LAYA_ID, device=device, backend="eager", revision=LAYA_REVISION)
         # Match attribution precision and the native decoder's probabilities, including on CUDA.
         model.model.float().requires_grad_(False)
         model.amp_enabled = False
@@ -97,21 +104,26 @@ def load_resource(family, model_name, device):
 
         if family == "vlm" and model_name in VLM_MODELS:
             checkpoint = model_name
-            revision = VLM_REVISIONS.get(model_name)
-            processor = AutoProcessor.from_pretrained(checkpoint, revision=revision)
+            revision = VLM_REVISIONS[model_name]
+            processor = AutoProcessor.from_pretrained(checkpoint, revision=revision, trust_remote_code=False)
             loader = BlipForConditionalGeneration if model_name == VLM_ID else AutoModelForImageTextToText
             full_precision = model_name == VLM_ID or (device == "cpu" and model_name.startswith("Qwen/"))
             dtype = torch.float32 if full_precision else torch.bfloat16
             options = {"attn_implementation": "eager"}
         elif family == "decision" and model_name in {*NLI_MODELS, "decider"}:
             checkpoint = DECIDER_ID if model_name == "decider" else NLI_MODELS[model_name]
-            revision = DECIDER_REVISION if model_name == "decider" else None
-            processor = AutoTokenizer.from_pretrained(checkpoint, revision=revision, use_fast=True)
+            revision = DECIDER_REVISION if model_name == "decider" else NLI_REVISIONS[checkpoint]
+            processor = AutoTokenizer.from_pretrained(
+                checkpoint, revision=revision, use_fast=True, trust_remote_code=False
+            )
             loader = AutoModelForCausalLM if model_name == "decider" else AutoModelForSequenceClassification
             dtype, options = torch.float32, {}
         else:
             raise ValueError("Unknown demo model")
-        model = loader.from_pretrained(checkpoint, revision=revision, dtype=dtype, **options).eval().to(device)
+        model_options = {"trust_remote_code": False, **options}
+        if checkpoint != VLM_ID:
+            model_options["use_safetensors"] = True
+        model = loader.from_pretrained(checkpoint, revision=revision, dtype=dtype, **model_options).eval().to(device)
         if family == "decision" and model_name == "decider":
             from huggingface_hub import hf_hub_download  # noqa: PLC0415
 
@@ -230,6 +242,8 @@ def explain_decider(model, tokenizer, text):
 
 
 def explain_decision(text, model_name, device):
+    if not isinstance(text, str) or len(text) > 2000:
+        raise ValueError("Support tickets must contain at most 2,000 characters")
     model, processor, lock = load_resource("decision", model_name, device)
     with lock:
         started_at = perf_counter()
@@ -364,6 +378,8 @@ def answer_inputs(result, token_index, device):
 
 
 def generate_answer(image, prompt, device, model_name=VLM_ID):
+    if not isinstance(prompt, str) or len(prompt) > 256:
+        raise ValueError("Prompts must contain at most 256 characters")
     model, processor, lock = load_resource("vlm", model_name, device)
     with lock, torch.inference_mode():
         blip = model.config.model_type == "blip"

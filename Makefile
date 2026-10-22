@@ -52,6 +52,7 @@ typing-check: ${PYPROJECT_FILE} ## Check type annotations
 
 deps-check: .github/verify_deps_sync.py ## Check dependency synchronization
 	uv run --script .github/verify_deps_sync.py
+	$(MAKE) check-demo-lock
 
 headers-check: ${PYPROJECT_FILE} ## Check Python copyright and license headers
 	uv run --extra quality lmh check
@@ -105,7 +106,15 @@ build-docs: ${DOCS_DIR}
 install-demo: ${PYPROJECT_FILE}
 	uv pip install -e ".[demo]"
 
-# Run the Gradio demo
+lock-demo: ${PYPROJECT_FILE} ## Refresh the Linux x86_64 / Python 3.13 CPU demo environment
+	uv pip compile ${PYPROJECT_FILE} --extra demo --python-version 3.13 --python-platform x86_64-unknown-linux-gnu --torch-backend cpu --no-annotate --custom-compile-command 'make lock-demo' --upgrade -o demo/requirements.txt
+
+check-demo-lock: ${PYPROJECT_FILE} demo/requirements.txt ## Check the deployed dependency resolution
+	@set -eu; resolved=$$(mktemp); trap 'rm -f "$$resolved"' EXIT; \
+	uv pip compile ${PYPROJECT_FILE} --extra demo --python-version 3.13 --python-platform x86_64-unknown-linux-gnu --torch-backend cpu --no-annotate --custom-compile-command 'make lock-demo' -c demo/requirements.txt -o "$$resolved" >/dev/null; \
+	diff -u demo/requirements.txt "$$resolved"
+
+# Run the Streamlit demo
 run-demo: ${DEMO_FILE}
 	uv run streamlit run ${DEMO_FILE}
 

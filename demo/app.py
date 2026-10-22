@@ -6,10 +6,12 @@
 import html
 import json
 import logging
+import math
 import struct
 import warnings
 from contextlib import contextmanager
 from io import BytesIO
+from threading import BoundedSemaphore, Lock
 from time import perf_counter
 
 import streamlit as st
@@ -32,6 +34,9 @@ from torchcam import methods
 from torchcam.utils import overlay_mask
 
 LOGGER = logging.getLogger(__name__)
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+MAX_IMAGE_PIXELS = 8_000_000
+COMPUTE_WAIT_SECONDS = 15
 MODEL_LABELS = {
     "resnet18": "ResNet-18",
     "resnet50": "ResNet-50",
@@ -73,6 +78,33 @@ CNN_METHODS = (
 SLOW_METHODS = {"ScoreCAM", "SSCAM", "ISCAM"}
 
 
+class ComputeBusyError(RuntimeError):
+    """The demo has no free compute slot or the bounded queue wait expired."""
+
+
+@st.cache_resource(show_spinner=False)
+def _compute_gate():
+    # shortcut: this gate is process-local; add shared coordination if deployment adds workers.
+    return BoundedSemaphore(2), Lock()
+
+
+@contextmanager
+def expensive_work():
+    admissions, compute_lock = _compute_gate()
+    if not admissions.acquire(blocking=False):
+        raise ComputeBusyError("The demo is busy. Wait a moment, then retry.")
+    locked = False
+    try:
+        locked = compute_lock.acquire(timeout=COMPUTE_WAIT_SECONDS)
+        if not locked:
+            raise ComputeBusyError("The demo is busy. Wait a moment, then retry.")
+        yield
+    finally:
+        if locked:
+            compute_lock.release()
+        admissions.release()
+
+
 def compatible_methods(model_name):
     if model_name == "vit_b_16":
         return ("LeGrad",)
@@ -93,6 +125,8 @@ def parse_target_layers(value, model_name, method_name):
         raise ValueError("Enter target layer names separated by '+'")
     if len(set(layers)) != len(layers):
         raise ValueError("Target layers must be unique")
+    if len(layers) > 4:
+        raise ValueError("At most four target layers can be explained at once")
     if method_name == "RefineCAM" and len(layers) < 2:
         raise ValueError("RefineCAM requires at least two target layers")
     if method_name == "LeGrad" and any(not layer.startswith("encoder.layers.encoder_layer_") for layer in layers):
@@ -101,11 +135,17 @@ def parse_target_layers(value, model_name, method_name):
 
 
 def read_image(source):
+    source.seek(0, 2)
+    upload_bytes = source.tell()
     source.seek(0)
+    if upload_bytes > MAX_UPLOAD_BYTES:
+        raise OSError("Image exceeds the 8 MiB upload limit")
     with warnings.catch_warnings():
         warnings.simplefilter("error", Image.DecompressionBombWarning)
         try:
             with Image.open(source, formats=("JPEG", "PNG")) as image:
+                if image.width * image.height > MAX_IMAGE_PIXELS:
+                    raise OSError("Image exceeds the 8-megapixel limit")
                 image.load()
                 return ImageOps.exif_transpose(image).convert("RGB")
         except (ValueError, SyntaxError, IndexError, TypeError, struct.error) as exc:
@@ -124,7 +164,7 @@ def preprocess_image(image, weights):
 @contextmanager
 def preserve_model_state(model):
     module_modes = [(module, module.training) for module in model.modules()]
-    parameter_flags = [(parameter, parameter.requires_grad) for parameter in model.parameters()]
+    parameter_state = [(parameter, parameter.requires_grad, parameter.grad) for parameter in model.parameters()]
     model.zero_grad(set_to_none=True)
     try:
         model.eval()
@@ -134,8 +174,9 @@ def preserve_model_state(model):
         model.zero_grad(set_to_none=True)
         for module, training in module_modes:
             module.training = training
-        for parameter, requires_grad in parameter_flags:
+        for parameter, requires_grad, gradient in parameter_state:
             parameter.requires_grad_(requires_grad)
+            parameter.grad = gradient
 
 
 def build_extractor(model, method_name, target_layers, **method_kwargs):
@@ -212,6 +253,25 @@ def compute_result(
     explicit_class_idx,
     method_kwargs,
 ):
+    if method_name == "FinerCAM":
+        if set(method_kwargs) != {"gamma", "num_references"}:
+            raise ValueError("FinerCAM settings are invalid")
+        gamma = method_kwargs["gamma"]
+        references = method_kwargs["num_references"]
+        if (
+            not isinstance(gamma, (int, float))
+            or not math.isfinite(gamma)
+            or not 0 <= gamma <= 2
+            or not isinstance(references, int)
+            or not 1 <= references <= 8
+        ):
+            raise ValueError("FinerCAM comparison settings exceed the demo limits")
+    elif method_name in SLOW_METHODS:
+        batch_size = method_kwargs.get("batch_size")
+        if set(method_kwargs) != {"batch_size"} or not isinstance(batch_size, int) or not 1 <= batch_size <= 32:
+            raise ValueError("Masked-input batch size must be between 1 and 32")
+    elif method_kwargs:
+        raise ValueError("Method settings are invalid")
     target_layers = parse_target_layers(target_layer_value, model_name, method_name)
     input_tensor, model_input = preprocess_image(selected_image, weights)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -304,7 +364,9 @@ def image_page():
     st.caption("Compare class activation maps from pretrained torchvision models.")
 
     with st.sidebar:
-        uploaded_file = st.file_uploader("Input image", type=("png", "jpg", "jpeg"))
+        uploaded_file = st.file_uploader(
+            "Input image", type=("png", "jpg", "jpeg"), max_upload_size=MAX_UPLOAD_BYTES // (1024 * 1024)
+        )
         try:
             selected_image = read_image(uploaded_file) if uploaded_file is not None else None
         except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
@@ -343,12 +405,12 @@ def image_page():
             )
             if method_name == "FinerCAM":
                 method_kwargs["gamma"] = st.number_input(
-                    "Comparison strength", min_value=0.0, value=0.6, step=0.1, key="image-gamma"
+                    "Comparison strength", min_value=0.0, max_value=2.0, value=0.6, step=0.1, key="image-gamma"
                 )
                 method_kwargs["num_references"] = st.number_input(
                     "Automatic comparison classes",
                     min_value=1,
-                    max_value=len(categories) - 1,
+                    max_value=8,
                     value=3,
                     step=1,
                     key="image-reference-count",
@@ -357,6 +419,7 @@ def image_page():
                 method_kwargs["batch_size"] = st.number_input(
                     "Masked-input batch size",
                     min_value=1,
+                    max_value=32,
                     value=32,
                     step=1,
                     key="image-batch-size",
@@ -372,16 +435,19 @@ def image_page():
 
     if compute:
         try:
-            result = compute_result(
-                selected_image,
-                model_name,
-                method_name,
-                target_layer_value,
-                weights,
-                categories,
-                explicit_class_idx,
-                method_kwargs,
-            )
+            with expensive_work():
+                result = compute_result(
+                    selected_image,
+                    model_name,
+                    method_name,
+                    target_layer_value,
+                    weights,
+                    categories,
+                    explicit_class_idx,
+                    method_kwargs,
+                )
+        except ComputeBusyError as exc:
+            st.warning(str(exc))
         except ConnectionError as exc:
             LOGGER.exception("Unable to load pretrained model")
             st.error(str(exc))
@@ -412,6 +478,12 @@ def token_heatmap(text, offsets, contributions):
     return '<div style="white-space:pre-wrap;line-height:1.9">' + "".join(pieces) + "</div>"
 
 
+def compute_decision(text, model_name):
+    with expensive_work(), st.spinner(f"Loading and explaining with {DECISION_MODELS[model_name]}…"):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        return explain_decision(text, model_name, device)
+
+
 def decision_page():
     st.caption("See which ticket tokens support each routing decision.")
     with st.sidebar:
@@ -430,11 +502,9 @@ def decision_page():
     if st.button("Explain decision", type="primary", disabled=not text.strip()):
         st.session_state.pop("decision_result", None)
         try:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            with st.spinner(f"Loading {DECISION_MODELS[model_name]}…"):
-                load_resource("decision", model_name, device)
-            with st.spinner("Measuring each ticket token's effect…"):
-                result = explain_decision(text, model_name, device)
+            result = compute_decision(text, model_name)
+        except ComputeBusyError as exc:
+            st.warning(str(exc))
         except ValueError as exc:
             st.error(str(exc))
         except Exception:
@@ -474,9 +544,13 @@ def vlm_page():
             tuple(VLM_MODELS),
             format_func=VLM_MODELS.__getitem__,
             key="vlm-model",
-            on_change=load_resource.clear,
         )
-        uploaded = st.file_uploader("Input image", type=("png", "jpg", "jpeg"), key="vlm-image")
+        uploaded = st.file_uploader(
+            "Input image",
+            type=("png", "jpg", "jpeg"),
+            key="vlm-image",
+            max_upload_size=MAX_UPLOAD_BYTES // (1024 * 1024),
+        )
     try:
         image = read_image(uploaded) if uploaded is not None else None
     except (OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
@@ -492,11 +566,15 @@ def vlm_page():
         st.session_state.pop("vlm_map", None)
         st.session_state.pop("vlm-token", None)
         try:
-            with st.spinner(f"Loading {VLM_MODELS[model_name]} and generating a caption…"):
+            with expensive_work(), st.spinner(f"Loading {VLM_MODELS[model_name]} and generating a caption…"):
                 result = generate_answer(image, "a picture of", device, model_name)
-        except Exception:
+        except Exception as exc:
             LOGGER.exception("VLM generation failed")
-            st.error("The caption could not be generated. Check model availability and available memory, then retry.")
+            st.error(
+                str(exc)
+                if isinstance(exc, ComputeBusyError)
+                else "The caption could not be generated. Check model availability and available memory, then retry."
+            )
         else:
             st.session_state["vlm_result"] = {**result, "request": request}
     result = st.session_state.get("vlm_result")
@@ -520,11 +598,15 @@ def vlm_page():
     current_map = st.session_state.get("vlm_map")
     if current_map is None or current_map["index"] != token_index:
         try:
-            with st.spinner("Computing the token activation map…"):
+            with expensive_work(), st.spinner("Computing the token activation map…"):
                 cam, probability = explain_answer_token(result, token_index, device)
-        except Exception:
+        except Exception as exc:
             LOGGER.exception("VLM attribution failed")
-            st.error("The visual map could not be computed for this token.")
+            st.error(
+                str(exc)
+                if isinstance(exc, ComputeBusyError)
+                else "The visual map could not be computed for this token."
+            )
             return
         current_map = {"index": token_index, "cam": cam, "probability": probability}
         st.session_state["vlm_map"] = current_map

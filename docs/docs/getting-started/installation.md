@@ -19,7 +19,9 @@ use the release matching your PyTorch version; PyTorch 2.13 pairs with torchvisi
 Matplotlib 3.8.4 or higher, below version 4, is also required. Earlier Matplotlib wheels can fail to import with NumPy 2.
 
 Pillow 13 or higher is required for the core library and demo. Pillow 13 includes fixes for several critical and high
-severity image parsing issues disclosed in October 2026.
+severity image parsing issues disclosed in October 2026. The demo deployment resolves and audits its exact dependency
+set for Python 3.13 on Linux with CPU wheels; as of 22 October 2026, it resolves PyTorch 2.14.1 and torchvision 0.29.1.
+Refresh it explicitly with `make lock-demo` and re-audit it before deployment.
 
 On macOS, the PyTorch 2.13 wheels support Apple Silicon on macOS 14 or later. PyTorch does not publish matching
 Intel Mac wheels at this version floor.

@@ -14,10 +14,11 @@ import tempfile
 import zlib
 from io import BytesIO
 from pathlib import Path
-from threading import Lock
+from threading import Event, Lock, Thread
+from time import monotonic, sleep
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.request import Request, urlopen
 
 import inference
@@ -127,6 +128,93 @@ def check_image_decoding():
             raise AssertionError("Oversized PNG upload was accepted")
     finally:
         Image.MAX_IMAGE_PIXELS = pixel_limit
+
+
+def check_upload_limits():
+    upload = image_upload(Image.new("RGB", (2, 2)), "PNG")
+    with (
+        patch.object(app, "MAX_UPLOAD_BYTES", 1),
+        patch.object(app.Image, "open", side_effect=AssertionError("oversized upload reached the decoder")),
+    ):
+        try:
+            app.read_image(upload)
+        except OSError as exc:
+            check("8 MiB" in str(exc), "Oversized upload had an unclear error")
+        else:
+            raise AssertionError("Oversized upload was accepted")
+
+    with (
+        patch.object(app, "MAX_IMAGE_PIXELS", 3),
+        patch.object(Image.Image, "load", side_effect=AssertionError("oversized image was decoded")),
+    ):
+        try:
+            app.read_image(upload)
+        except OSError as exc:
+            check("8-megapixel" in str(exc), "Oversized image had an unclear error")
+        else:
+            raise AssertionError("Oversized image was accepted")
+
+
+def check_algorithm_limits():
+    try:
+        app.parse_target_layers("layer1+layer2+layer3+layer4+layer5", "resnet18", "RefineCAM")
+    except ValueError as exc:
+        check("four" in str(exc), "Layer limit had an unclear error")
+    else:
+        raise AssertionError("Excessive target layers were accepted")
+
+    try:
+        app.compute_result(None, "resnet18", "ScoreCAM", "layer4", None, None, None, {"batch_size": 33})
+    except ValueError as exc:
+        check("between 1 and 32" in str(exc), "Invalid method settings had an unclear error")
+    else:
+        raise AssertionError("Excessive masked-input batch size was accepted")
+
+
+def check_compute_admission():
+    with patch.object(app, "COMPUTE_WAIT_SECONDS", 0.01), app.expensive_work():
+        try:
+            with app.expensive_work():
+                pass
+        except app.ComputeBusyError:
+            pass
+        else:
+            raise AssertionError("A concurrent compute request did not time out")
+    with app.expensive_work():
+        pass
+
+    for error in (RuntimeError("fixture failure"), KeyboardInterrupt()):
+        with TestCase().assertRaises(type(error)), app.expensive_work():  # noqa: PT027 - dependency-free smoke check.
+            raise error
+        with app.expensive_work():
+            pass
+
+    admissions, _ = app._compute_gate()  # noqa: SLF001
+    waiting_started = Event()
+    waiting_entered = Event()
+
+    def wait_for_slot():
+        waiting_started.set()
+        with app.expensive_work():
+            waiting_entered.set()
+
+    with patch.object(app, "COMPUTE_WAIT_SECONDS", 2), app.expensive_work():
+        waiter = Thread(target=wait_for_slot)
+        waiter.start()
+        check(waiting_started.wait(1), "Queued compute request did not start")
+        deadline = monotonic() + 1
+        while admissions._value and monotonic() < deadline:  # noqa: SLF001
+            sleep(0.001)
+        check(admissions._value == 0, "Admission did not reserve one active and one waiting slot")  # noqa: SLF001
+        try:
+            with app.expensive_work():
+                pass
+        except app.ComputeBusyError:
+            pass
+        else:
+            raise AssertionError("An extra compute request exceeded the bounded queue")
+    waiter.join(timeout=2)
+    check(waiting_entered.is_set() and not waiter.is_alive(), "Queued compute request did not run after release")
 
 
 def check_malformed_png_metadata():
@@ -347,6 +435,27 @@ def check_vlm_adapter():
         check_vlm_result(model, processor, result, result["choices"][2])
 
 
+def check_generation_limits():
+    image = Image.new("RGB", (2, 2))
+    inputs = {"input_ids": torch.ones((1, 2), dtype=torch.long)}
+    processor = SimpleNamespace(tokenizer=SimpleNamespace(all_special_ids=[], decode=lambda *_args, **_kwargs: "word"))
+    for model_id, model_type, limit in (
+        (inference.VLM_ID, "blip", 24),
+        ("Qwen/Qwen3-VL-2B-Instruct", "qwen3_vl", 48),
+        ("google/gemma-4-E2B-it", "gemma4", 48),
+    ):
+        model = SimpleNamespace(
+            config=SimpleNamespace(model_type=model_type),
+            generate=MagicMock(return_value=torch.tensor([[1, 5, 6]])),
+        )
+        with (
+            patch.object(inference, "load_resource", return_value=(model, processor, Lock())),
+            patch.object(inference, "prepare_vlm_inputs", return_value=(inputs, image, (1, 1))),
+        ):
+            inference.generate_answer(image, "a picture of", "cpu", model_id)
+        check(model.generate.call_args.kwargs["max_new_tokens"] == limit, f"{model_id} generation was unbounded")
+
+
 def check_vlm_families():
     inference.load_resource.clear()
     with (
@@ -551,11 +660,15 @@ def check_pretrained():
 
 def main():
     check_image_decoding()
+    check_upload_limits()
+    check_algorithm_limits()
+    check_compute_admission()
     check_malformed_png_metadata()
     check_navigation_and_text_ui()
     check_decision_adapters()
     check_decider_adapter()
     check_vlm_adapter()
+    check_generation_limits()
     check_vlm_families()
     check(app.compatible_methods("vit_b_16") == ("LeGrad",), "ViT compatibility changed")
     check("LeGrad" not in app.compatible_methods("resnet18"), "LeGrad must stay ViT-only")
@@ -579,6 +692,10 @@ def main():
     model = get_model("resnet18", weights=None).train()
     module_modes = [module.training for module in model.modules()]
     parameter_flags = [parameter.requires_grad for parameter in model.parameters()]
+    parameter = next(model.parameters())
+    parameter.grad = torch.ones_like(parameter)
+    gradient_reference = parameter.grad
+    saved_gradient = parameter.grad.clone()
     input_tensor = torch.rand(3, 64, 64)
 
     cam, _, _, _ = app.extract_cam(model, Lock(), input_tensor, "GradCAM", ["layer4"])
@@ -589,7 +706,8 @@ def main():
         [parameter.requires_grad for parameter in model.parameters()] == parameter_flags,
         "Parameter flags were not restored",
     )
-    check(all(parameter.grad is None for parameter in model.parameters()), "Parameter gradients were not cleared")
+    check(parameter.grad is gradient_reference, "Existing gradient reference was not restored")
+    torch.testing.assert_close(parameter.grad, saved_gradient)
 
     try:
         app.extract_cam(model, Lock(), input_tensor, "GradCAM", ["layer4"], class_idx=1000)
@@ -603,7 +721,8 @@ def main():
         [parameter.requires_grad for parameter in model.parameters()] == parameter_flags,
         "Failure changed parameter flags",
     )
-    check(all(parameter.grad is None for parameter in model.parameters()), "Failure left parameter gradients")
+    check(parameter.grad is gradient_reference, "Failure replaced an existing gradient")
+    torch.testing.assert_close(parameter.grad, saved_gradient)
 
 
 if __name__ == "__main__":
