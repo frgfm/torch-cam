@@ -9,7 +9,6 @@ on:
       - 'demo/requirements.txt'
       - 'pyproject.toml'
   pull_request:
-    branches: main
     paths:
       - '.github/requirements-min.txt'
       - '.github/workflows/dependency-audit.yml'
