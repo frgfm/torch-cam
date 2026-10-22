@@ -1,3 +1,4 @@
+import re
 import sys
 from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
@@ -9,18 +10,12 @@ pytest.importorskip("streamlit")
 from demo import inference
 
 
-def fake_model():
-    model = MagicMock()
-    model.config = SimpleNamespace()
-    return model
-
-
 def install_transformers(monkeypatch):
     calls = []
 
     def loader(name):
         return SimpleNamespace(
-            from_pretrained=lambda checkpoint, **options: calls.append((name, checkpoint, options)) or fake_model()
+            from_pretrained=lambda checkpoint, **options: calls.append((name, checkpoint, options)) or MagicMock()
         )
 
     module = ModuleType("transformers")
@@ -38,53 +33,16 @@ def install_transformers(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("family", "model_name", "loader_name", "checkpoint", "revision", "safe"),
+    ("family", "model_name", "loader_name"),
     [
-        (
-            "vlm",
-            inference.VLM_ID,
-            "BlipForConditionalGeneration",
-            inference.VLM_ID,
-            inference.VLM_REVISIONS[inference.VLM_ID],
-            False,
-        ),
-        (
-            "vlm",
-            "Qwen/Qwen3-VL-2B-Instruct",
-            "AutoModelForImageTextToText",
-            "Qwen/Qwen3-VL-2B-Instruct",
-            inference.VLM_REVISIONS["Qwen/Qwen3-VL-2B-Instruct"],
-            True,
-        ),
-        (
-            "decision",
-            "minilm",
-            "AutoModelForSequenceClassification",
-            inference.NLI_MODELS["minilm"],
-            inference.NLI_REVISIONS[inference.NLI_MODELS["minilm"]],
-            True,
-        ),
-        (
-            "decision",
-            "deberta",
-            "AutoModelForSequenceClassification",
-            inference.NLI_MODELS["deberta"],
-            inference.NLI_REVISIONS[inference.NLI_MODELS["deberta"]],
-            True,
-        ),
-        (
-            "vlm",
-            "google/gemma-4-E2B-it",
-            "AutoModelForImageTextToText",
-            "google/gemma-4-E2B-it",
-            inference.VLM_REVISIONS["google/gemma-4-E2B-it"],
-            True,
-        ),
+        ("vlm", inference.VLM_ID, "BlipForConditionalGeneration"),
+        ("vlm", "Qwen/Qwen3-VL-2B-Instruct", "AutoModelForImageTextToText"),
+        ("vlm", "google/gemma-4-E2B-it", "AutoModelForImageTextToText"),
+        ("decision", "minilm", "AutoModelForSequenceClassification"),
+        ("decision", "deberta", "AutoModelForSequenceClassification"),
     ],
 )
-def test_huggingface_loaders_pin_matching_safe_model_and_processor(
-    monkeypatch, family, model_name, loader_name, checkpoint, revision, safe
-):
+def test_huggingface_loaders_pin_matching_safe_model_and_processor(monkeypatch, family, model_name, loader_name):
     calls = install_transformers(monkeypatch)
     if model_name.startswith("google/gemma-4"):
         monkeypatch.setattr(inference, "vlm_device_supported", lambda _name, _device: True)
@@ -93,22 +51,25 @@ def test_huggingface_loaders_pin_matching_safe_model_and_processor(
     _, _processor, _ = inference.load_resource(family, model_name, "cpu")
 
     model_call = next(call for call in calls if call[0] == loader_name)
+    checkpoint = model_name if family == "vlm" else inference.NLI_MODELS[model_name]
+    revisions = inference.VLM_REVISIONS if family == "vlm" else inference.NLI_REVISIONS
+    revision = revisions[checkpoint]
     model_options = model_call[2]
+    assert re.fullmatch(r"[a-f0-9]{40}", revision)
     assert model_call[1] == checkpoint
     assert model_options["revision"] == revision
     assert model_options["trust_remote_code"] is False
-    assert model_options.get("use_safetensors", False) is safe
+    assert model_options.get("use_safetensors", False) is (model_name != inference.VLM_ID)
     processor_name = "AutoProcessor" if family == "vlm" else "AutoTokenizer"
     processor_call = next(call for call in calls if call[0] == processor_name)
     assert processor_call[1] == checkpoint
     assert processor_call[2]["revision"] == revision
-    if family == "vlm":
-        assert processor_call[2]["trust_remote_code"] is False
+    assert processor_call[2]["trust_remote_code"] is False
 
 
 def test_laya_agent_receives_reviewed_revision_without_transformers_remote_code(monkeypatch):
     calls = []
-    agent = SimpleNamespace(model=fake_model(), tok=object())
+    agent = SimpleNamespace(model=MagicMock(), tok=object())
     laya = ModuleType("laya")
     laya.Agent = lambda model_id, **options: calls.append((model_id, options)) or agent
     monkeypatch.setitem(sys.modules, "laya", laya)

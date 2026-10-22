@@ -24,69 +24,48 @@ permissions:
 
 env:
   UV_VERSION: '0.13.4'
-  PYTHON_VERSION: '3.11'
 
 jobs:
-  core-test:
+  audit:
     name: ${{ matrix.stack }} dependencies
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - stack: current
-            minimum: 'false'
-          - stack: minimum
-            minimum: 'true'
+          - {stack: current, python: '3.11'}
+          - {stack: minimum, python: '3.11'}
+          - {stack: demo, python: '3.13'}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ matrix.python }}
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
       - name: Resolve supported dependencies and check advisories
         env:
-          MINIMUM_STACK: ${{ matrix.minimum }}
+          STACK: ${{ matrix.stack }}
+          PYTHON_VERSION: ${{ matrix.python }}
         shell: bash
         run: |
           set -euo pipefail
-          constraint_args=()
-          if [[ "$MINIMUM_STACK" == true ]]; then
-            constraint_args=(-c .github/requirements-min.txt)
+          if [[ "$STACK" == demo ]]; then
+            cp demo/requirements.txt "$RUNNER_TEMP/requirements.txt"
+          else
+            set --
+            if [[ "$STACK" == minimum ]]; then
+              set -- -c .github/requirements-min.txt
+            fi
+            uv pip compile pyproject.toml --extra test --python-version "$PYTHON_VERSION" \
+              --python-platform x86_64-unknown-linux-gnu --torch-backend cpu \
+              "$@" --output-file "$RUNNER_TEMP/requirements.txt"
           fi
-          uv pip compile pyproject.toml \
-            --extra test \
-            --python-version "$PYTHON_VERSION" \
-            --python-platform x86_64-unknown-linux-gnu \
-            --torch-backend cpu \
-            "${constraint_args[@]}" \
-            --output-file "$RUNNER_TEMP/requirements.txt"
           # PyPI advisories use public versions; +cpu selects the matching PyTorch backend wheel.
           sed -E 's/^(torch(vision)?==[0-9.]+)\+cpu$/\1/' "$RUNNER_TEMP/requirements.txt" > "$RUNNER_TEMP/audit.txt"
-          uvx pip-audit==2.10.1 --no-deps --disable-pip -r "$RUNNER_TEMP/audit.txt" \
-            --format json --output "$RUNNER_TEMP/audit.json"
-          jq -e 'all(.dependencies[]; has("skip_reason") | not)' "$RUNNER_TEMP/audit.json"
-
-  demo:
-    name: deployed demo dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
-        with:
-          python-version: '3.13'
-      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: ${{ env.UV_VERSION }}
-      - name: Check the deployed resolution for advisories
-        run: |
-          sed -E 's/^(torch(vision)?==[0-9.]+)\+cpu$/\1/' demo/requirements.txt > "$RUNNER_TEMP/audit.txt"
           uvx pip-audit==2.10.1 --no-deps --disable-pip -r "$RUNNER_TEMP/audit.txt" \
             --format json --output "$RUNNER_TEMP/audit.json"
           jq -e 'all(.dependencies[]; has("skip_reason") | not)' "$RUNNER_TEMP/audit.json"

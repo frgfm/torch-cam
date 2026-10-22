@@ -135,52 +135,31 @@ def check_upload_limits():
     with (
         patch.object(app, "MAX_UPLOAD_BYTES", 1),
         patch.object(app.Image, "open", side_effect=AssertionError("oversized upload reached the decoder")),
+        TestCase().assertRaisesRegex(OSError, "8 MiB"),  # noqa: PT027 - dependency-free smoke check.
     ):
-        try:
-            app.read_image(upload)
-        except OSError as exc:
-            check("8 MiB" in str(exc), "Oversized upload had an unclear error")
-        else:
-            raise AssertionError("Oversized upload was accepted")
+        app.read_image(upload)
 
     with (
         patch.object(app, "MAX_IMAGE_PIXELS", 3),
         patch.object(Image.Image, "load", side_effect=AssertionError("oversized image was decoded")),
+        TestCase().assertRaisesRegex(OSError, "8-megapixel"),  # noqa: PT027 - dependency-free smoke check.
     ):
-        try:
-            app.read_image(upload)
-        except OSError as exc:
-            check("8-megapixel" in str(exc), "Oversized image had an unclear error")
-        else:
-            raise AssertionError("Oversized image was accepted")
+        app.read_image(upload)
 
 
 def check_algorithm_limits():
-    try:
+    with TestCase().assertRaisesRegex(ValueError, "four"):  # noqa: PT027 - dependency-free smoke check.
         app.parse_target_layers("layer1+layer2+layer3+layer4+layer5", "resnet18", "RefineCAM")
-    except ValueError as exc:
-        check("four" in str(exc), "Layer limit had an unclear error")
-    else:
-        raise AssertionError("Excessive target layers were accepted")
 
-    try:
+    with TestCase().assertRaisesRegex(ValueError, "between 1 and 32"):  # noqa: PT027 - dependency-free smoke check.
         app.compute_result(None, "resnet18", "ScoreCAM", "layer4", None, None, None, {"batch_size": 33})
-    except ValueError as exc:
-        check("between 1 and 32" in str(exc), "Invalid method settings had an unclear error")
-    else:
-        raise AssertionError("Excessive masked-input batch size was accepted")
 
 
 def check_compute_admission():
     with patch.object(app, "COMPUTE_WAIT_SECONDS", 0.01), app.expensive_work():
         app.st.cache_resource.clear()
-        try:
-            with app.expensive_work():
-                pass
-        except app.ComputeBusyError:
+        with TestCase().assertRaises(app.ComputeBusyError), app.expensive_work():  # noqa: PT027
             pass
-        else:
-            raise AssertionError("A concurrent compute request did not time out")
     with app.expensive_work():
         pass
 
@@ -207,13 +186,8 @@ def check_compute_admission():
         while admissions._value and monotonic() < deadline:  # noqa: SLF001
             sleep(0.001)
         check(admissions._value == 0, "Admission did not reserve one active and one waiting slot")  # noqa: SLF001
-        try:
-            with app.expensive_work():
-                pass
-        except app.ComputeBusyError:
+        with TestCase().assertRaises(app.ComputeBusyError), app.expensive_work():  # noqa: PT027
             pass
-        else:
-            raise AssertionError("An extra compute request exceeded the bounded queue")
     waiter.join(timeout=2)
     check(waiting_entered.is_set() and not waiter.is_alive(), "Queued compute request did not run after release")
 

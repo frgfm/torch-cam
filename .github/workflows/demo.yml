@@ -76,14 +76,7 @@ jobs:
       - name: Build and check the Space image without publishing
         run: |
           space_dir="${RUNNER_TEMP}/space-build"
-          mkdir -p "${space_dir}/src" "${space_dir}/.streamlit"
-          cp demo/app.py "${space_dir}/src/streamlit_app.py"
-          cp demo/inference.py "${space_dir}/src/inference.py"
-          cp demo/Dockerfile "${space_dir}/Dockerfile"
-          cp .streamlit/config.toml "${space_dir}/.streamlit/config.toml"
-          cp demo/requirements.txt "${space_dir}/requirements.txt"
-          printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
-            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" >>"${space_dir}/requirements.txt"
+          sh demo/prepare_space.sh "${space_dir}"
           docker build -t torchcam-demo-validation "${space_dir}"
           docker run --rm --entrypoint python \
             -e PYTHONPATH=/app/src -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
@@ -184,15 +177,7 @@ jobs:
           trap 'rm -rf "${space_dir}"' EXIT
 
           git clone --depth 1 https://huggingface.co/spaces/frgfm/torch-cam "${space_dir}"
-          mkdir -p "${space_dir}/src" "${space_dir}/.streamlit"
-          cp demo/app.py "${space_dir}/src/streamlit_app.py"
-          cp demo/inference.py "${space_dir}/src/inference.py"
-          cp demo/Dockerfile "${space_dir}/Dockerfile"
-          cp .streamlit/config.toml "${space_dir}/.streamlit/config.toml"
-          printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
-            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" \
-            >"${space_dir}/requirements.txt"
-          cat demo/requirements.txt >>"${space_dir}/requirements.txt"
+          sh demo/prepare_space.sh "${space_dir}"
 
           git -C "${space_dir}" config user.name "github-actions[bot]"
           git -C "${space_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"

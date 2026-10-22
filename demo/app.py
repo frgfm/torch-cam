@@ -473,12 +473,6 @@ def token_heatmap(text, offsets, contributions):
     return '<div style="white-space:pre-wrap;line-height:1.9">' + "".join(pieces) + "</div>"
 
 
-def compute_decision(text, model_name):
-    with expensive_work(), st.spinner(f"Loading and explaining with {DECISION_MODELS[model_name]}…"):
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        return explain_decision(text, model_name, device)
-
-
 def decision_page():
     st.caption("See which ticket tokens support each routing decision.")
     with st.sidebar:
@@ -497,7 +491,9 @@ def decision_page():
     if st.button("Explain decision", type="primary", disabled=not text.strip()):
         st.session_state.pop("decision_result", None)
         try:
-            result = compute_decision(text, model_name)
+            with expensive_work(), st.spinner(f"Loading and explaining with {DECISION_MODELS[model_name]}…"):
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                result = explain_decision(text, model_name, device)
         except ComputeBusyError as exc:
             st.warning(str(exc))
         except ValueError as exc:
