@@ -54,7 +54,7 @@ quality = [
     "lint-my-headers==0.6.0",
     "ruff==0.17.1",
     "ty==0.0.90",
-    "prek==0.5.5",
+    "prek==0.5.6",
 ]
 docs = [
     # cf. https://github.com/mkdocs/catalog
