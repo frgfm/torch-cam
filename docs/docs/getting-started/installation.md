@@ -8,7 +8,7 @@ want to use:
 | **PyPI (stable)** | `pip install torchcam` | Latest tagged [release](https://github.com/frgfm/torch-cam/releases/latest). |
 | **Git (`main`)** | `pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"` | Unreleased changes matching this site. |
 
-TorchCAM requires PyTorch 2.13 or higher within the 2.x series and supports both NumPy 1.26.4
+The development version requires PyTorch 2.13 or higher within the 2.x series and supports both NumPy 1.26.4
 and NumPy 2 (`numpy>=1.26.4,<3`). This floor includes fixes for
 [GHSA-53q9-r3pm-6pq6](https://github.com/pytorch/pytorch/security/advisories/GHSA-53q9-r3pm-6pq6),
 [GHSA-63cw-57p8-fm3p](https://github.com/pytorch/pytorch/security/advisories/GHSA-63cw-57p8-fm3p), and
@@ -18,8 +18,7 @@ use the release matching your PyTorch version; PyTorch 2.13 pairs with torchvisi
 
 Matplotlib 3.8.4 or higher, below version 4, is also required. Earlier Matplotlib wheels can fail to import with NumPy 2.
 
-Pillow 13 or higher is required for the core library and demo. Pillow 13 includes fixes for several critical and high
-severity image parsing issues disclosed in October 2026.
+Pillow 13 or higher is required for the core library and demo; its [release notes](https://pillow.readthedocs.io/en/latest/releasenotes/13.0.0.html) list the image-parsing fixes.
 
 On macOS, the PyTorch 2.13 wheels support Apple Silicon on macOS 14 or later. PyTorch does not publish matching
 Intel Mac wheels at this version floor.

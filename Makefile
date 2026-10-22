@@ -105,9 +105,9 @@ build-docs: ${DOCS_DIR}
 install-demo: ${PYPROJECT_FILE}
 	uv pip install -e ".[demo]"
 
-# Run the Gradio demo
+# Run the Streamlit demo
 run-demo: ${DEMO_FILE}
-	uv run streamlit run ${DEMO_FILE}
+	STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10 uv run streamlit run ${DEMO_FILE}
 
 ########################################################
 # Local setup
