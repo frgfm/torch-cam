@@ -52,7 +52,6 @@ typing-check: ${PYPROJECT_FILE} ## Check type annotations
 
 deps-check: .github/verify_deps_sync.py ## Check dependency synchronization
 	uv run --script .github/verify_deps_sync.py
-	$(MAKE) check-demo-lock
 
 headers-check: ${PYPROJECT_FILE} ## Check Python copyright and license headers
 	uv run --extra quality lmh check

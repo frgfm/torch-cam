@@ -10,7 +10,7 @@ Load only trusted models. The public demo also parses uploads and downloads allo
 immutable revisions and clean advisory scans do not establish runtime safety.
 
 `demo/requirements.txt` records the Linux x86_64, Python 3.13 CPU environment. Refresh it with `make lock-demo`
-using uv 0.13.4, then run `make deps-check` and the offline checks below. CI and Space use the same resolution,
+using uv 0.13.4, then run `make check-demo-lock` and the offline checks below. CI and Space use the same resolution,
 Dockerfile and immutable TorchCAM source revision. `make install-demo` is a development install.
 Maintain OS packages, models and the host separately; a source or image test does not verify deployment.
 
