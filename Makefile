@@ -105,14 +105,6 @@ build-docs: ${DOCS_DIR}
 install-demo: ${PYPROJECT_FILE}
 	uv pip install -e ".[demo]"
 
-lock-demo: ${PYPROJECT_FILE} ## Refresh the Linux x86_64 / Python 3.13 CPU demo environment
-	uv pip compile ${PYPROJECT_FILE} --extra demo --python-version 3.13 --python-platform x86_64-unknown-linux-gnu --torch-backend cpu --no-annotate --custom-compile-command 'make lock-demo' --upgrade -o demo/requirements.txt
-
-check-demo-lock: ${PYPROJECT_FILE} demo/requirements.txt ## Check the deployed dependency resolution
-	@set -eu; resolved=$$(mktemp); trap 'rm -f "$$resolved"' EXIT; \
-	uv pip compile ${PYPROJECT_FILE} --extra demo --python-version 3.13 --python-platform x86_64-unknown-linux-gnu --torch-backend cpu --no-annotate --custom-compile-command 'make lock-demo' -c demo/requirements.txt -o "$$resolved" >/dev/null; \
-	diff -u demo/requirements.txt "$$resolved"
-
 # Run the Streamlit demo
 run-demo: ${DEMO_FILE}
 	STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10 uv run streamlit run ${DEMO_FILE}

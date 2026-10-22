@@ -8,10 +8,9 @@ Please report security issues using https://github.com/frgfm/torch-cam/security/
 
 Load only trusted models. Immutable model revisions and clean advisory scans do not establish runtime safety.
 
-`demo/requirements.txt` records the Linux x86_64, Python 3.13 CPU environment. Refresh it with `make lock-demo`
-then run `make check-demo-lock` and the offline check below. CI and the Space install that resolution;
-Space requirements also pin TorchCAM's source revision. The Space owns its Dockerfile and OS maintenance.
-`make install-demo` is a development install; passing CI does not verify deployment.
+Demo dependencies are declared in `pyproject.toml`'s `demo` extra. CI installs the built wheel with that extra;
+the Space installs it from an immutable TorchCAM source revision. Transitive versions resolve at install time.
+The Space owns its Dockerfile and OS maintenance; passing CI does not verify deployment.
 
 One Streamlit process admits one active computation; concurrent requests receive a busy message without queuing.
 Upload, image, CAM and generation limits are enforced in `demo/app.py` and `demo/inference.py`.

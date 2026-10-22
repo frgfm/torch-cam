@@ -51,10 +51,8 @@ jobs:
         env:
           UV_TORCH_BACKEND: cpu
         run: |
-          make check-demo-lock
-          uv build
-          uv pip sync demo/requirements.txt
-          uv pip install --no-deps dist/*.whl
+          uv build --wheel
+          for wheel in dist/*.whl; do uv pip install "${wheel}[demo]"; done
           uv pip check
       - name: Run demo smoke check
         env:
@@ -139,9 +137,8 @@ jobs:
           mkdir -p "${space_dir}/src"
           cp demo/app.py "${space_dir}/src/streamlit_app.py"
           cp demo/inference.py "${space_dir}/src/inference.py"
-          cp demo/requirements.txt "${space_dir}/requirements.txt"
           printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
-            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" >>"${space_dir}/requirements.txt"
+            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" >"${space_dir}/requirements.txt"
           # Keep the Space-owned image and apply transport limits before Streamlit starts.
           sed -i '/^ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=/d' "${space_dir}/Dockerfile"
           printf 'ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10\n' >>"${space_dir}/Dockerfile"
