@@ -8,17 +8,21 @@ want to use:
 | **PyPI (stable)** | `pip install torchcam` | Latest tagged [release](https://github.com/frgfm/torch-cam/releases/latest). |
 | **Git (`main`)** | `pip install "torchcam @ git+https://github.com/frgfm/torch-cam.git"` | Unreleased changes matching this site. |
 
-TorchCAM requires PyTorch 2.4.1 or higher within the 2.x series and supports both NumPy 1.26.4
-and NumPy 2 (`numpy>=1.26.4,<3`). Earlier PyTorch wheels can fail with `RuntimeError: Numpy is not available`
-when NumPy 2 is installed; the minimum includes the [Windows fix in PyTorch 2.4.1](https://github.com/pytorch/pytorch/issues/131668#issuecomment-2307447045).
-If you install torchvision for the demo or examples, use the release matching your PyTorch version.
+TorchCAM requires PyTorch 2.13 or higher within the 2.x series and supports both NumPy 1.26.4
+and NumPy 2 (`numpy>=1.26.4,<3`). This floor includes fixes for
+[GHSA-53q9-r3pm-6pq6](https://github.com/pytorch/pytorch/security/advisories/GHSA-53q9-r3pm-6pq6),
+[GHSA-63cw-57p8-fm3p](https://github.com/pytorch/pytorch/security/advisories/GHSA-63cw-57p8-fm3p), and
+[GHSA-rrmf-rvhw-rf47](https://github.com/advisories/GHSA-rrmf-rvhw-rf47). These version floors do not guarantee
+that future advisories will not affect a resolved environment. If you install torchvision for the demo or examples,
+use the release matching your PyTorch version; PyTorch 2.13 pairs with torchvision 0.28.
 
 Matplotlib 3.8.4 or higher, below version 4, is also required. Earlier Matplotlib wheels can fail to import with NumPy 2.
 
-Pillow 9.3 or higher is required for the core library; the demo extra requires Pillow 12.3 or higher.
+Pillow 13 or higher is required for the core library and demo. Pillow 13 includes fixes for several critical and high
+severity image parsing issues disclosed in October 2026.
 
-On macOS, the required PyTorch wheels support Apple Silicon. Intel Mac users can use Python 3.11 or 3.12 and install
-the previous release with `pip install "torchcam==0.4.1"`, which uses NumPy 1.x.
+On macOS, the PyTorch 2.13 wheels support Apple Silicon on macOS 14 or later. PyTorch does not publish matching
+Intel Mac wheels at this version floor.
 
 Check the installed version when an example and your environment behave differently:
 
