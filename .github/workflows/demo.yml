@@ -80,7 +80,7 @@ jobs:
           docker build -t torchcam-demo-validation "${space_dir}"
           docker run --rm --entrypoint python \
             -e PYTHONPATH=/app/src -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
-            torchcam-demo-validation -c 'import inference, streamlit_app, torchcam'
+            torchcam-demo-validation -c 'import os, inference, streamlit_app, torchcam; from pathlib import Path; assert os.getuid() == 1000 and os.access(Path.home(), os.W_OK)'
       - name: Start demo and wait for health
         shell: bash
         run: |
