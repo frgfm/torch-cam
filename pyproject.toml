@@ -61,7 +61,7 @@ docs = [
     "mkdocs==1.6.1",
     "mkdocs-material[imaging]==9.7.7",
     "mkdocstrings[python]==1.0.7",
-    "pymdown-extensions<12",  # mkdocstrings uses the pre-12 Highlight constructor.
+    "pymdown-extensions>=11.0.1,<12",  # Security floor; mkdocstrings uses the pre-12 Highlight constructor.
     "griffe-typingdoc==0.3.2",
     # "termynal==0.13.1",
     # "mkdocs-swagger-ui-tag==0.7.2",

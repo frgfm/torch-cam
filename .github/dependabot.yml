@@ -1,8 +1,3 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -13,18 +8,29 @@ updates:
     commit-message:
       prefix: "ci(github)"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
       time: "08:00"
     groups:
       actions:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+      actions-security:
+        applies-to: "security-updates"
         patterns:
           - "*"
   - package-ecosystem: "pip"
     directory: "/"
-    versioning-strategy: "increase-if-necessary"
-    # Keep library minimums and demo dependencies deliberate; automate security fixes only.
-    # Update-type ignores apply to version updates; security updates remain eligible.
+    versioning-strategy: "increase"
+    labels:
+      - "dependencies"
+      - "type: misc"
+    commit-message:
+      prefix: "build(deps)"
+    schedule:
+      interval: "daily"
+      time: "08:00"
+    # Only quality and build receive routine updates. These filters leave security jobs eligible.
     ignore:
       - dependency-name: "torch"
         update-types:
@@ -36,7 +42,37 @@ updates:
           - "version-update:semver-major"
           - "version-update:semver-minor"
           - "version-update:semver-patch"
+      - dependency-name: "numpy"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "Pillow"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
       - dependency-name: "matplotlib"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "pytest*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "mkdocs*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "griffe*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "pymdown-extensions"
         update-types:
           - "version-update:semver-major"
           - "version-update:semver-minor"
@@ -56,39 +92,54 @@ updates:
           - "version-update:semver-major"
           - "version-update:semver-minor"
           - "version-update:semver-patch"
-    labels:
-      - "dependencies"
-      - "type: misc"
-    commit-message:
-      prefix: "build(deps)"
-    schedule:
-      interval: "daily"
-      time: "08:00"
     groups:
-      docs:
-        patterns:
-          - "mkdocs*"
-          - "griffe*"
       quality:
+        applies-to: "version-updates"
         patterns:
+          - "lint-my-headers"
           - "ruff"
           - "ty"
           - "prek"
-          - "uv-build"
-      tests:
+      build:
+        applies-to: "version-updates"
         patterns:
-          - "pytest"
-          - "pytest-cov"
-          - "pytest-pretty"
-      runtime:
+          - "uv-build"
+      quality-security:
+        applies-to: "security-updates"
+        patterns:
+          - "lint-my-headers"
+          - "ruff"
+          - "ty"
+          - "prek"
+      build-security:
+        applies-to: "security-updates"
+        patterns:
+          - "uv-build"
+      docs-security:
+        applies-to: "security-updates"
+        patterns:
+          - "mkdocs*"
+          - "griffe*"
+          - "pymdown-extensions"
+      tests-security:
+        applies-to: "security-updates"
+        patterns:
+          - "pytest*"
+      runtime-security:
+        applies-to: "security-updates"
         patterns:
           - "torch"
           - "torchvision"
-          - "Pillow"
           - "numpy"
-      demo:
+          - "Pillow"
+          - "matplotlib"
+      demo-security:
         applies-to: "security-updates"
         patterns:
           - "streamlit"
           - "transformers"
           - "laya"
+      other-security:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
