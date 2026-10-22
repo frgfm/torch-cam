@@ -38,6 +38,8 @@ from transformers import (
     AutoModelForCausalLM,
     AutoModelForImageTextToText,
     AutoModelForSequenceClassification,
+    AutoProcessor,
+    AutoTokenizer,
     BlipForConditionalGeneration,
     BlipImageProcessor,
     BlipProcessor,
@@ -80,6 +82,60 @@ def image_upload(image, image_format, **kwargs):
     source.name = "upload.png"
     image.save(source, format=image_format, **kwargs)
     return source
+
+
+def check_model_loaders():
+    cases = [("vlm", name) for name in inference.VLM_MODELS]
+    cases += [("decision", name) for name in (*inference.NLI_MODELS, "decider")]
+    with tempfile.TemporaryDirectory(prefix="torchcam-loaders-") as directory:
+        metadata = Path(directory) / "decider_config.json"
+        metadata.write_text('{"temperature": 1.0}')
+        for family, name in cases:
+            checkpoint = name if family == "vlm" else inference.NLI_MODELS.get(name, inference.DECIDER_ID)
+            revisions = inference.VLM_REVISIONS if family == "vlm" else inference.NLI_REVISIONS
+            revision = inference.DECIDER_REVISION if name == "decider" else revisions[checkpoint]
+            loader = AutoModelForImageTextToText if family == "vlm" else AutoModelForSequenceClassification
+            if name == inference.VLM_ID:
+                loader = BlipForConditionalGeneration
+            elif name == "decider":
+                loader = AutoModelForCausalLM
+            processor = AutoProcessor if family == "vlm" else AutoTokenizer
+            inference.load_resource.clear()
+            with (
+                patch.object(loader, "from_pretrained", return_value=MagicMock()) as load_model,
+                patch.object(processor, "from_pretrained") as load_processor,
+                patch("huggingface_hub.hf_hub_download", return_value=str(metadata)) as download,
+                patch.object(inference, "vlm_device_supported", return_value=True),
+            ):
+                inference.load_resource(family, name, "cpu")
+            check(re.fullmatch(r"[a-f0-9]{40}", revision), f"{name}: revision is not immutable")
+            for call in (load_model, load_processor):
+                check(call.call_args.args == (checkpoint,), f"{name}: wrong checkpoint")
+                check(call.call_args.kwargs["revision"] == revision, f"{name}: mismatched revisions")
+                check(call.call_args.kwargs["trust_remote_code"] is False, f"{name}: remote code allowed")
+            check(
+                load_model.call_args.kwargs.get("use_safetensors", False) is (name != inference.VLM_ID),
+                f"{name}: wrong weights format",
+            )
+            if name == "decider":
+                download.assert_called_once_with(checkpoint, "decider_config.json", revision=revision)
+
+    agent = SimpleNamespace(model=MagicMock(), tok=object())
+    inference.load_resource.clear()
+    with patch("laya.Agent", return_value=agent) as load_agent:
+        model, processor, _ = inference.load_resource("decision", "laya", "cpu")
+    check(model is agent and processor is agent.tok, "Laya model/tokenizer pairing changed")
+    load_agent.assert_called_once_with(
+        inference.LAYA_ID, device="cpu", backend="eager", revision=inference.LAYA_REVISION
+    )
+    inference.load_resource.clear()
+    with patch.object(inference, "load_resource", side_effect=AssertionError("model loaded before input validation")):
+        for call, args in (
+            (inference.explain_decision, ("x" * 2001, "minilm", "cpu")),
+            (inference.generate_answer, (object(), "x" * 257, "cpu")),
+        ):
+            with TestCase().assertRaises(ValueError):  # noqa: PT027 - dependency-free smoke check.
+                call(*args)
 
 
 def check_image_decoding():
@@ -640,6 +696,7 @@ def check_pretrained():
 
 
 def main():
+    check_model_loaders()
     check_image_decoding()
     check_upload_limits()
     check_algorithm_limits()

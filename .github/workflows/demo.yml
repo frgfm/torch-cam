@@ -9,7 +9,6 @@ on:
       - 'pyproject.toml'
       - 'Makefile'
       - '.streamlit/**'
-      - 'tests/test_demo_loaders.py'
   pull_request:
     branches: main
     paths:
@@ -18,7 +17,6 @@ on:
       - 'pyproject.toml'
       - 'Makefile'
       - '.streamlit/**'
-      - 'tests/test_demo_loaders.py'
   workflow_dispatch:  # Allow trusted manual runs from the Actions tab
     inputs:
       pretrained:
@@ -68,11 +66,6 @@ jobs:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
         run: uv run --no-sync python demo/smoke.py
-      - name: Check model loader boundaries offline
-        env:
-          HF_HUB_OFFLINE: '1'
-          TRANSFORMERS_OFFLINE: '1'
-        run: uv run --no-sync --with pytest==9.1.1 python -m pytest -o addopts= tests/test_demo_loaders.py
       - name: Build and check the Space image without publishing
         run: |
           space_dir="${RUNNER_TEMP}/space-build"
