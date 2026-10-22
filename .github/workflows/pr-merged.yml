@@ -50,4 +50,4 @@ jobs:
           script: |
             const { issue: { number: issue_number }, repo: { owner, repo }  } = context;
             const merger = process.env.PR_MERGER;
-            github.issues.createComment({ issue_number, owner, repo, body: `Hey ${merger} 👋\nYou merged this PR, but it is not correctly labeled. The list of valid labels is available at https://github.com/frgfm/torch-cam/blob/main/.github/verify_labels.py` });
+            await github.rest.issues.createComment({ issue_number, owner, repo, body: `Hey ${merger} 👋\nYou merged this PR, but it is not correctly labeled. The list of valid labels is available at https://github.com/frgfm/torch-cam/blob/main/.github/verify_labels.py` });

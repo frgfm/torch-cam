@@ -7,6 +7,7 @@ version: 2
 updates:
   - package-ecosystem: "docker"
     directory: "/demo"
+    labels: ["dependencies", "type: misc"]
     commit-message:
       prefix: "build(demo-image)"
     schedule:
