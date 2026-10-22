@@ -73,6 +73,21 @@ jobs:
           HF_HUB_OFFLINE: '1'
           TRANSFORMERS_OFFLINE: '1'
         run: uv run --no-sync --with pytest==9.1.1 python -m pytest -o addopts= tests/test_demo_loaders.py
+      - name: Build and check the Space image without publishing
+        run: |
+          space_dir="${RUNNER_TEMP}/space-build"
+          mkdir -p "${space_dir}/src" "${space_dir}/.streamlit"
+          cp demo/app.py "${space_dir}/src/streamlit_app.py"
+          cp demo/inference.py "${space_dir}/src/inference.py"
+          cp demo/Dockerfile "${space_dir}/Dockerfile"
+          cp .streamlit/config.toml "${space_dir}/.streamlit/config.toml"
+          cp demo/requirements.txt "${space_dir}/requirements.txt"
+          printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
+            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" >>"${space_dir}/requirements.txt"
+          docker build -t torchcam-demo-validation "${space_dir}"
+          docker run --rm --entrypoint python \
+            -e PYTHONPATH=/app/src -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
+            torchcam-demo-validation -c 'import inference, streamlit_app, torchcam'
       - name: Start demo and wait for health
         shell: bash
         run: |
