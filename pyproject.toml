@@ -68,10 +68,10 @@ docs = [
     "mkdocs-llmstxt==0.5.1",
 ]
 demo = [
-    "streamlit>=1.61.0,<2.0.0",
+    "streamlit>=1.66.0,<2.0.0",
     "torchvision>=0.28.0,<1.0.0",
-    "transformers==5.19.0",
-    "laya==0.4.6",
+    "transformers==5.20.1",
+    "laya==0.4.12",
 ]
 scripts = [
     "torchvision>=0.28.0,<1.0.0",
