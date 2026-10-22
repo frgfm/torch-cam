@@ -23,7 +23,7 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     versioning-strategy: "increase-if-necessary"
-    # Raise these minimums only for security fixes or required library features.
+    # Keep library minimums and demo dependencies deliberate; automate security fixes only.
     # Update-type ignores apply to version updates; security updates remain eligible.
     ignore:
       - dependency-name: "torch"
@@ -37,6 +37,21 @@ updates:
           - "version-update:semver-minor"
           - "version-update:semver-patch"
       - dependency-name: "matplotlib"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "streamlit"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "transformers"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "laya"
         update-types:
           - "version-update:semver-major"
           - "version-update:semver-minor"
@@ -72,6 +87,7 @@ updates:
           - "Pillow"
           - "numpy"
       demo:
+        applies-to: "security-updates"
         patterns:
           - "streamlit"
           - "transformers"
