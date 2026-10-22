@@ -81,20 +81,16 @@ jobs:
           docker run --rm --entrypoint python \
             -e PYTHONPATH=/app/src -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 \
             torchcam-demo-validation -c 'import os, inference, streamlit_app, torchcam; from pathlib import Path; assert os.getuid() == 1000 and os.access(Path.home(), os.W_OK)'
-      - name: Start demo and wait for health
+      - name: Start Space image and wait for health
         shell: bash
         run: |
           set -euo pipefail
-          log_file="${RUNNER_TEMP}/torchcam-demo.log"
-          uv run --no-sync streamlit run demo/app.py \
-            --server.headless true \
-            --server.port 8080 \
-            >"${log_file}" 2>&1 &
-          server_pid=$!
+          container_id="$(docker run -d -p 127.0.0.1:8080:8501 \
+            -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 -e STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+            torchcam-demo-validation)"
 
           cleanup() {
-            kill "${server_pid}" 2>/dev/null || true
-            wait "${server_pid}" 2>/dev/null || true
+            docker rm -f "${container_id}" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
@@ -116,7 +112,7 @@ jobs:
           raise SystemExit(f"Streamlit health check timed out: {last_error}")
           PY
           then
-            cat "${log_file}"
+            docker logs "${container_id}"
             exit 1
           fi
 
