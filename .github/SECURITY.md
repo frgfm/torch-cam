@@ -18,9 +18,6 @@ Upload, image, CAM and generation limits are enforced in `demo/app.py` and `demo
 Work keeps its slot until it returns or raises. Hard cancellation or more workers require process isolation
 and shared resource budgets. Total sessions and process memory are not capped.
 
-Scheduled audits check the demo lock and current/minimum core/test resolutions, failing on advisories or skipped packages.
-Update `pyproject.toml` and regenerate `demo/requirements.txt` with `make lock-demo` together before merging dependency PRs.
-
 Offline check: `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --no-sync python demo/smoke.py`.
 
 Optional model checks run on the default branch with `pretrained: true`. An owner must first configure

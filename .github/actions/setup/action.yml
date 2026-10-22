@@ -2,7 +2,7 @@ name: Set up Python and uv
 description: Install the shared CI toolchain without a dependency cache.
 inputs:
   python-version:
-    description: Python version; override for compatibility tests or the demo lock.
+    description: Python version; override for compatibility tests or the demo.
     default: '3.11'
   activate-environment:
     description: Create and activate a virtual environment.
