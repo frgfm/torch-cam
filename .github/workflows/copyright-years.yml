@@ -34,10 +34,6 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: "3.11"
           enable-cache: false
-      - name: Configure GitHub CLI authentication for git push
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh auth setup-git
       - name: Refresh years and open a review pull request
         shell: bash
         env:
@@ -46,6 +42,7 @@ jobs:
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
+          gh auth setup-git
 
           copyright_year="$(date +%Y)"
           branch_name="automation/update-copyright-years-$copyright_year"
