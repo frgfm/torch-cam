@@ -12,7 +12,6 @@
 # ///
 
 import logging
-import re
 import sys
 import tomllib
 from pathlib import Path
@@ -74,6 +73,7 @@ def main():
     }
     troubles = []
     minimum_uv_version = tuple(map(int, MINIMUM_UV_VERSION.split(".")))
+    expected_uv_build_version = EXPECTED_UV_BUILD_REQUIREMENT.removeprefix("uv_build")
     # Parse precommit
     with Path(PRECOMMIT_CONFIG).open("r", encoding="utf-8") as f:
         precommit = yaml.safe_load(f)
@@ -88,15 +88,8 @@ def main():
         # Check the build backend version used by this project.
         build_deps = [parse_dep_str(dep) for dep in pyproject["build-system"]["requires"]]
         uv_build_deps = [dep for dep in build_deps if dep["pkg"] == "uv_build"]
-        uv_build_version = (
-            re.fullmatch(r">=(\d+)\.(\d+)\.(\d+),<1\.0\.0", uv_build_deps[0]["version"])
-            if len(uv_build_deps) == 1
-            else None
-        )
-        if uv_build_version is None or not minimum_uv_version <= tuple(map(int, uv_build_version.groups())) < (1, 0, 0):
-            troubles.append(
-                f"{pyproject_path}: build-system requires {EXPECTED_UV_BUILD_REQUIREMENT} or a newer minimum"
-            )
+        if len(uv_build_deps) != 1 or uv_build_deps[0]["version"] != expected_uv_build_version:
+            troubles.append(f"{pyproject_path}: build-system requires {EXPECTED_UV_BUILD_REQUIREMENT}")
 
         # Parse dependencies
         core_deps = [parse_dep_str(dep) for dep in pyproject["project"]["dependencies"]]
