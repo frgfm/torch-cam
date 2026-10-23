@@ -1,7 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/setup"
     labels:
       - "dependencies"
       - "type: misc"
@@ -21,7 +23,7 @@ updates:
           - "*"
   - package-ecosystem: "pip"
     directory: "/"
-    versioning-strategy: "increase"
+    versioning-strategy: "increase-if-necessary"
     labels:
       - "dependencies"
       - "type: misc"
@@ -30,7 +32,7 @@ updates:
     schedule:
       interval: "daily"
       time: "08:00"
-    # Only quality receives routine Python updates. These filters leave security jobs eligible.
+    # Add every non-quality dependency here; update-type filters leave security jobs eligible.
     ignore:
       - dependency-name: "uv-build"
         update-types:
