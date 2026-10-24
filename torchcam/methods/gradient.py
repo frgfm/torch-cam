@@ -249,6 +249,7 @@ class SmoothGradCAMpp(_GradCAM):
     floating-point rounding. Zero squared-gradient moments give zero coefficients.
 
     The corrected alpha numerator uses the mean squared gradient, rather than the mean first derivative in the paper.
+    Noise samples follow the input device and dtype.
     For float16 and bfloat16 inputs, gradient moments and activation sums use float32 to avoid underflow and overflow.
     Float64 inputs retain their precision.
 
@@ -333,7 +334,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
-            noisy_input = self._input + self._distrib.sample(self._input.size()).to(device=self._input.device)
+            noisy_input = self._input + self._distrib.sample(self._input.size()).to(self._input)
             noisy_input.requires_grad_(True)
             # Forward & Backward
             out = self.model(noisy_input)
