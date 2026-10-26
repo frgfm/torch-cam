@@ -596,3 +596,43 @@ def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypat
             extractor(scores[0].argmax().item(), scores)
 
         assert extractor._ihook_enabled
+
+
+@pytest.mark.parametrize(
+    ("model_dtype", "default_dtype"),
+    [
+        (torch.float16, torch.float32),
+        (torch.bfloat16, torch.float32),
+        (torch.float32, torch.float64),
+        (torch.float64, torch.float32),
+        (torch.float32, torch.float32),
+    ],
+)
+def test_smoothgradcampp_noise_input_dtype(model_dtype, default_dtype):
+    previous_dtype = torch.get_default_dtype()
+    try:
+        torch.set_default_dtype(default_dtype)
+        model = (
+            nn
+            .Sequential(
+                nn.Conv2d(1, 2, 1, bias=False),
+                nn.AdaptiveAvgPool2d(1),
+                nn.Flatten(),
+                nn.Linear(2, 2, bias=False),
+            )
+            .to(dtype=model_dtype)
+            .eval()
+        )
+        with torch.no_grad():
+            model[0].weight.copy_(torch.tensor([1.0, 2.0]).view(2, 1, 1, 1))
+            model[3].weight.fill_(1)
+        input_tensor = torch.arange(4, dtype=model_dtype).reshape(1, 1, 2, 2).requires_grad_()
+        with gradient.SmoothGradCAMpp(model, "0", num_samples=2) as extractor:
+            cam = extractor(0, model(input_tensor))[0]
+
+        # A linear classifier has spatially constant positive gradients. Noise
+        # changes its scores but leaves the normalized original-input CAM intact.
+        expected = torch.tensor([[[0.0, 1 / 3], [2 / 3, 1.0]]], dtype=cam.dtype)
+        torch.testing.assert_close(cam, expected, atol=1e-3, rtol=1e-3)
+    finally:
+        torch.set_default_dtype(previous_dtype)
