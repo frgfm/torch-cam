@@ -1,5 +1,6 @@
 from operator import itemgetter
 
+import numpy as np
 import pytest
 import torch
 from torch import nn
@@ -228,6 +229,104 @@ def test_video_cams(
         scores = model(mock_video_tensor)
         # Use the hooked data to compute activation map
         _verify_cam(extractor(scores[0].argmax().item(), scores)[0], output_size)
+
+
+def _extract_eigencam(features, *, normalized=True, **kwargs):
+    model = nn.Sequential(nn.Identity()).eval()
+    with activation.EigenCAM(model, "0", **kwargs) as extractor:
+        model(features)
+        return extractor(normalized=normalized)[0]
+
+
+@pytest.mark.parametrize("shape", [(2, 4, 3, 5), (1, 6, 2, 3, 4)])
+def test_eigencam_matches_numpy_projection(shape):
+    features = np.random.default_rng(4).normal(size=shape)
+    expected = []
+    for sample in features:
+        matrix = sample.reshape(shape[1], -1).T.copy()
+        matrix -= matrix.mean(axis=0)
+        _, _, vectors = np.linalg.svd(matrix, full_matrices=False)
+        direction = vectors[0]
+        direction *= np.sign(direction[np.argmax(np.abs(direction))])
+        projection = np.maximum(matrix @ direction, 0).reshape(shape[2:])
+        projection -= projection.min()
+        projection /= projection.max() + 1e-8
+        expected.append(projection)
+    # The projection is centered per channel, oriented by the largest loading and min-max normalized
+    torch.testing.assert_close(_extract_eigencam(torch.from_numpy(features)), torch.from_numpy(np.stack(expected)))
+
+
+def test_eigencam_is_class_independent_for_frozen_encoders():
+    model = nn.Sequential(nn.Sequential(nn.Conv2d(3, 4, 3, padding=1), nn.ReLU()), nn.Flatten(1)).eval()
+    model.requires_grad_(False)
+
+    with activation.EigenCAM(model, "0") as extractor, torch.inference_mode():
+        embedding = model(torch.rand(2, 3, 8, 8))
+        expected = extractor()
+        # Class indices are accepted for API compatibility, but they do not change the map
+        for class_idx in (0, 3, [1, 0]):
+            for actual, reference in zip(extractor(class_idx, embedding), expected, strict=True):
+                torch.testing.assert_close(actual, reference)
+
+    assert embedding.shape == (2, 256)
+    _verify_cam(expected[0], (2, 8, 8))
+    assert not expected[0].requires_grad
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float64])
+def test_eigencam_dtype(dtype):
+    features = torch.randn(2, 4, 3, 5, generator=torch.Generator().manual_seed(4)).to(dtype)
+    actual = _extract_eigencam(features)
+    assert actual.dtype == (torch.float64 if dtype == torch.float64 else torch.float32)
+    assert actual.device == features.device
+    torch.testing.assert_close(actual, _extract_eigencam(features.to(actual.dtype)), atol=1e-3, rtol=1e-3)
+
+
+@pytest.mark.parametrize("normalized", [False, True])
+def test_eigencam_constant_features(normalized):
+    actual = _extract_eigencam(torch.full((2, 3, 5, 7), 4.0), normalized=normalized)
+    torch.testing.assert_close(actual, torch.zeros((2, 5, 7)))
+
+
+@pytest.mark.parametrize(
+    "features",
+    [
+        torch.zeros(2, 3),
+        torch.zeros(0, 3, 4, 5),
+        torch.ones(2, 3, 4, 5, dtype=torch.int64),
+        torch.full((2, 3, 4, 5), float("nan")),
+    ],
+)
+def test_eigencam_rejects_invalid_features(features):
+    with pytest.raises(ValueError, match="EigenCAM requires"):
+        _extract_eigencam(features)
+
+
+def test_eigencam_falls_back_to_cpu_svd(monkeypatch):
+    """Devices without an SVD kernel should decompose on CPU and move the vectors back."""
+    matrix = torch.randn(2, 4, 3, 5, generator=torch.Generator().manual_seed(4)).flatten(2).transpose(1, 2)
+    expected = activation._svd_right_vectors(matrix, cpu_fallback=False)
+    svd, devices = torch.linalg.svd, []
+
+    def no_svd_once(sample, **kwargs):
+        devices.append(sample.device.type)
+        if len(devices) == 1:
+            raise NotImplementedError("SVD is unavailable on this device")
+        return svd(sample, **kwargs)
+
+    monkeypatch.setattr(torch.linalg, "svd", no_svd_once)
+    actual = activation._svd_right_vectors(matrix, cpu_fallback=True)
+    assert devices == ["cpu", "cpu"]
+    torch.testing.assert_close(actual, expected)
+
+
+def test_eigencam_propagates_unsupported_svd(monkeypatch):
+    def unsupported_svd(*_args, **_kwargs):
+        raise NotImplementedError("unsupported SVD")
+
+    monkeypatch.setattr(torch.linalg, "svd", unsupported_svd)
+    with pytest.raises(NotImplementedError, match="unsupported SVD"):
+        _extract_eigencam(torch.rand(2, 4, 3, 5))
 
 
 def test_scorecam_one_dimensional_upsampling():

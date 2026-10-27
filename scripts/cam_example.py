@@ -156,7 +156,8 @@ def main(args):
             scores = model(img_tensor.unsqueeze(0))
             class_idx = scores.squeeze(0).argmax().item() if args.class_idx is None else args.class_idx
             class_name = weights.meta["categories"][class_idx]
-            print(f"{name}: class {class_idx} ({class_name})")
+            description = "class-independent" if name == "EigenCAM" else f"class {class_idx} ({class_name})"
+            print(f"{name}: {description}")
             activation_map = extractor.fuse_cams(extractor(class_idx, scores))[0].cpu()
         # Convert it to PIL image
         # The indexing below means first image in batch
@@ -167,7 +168,7 @@ def main(args):
         ax = axes.flat[idx]
 
         ax.imshow(result)
-        ax.set_title(f"{name}: {class_name}", size=8)
+        ax.set_title(f"{name}: {'class-independent' if name == 'EigenCAM' else class_name}", size=8)
 
     for ax in axes.flat:
         ax.axis("off")
