@@ -1,8 +1,9 @@
 import pytest
+import torch
 from torch import nn
 from torchvision.models import get_model
 
-from torchcam.methods import _utils
+from torchcam.methods import GradCAM, _utils
 
 
 def test_locate_candidate_layer_skips_non_tensor_outputs():
@@ -71,3 +72,36 @@ def test_locate_candidate_layer(mock_img_model, monkeypatch):
     with pytest.raises(RuntimeError):
         _utils.locate_candidate_layer(mod)
     assert [module.training for module in mod.modules()] == modes
+
+
+@pytest.mark.parametrize(
+    ("dtype", "default_dtype"),
+    [
+        (torch.float16, torch.float32),
+        (torch.bfloat16, torch.float32),
+        (torch.float32, torch.float64),
+        (torch.float64, torch.float32),
+    ],
+)
+def test_locate_candidate_layer_model_dtype(dtype, default_dtype):
+    model = nn.Sequential(nn.Conv2d(3, 4, 3, dtype=dtype), nn.ReLU(), nn.AdaptiveAvgPool2d(1))
+    original_dtype = torch.get_default_dtype()
+    try:
+        torch.set_default_dtype(default_dtype)
+        assert _utils.locate_candidate_layer(model, (3, 8, 8)) == "1"
+    finally:
+        torch.set_default_dtype(original_dtype)
+
+
+def test_gradcam_automatic_layer_double_model():
+    model = (
+        nn
+        .Sequential(nn.Conv2d(3, 4, 3), nn.ReLU(), nn.AdaptiveAvgPool2d(1), nn.Flatten(1), nn.Linear(4, 2))
+        .double()
+        .eval()
+    )
+    with GradCAM(model, input_shape=(3, 8, 8)) as extractor:
+        scores = model(torch.ones((1, 3, 8, 8), dtype=torch.float64))
+        (cam,) = extractor(0, scores)
+        assert cam.dtype == torch.float64
+    assert all(not module._forward_hooks for module in model.modules())

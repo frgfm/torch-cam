@@ -57,6 +57,9 @@ cam_extractor = LayerCAM(model, input_shape=(3, 384, 384))
 
 ## Choosing the target layer
 
+For 1D classifiers, use inputs shaped `(N, C, L)` and set `input_shape=(C, L)` for automatic layer discovery. CAMs
+have the target layer's feature length, which may be shorter than `L`; PIL overlays are for 2D images.
+
 A CAM is computed on the activation map of a **convolutional (spatial)** layer. The default — the last
 convolutional layer before global pooling — is the most class-discriminative but also the coarsest. Earlier
 layers give finer, less semantic maps. Rules of thumb for common torchvision backbones:
@@ -91,6 +94,13 @@ with LayerCAM(model, ["layer2", "layer3", "layer4"]) as cam_extractor:
     cams = cam_extractor(class_idx, out)        # one map per layer
     fused = cam_extractor.fuse_cams(cams)       # single fused map
 ```
+
+With multiple maps of different shapes, fusion uses the shape of the input map with the most spatial locations by
+default and interpolates the other maps to match. A custom `target_shape` that matches none of the maps warns that
+every map will be interpolated; downsampling also warns because it can remove detail. A single map cannot be resized
+through `fuse_cams`; use `torch.nn.functional.interpolate` to resize one map or choose another interpolation
+mode. Two-dimensional maps use bilinear interpolation and three-dimensional maps use trilinear interpolation, both
+with `align_corners=False`.
 
 `RefineCAM` formalizes multi-layer fusion by normalizing and multiplying the maps. It requires at least two target
 layers and uses `GradCAMpp` as its base method by default. Pass another extractor class to reuse its weighting:

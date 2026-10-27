@@ -17,7 +17,7 @@ from pathlib import Path
 from threading import Lock
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from urllib.request import Request, urlopen
 
 import inference
@@ -31,12 +31,14 @@ from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.pre_tokenizers import Whitespace
 from tokenizers.processors import TemplateProcessing
-from torchvision.models import get_model
+from torchvision.models import get_model, get_model_weights
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
     AutoModelForImageTextToText,
     AutoModelForSequenceClassification,
+    AutoProcessor,
+    AutoTokenizer,
     BlipForConditionalGeneration,
     BlipImageProcessor,
     BlipProcessor,
@@ -79,6 +81,60 @@ def image_upload(image, image_format, **kwargs):
     source.name = "upload.png"
     image.save(source, format=image_format, **kwargs)
     return source
+
+
+def check_model_loaders():
+    cases = [("vlm", name) for name in inference.VLM_MODELS]
+    cases += [("decision", name) for name in (*inference.NLI_MODELS, "decider")]
+    with tempfile.TemporaryDirectory(prefix="torchcam-loaders-") as directory:
+        metadata = Path(directory) / "decider_config.json"
+        metadata.write_text('{"temperature": 1.0}')
+        for family, name in cases:
+            checkpoint = name if family == "vlm" else inference.NLI_MODELS.get(name, inference.DECIDER_ID)
+            revisions = inference.VLM_REVISIONS if family == "vlm" else inference.NLI_REVISIONS
+            revision = inference.DECIDER_REVISION if name == "decider" else revisions[checkpoint]
+            loader = AutoModelForImageTextToText if family == "vlm" else AutoModelForSequenceClassification
+            if name == inference.VLM_ID:
+                loader = BlipForConditionalGeneration
+            elif name == "decider":
+                loader = AutoModelForCausalLM
+            processor = AutoProcessor if family == "vlm" else AutoTokenizer
+            inference.load_resource.clear()
+            with (
+                patch.object(loader, "from_pretrained", return_value=MagicMock()) as load_model,
+                patch.object(processor, "from_pretrained") as load_processor,
+                patch("huggingface_hub.hf_hub_download", return_value=str(metadata)) as download,
+                patch.object(inference, "vlm_device_supported", return_value=True),
+            ):
+                inference.load_resource(family, name, "cpu")
+            check(re.fullmatch(r"[a-f0-9]{40}", revision), f"{name}: revision is not immutable")
+            for call in (load_model, load_processor):
+                check(call.call_args.args == (checkpoint,), f"{name}: wrong checkpoint")
+                check(call.call_args.kwargs["revision"] == revision, f"{name}: mismatched revisions")
+                check(call.call_args.kwargs["trust_remote_code"] is False, f"{name}: remote code allowed")
+            check(
+                load_model.call_args.kwargs.get("use_safetensors", False) is (name != inference.VLM_ID),
+                f"{name}: wrong weights format",
+            )
+            if name == "decider":
+                download.assert_called_once_with(checkpoint, "decider_config.json", revision=revision)
+
+    agent = SimpleNamespace(model=MagicMock(), tok=object())
+    inference.load_resource.clear()
+    with patch("laya.Agent", return_value=agent) as load_agent:
+        model, processor, _ = inference.load_resource("decision", "laya", "cpu")
+    check(model is agent and processor is agent.tok, "Laya model/tokenizer pairing changed")
+    load_agent.assert_called_once_with(
+        inference.LAYA_ID, device="cpu", backend="eager", revision=inference.LAYA_REVISION
+    )
+    inference.load_resource.clear()
+    with patch.object(inference, "load_resource", side_effect=AssertionError("model loaded before input validation")):
+        for call, args in (
+            (inference.explain_decision, ("x" * 2001, "minilm", "cpu")),
+            (inference.generate_answer, (object(), "x" * 257, "cpu")),
+        ):
+            with TestCase().assertRaises(ValueError):  # noqa: PT027 - dependency-free smoke check.
+                call(*args)
 
 
 def check_image_decoding():
@@ -127,6 +183,52 @@ def check_image_decoding():
             raise AssertionError("Oversized PNG upload was accepted")
     finally:
         Image.MAX_IMAGE_PIXELS = pixel_limit
+
+
+def check_upload_limits():
+    wide_upload = image_upload(Image.new("RGB", (65_535, 1)), "PNG")
+    with (
+        patch.object(Image.Image, "load", side_effect=AssertionError("extreme aspect ratio reached decoding")),
+        TestCase().assertRaisesRegex(OSError, "aspect ratio"),  # noqa: PT027 - dependency-free smoke check.
+    ):
+        app.read_image(wide_upload)
+    upload = image_upload(Image.new("RGB", (2, 2)), "PNG")
+    with (
+        patch.object(app, "MAX_UPLOAD_BYTES", 1),
+        patch.object(app.Image, "open", side_effect=AssertionError("oversized upload reached the decoder")),
+        TestCase().assertRaisesRegex(OSError, "8 MiB"),  # noqa: PT027 - dependency-free smoke check.
+    ):
+        app.read_image(upload)
+
+    with (
+        patch.object(app, "MAX_IMAGE_PIXELS", 3),
+        patch.object(Image.Image, "load", side_effect=AssertionError("oversized image was decoded")),
+        TestCase().assertRaisesRegex(OSError, "8-megapixel"),  # noqa: PT027 - dependency-free smoke check.
+    ):
+        app.read_image(upload)
+
+
+def check_algorithm_limits():
+    with TestCase().assertRaisesRegex(ValueError, "four"):  # noqa: PT027 - dependency-free smoke check.
+        app.parse_target_layers("layer1+layer2+layer3+layer4+layer5", "resnet18", "RefineCAM")
+
+    with TestCase().assertRaisesRegex(ValueError, "between 1 and 32"):  # noqa: PT027 - dependency-free smoke check.
+        app.compute_result(None, "resnet18", "ScoreCAM", "layer4", None, None, None, {"batch_size": 33})
+
+
+def check_compute_admission():
+    with app.expensive_work():
+        app.st.cache_resource.clear()
+        with TestCase().assertRaises(app.ComputeBusyError), app.expensive_work():  # noqa: PT027
+            pass
+    with app.expensive_work():
+        pass
+
+    for error in (RuntimeError("fixture failure"), KeyboardInterrupt()):
+        with TestCase().assertRaises(type(error)), app.expensive_work():  # noqa: PT027 - dependency-free smoke check.
+            raise error
+        with app.expensive_work():
+            pass
 
 
 def check_malformed_png_metadata():
@@ -347,6 +449,27 @@ def check_vlm_adapter():
         check_vlm_result(model, processor, result, result["choices"][2])
 
 
+def check_generation_limits():
+    image = Image.new("RGB", (2, 2))
+    inputs = {"input_ids": torch.ones((1, 2), dtype=torch.long)}
+    processor = SimpleNamespace(tokenizer=SimpleNamespace(all_special_ids=[], decode=lambda *_args, **_kwargs: "word"))
+    for model_id, model_type, limit in (
+        (inference.VLM_ID, "blip", 24),
+        ("Qwen/Qwen3-VL-2B-Instruct", "qwen3_vl", 48),
+        ("google/gemma-4-E2B-it", "gemma4", 48),
+    ):
+        model = SimpleNamespace(
+            config=SimpleNamespace(model_type=model_type),
+            generate=MagicMock(return_value=torch.tensor([[1, 5, 6]])),
+        )
+        with (
+            patch.object(inference, "load_resource", return_value=(model, processor, Lock())),
+            patch.object(inference, "prepare_vlm_inputs", return_value=(inputs, image, (1, 1))),
+        ):
+            inference.generate_answer(image, "a picture of", "cpu", model_id)
+        check(model.generate.call_args.kwargs["max_new_tokens"] == limit, f"{model_id} generation was unbounded")
+
+
 def check_vlm_families():
     inference.load_resource.clear()
     with (
@@ -550,12 +673,17 @@ def check_pretrained():
 
 
 def main():
+    check_model_loaders()
     check_image_decoding()
+    check_upload_limits()
+    check_algorithm_limits()
+    check_compute_admission()
     check_malformed_png_metadata()
     check_navigation_and_text_ui()
     check_decision_adapters()
     check_decider_adapter()
     check_vlm_adapter()
+    check_generation_limits()
     check_vlm_families()
     check(app.compatible_methods("vit_b_16") == ("LeGrad",), "ViT compatibility changed")
     check("LeGrad" not in app.compatible_methods("resnet18"), "LeGrad must stay ViT-only")
@@ -563,6 +691,8 @@ def main():
     check("RefineCAM" in app.compatible_methods("resnet18"), "RefineCAM is missing")
 
     for model_name in app.MODEL_LABELS:
+        resize_side = get_model_weights(model_name).DEFAULT.transforms().resize_size[0]
+        check(32 * resize_side**2 <= app.MAX_IMAGE_PIXELS, f"{model_name}: resize exceeds the pixel budget")
         model = get_model(model_name, weights=None)
         module_names = dict(model.named_modules())
         for method_name in app.compatible_methods(model_name):
@@ -579,6 +709,10 @@ def main():
     model = get_model("resnet18", weights=None).train()
     module_modes = [module.training for module in model.modules()]
     parameter_flags = [parameter.requires_grad for parameter in model.parameters()]
+    parameter = next(model.parameters())
+    parameter.grad = torch.ones_like(parameter)
+    gradient_reference = parameter.grad
+    saved_gradient = parameter.grad.clone()
     input_tensor = torch.rand(3, 64, 64)
 
     cam, _, _, _ = app.extract_cam(model, Lock(), input_tensor, "GradCAM", ["layer4"])
@@ -589,7 +723,8 @@ def main():
         [parameter.requires_grad for parameter in model.parameters()] == parameter_flags,
         "Parameter flags were not restored",
     )
-    check(all(parameter.grad is None for parameter in model.parameters()), "Parameter gradients were not cleared")
+    check(parameter.grad is gradient_reference, "Existing gradient reference was not restored")
+    torch.testing.assert_close(parameter.grad, saved_gradient)
 
     try:
         app.extract_cam(model, Lock(), input_tensor, "GradCAM", ["layer4"], class_idx=1000)
@@ -603,7 +738,8 @@ def main():
         [parameter.requires_grad for parameter in model.parameters()] == parameter_flags,
         "Failure changed parameter flags",
     )
-    check(all(parameter.grad is None for parameter in model.parameters()), "Failure left parameter gradients")
+    check(parameter.grad is gradient_reference, "Failure replaced an existing gradient")
+    torch.testing.assert_close(parameter.grad, saved_gradient)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.13.0,<0.14.0"]
+requires = ["uv_build>=0.13.4,<1.0.0"]
 build-backend = "uv_build"
 
 [project]
@@ -36,46 +36,45 @@ classifiers = [
 ]
 dependencies = [
     # cf. https://github.com/frgfm/torch-cam/discussions/148
-    # PyTorch 2.4.1 includes the Windows NumPy 2 fix: https://github.com/pytorch/pytorch/issues/131668
-    "torch>=2.4.1,<3.0.0",
+    # Includes the torch.jit.script fix: https://github.com/advisories/GHSA-rrmf-rvhw-rf47
+    "torch>=2.13.0,<3.0.0",
     "numpy>=1.26.4,<3.0.0",
-    "Pillow>=9.3.0",
+    "Pillow>=13.0.0",
     "matplotlib>=3.8.4,<4.0.0",
 ]
 
 [project.optional-dependencies]
 test = [
-    "torchvision>=0.19.1,<1.0.0",
+    "torchvision>=0.28.0,<1.0.0",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "pytest-pretty==1.3.0",
 ]
 quality = [
-    "lint-my-headers==0.6.0",
-    "ruff==0.17.0",
-    "ty==0.0.86",
-    "prek==0.5.5",
+    "lint-my-headers==0.8.0",
+    "ruff==0.17.2",
+    "ty==0.0.92",
+    "prek==0.5.7",
 ]
 docs = [
     # cf. https://github.com/mkdocs/catalog
     "mkdocs==1.6.1",
     "mkdocs-material[imaging]==9.7.7",
     "mkdocstrings[python]==1.0.7",
-    "pymdown-extensions<12",  # mkdocstrings uses the pre-12 Highlight constructor.
+    "pymdown-extensions>=11.0.1,<12",  # Security floor; mkdocstrings uses the pre-12 Highlight constructor.
     "griffe-typingdoc==0.3.2",
     # "termynal==0.13.1",
     # "mkdocs-swagger-ui-tag==0.7.2",
     "mkdocs-llmstxt==0.5.1",
 ]
 demo = [
-    "Pillow>=12.3.0",
     "streamlit>=1.61.0,<2.0.0",
-    "torchvision>=0.19.1,<1.0.0",
+    "torchvision>=0.28.0,<1.0.0",
     "transformers==5.19.0",
     "laya==0.4.6",
 ]
 scripts = [
-    "torchvision>=0.19.1,<1.0.0",
+    "torchvision>=0.28.0,<1.0.0",
 ]
 
 [project.urls]

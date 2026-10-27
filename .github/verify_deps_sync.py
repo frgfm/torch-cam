@@ -20,6 +20,8 @@ import yaml
 
 PRECOMMIT_CONFIG = ".pre-commit-config.yaml"
 PYPROJECTS = ["./pyproject.toml"]
+MINIMUM_UV_VERSION = "0.13.4"
+EXPECTED_UV_BUILD_REQUIREMENT = f"uv_build>={MINIMUM_UV_VERSION},<1.0.0"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -44,13 +46,34 @@ def parse_dep_str(dep_str: str) -> dict[str, str]:
     }
 
 
-def main():  # noqa: PLR0912
+def parse_setup_uv_version(
+    minimum_uv_version: tuple[int, ...],
+) -> tuple[list[dict[str, str]], list[str]]:
+    dependencies = []
+    troubles = []
+    setup_file = Path(".github/actions/setup/action.yml")
+    with setup_file.open(encoding="utf-8") as f:
+        setup = yaml.safe_load(f)
+    uv_steps = [step for step in setup["runs"]["steps"] if step["uses"].startswith("astral-sh/setup-uv@")]
+    if len(uv_steps) != 1:
+        return [], [f"{setup_file}: expected one setup-uv step"]
+    uv_version = str(uv_steps[0]["with"]["version"]).lstrip("v")
+    dependencies.append({"file": str(setup_file), "version": f"=={uv_version}"})
+    if tuple(map(int, uv_version.split("."))) < minimum_uv_version:
+        troubles.append(f"{setup_file}: uv must be at least {MINIMUM_UV_VERSION}")
+    return dependencies, troubles
+
+
+def main():
     # Retrieve & parse all deps files
     deps_dict = {
         "uv": [],
         "ty": [],
         "pre-commit": [],
     }
+    troubles = []
+    minimum_uv_version = tuple(map(int, MINIMUM_UV_VERSION.split(".")))
+    expected_uv_build_version = EXPECTED_UV_BUILD_REQUIREMENT.removeprefix("uv_build")
     # Parse precommit
     with Path(PRECOMMIT_CONFIG).open("r", encoding="utf-8") as f:
         precommit = yaml.safe_load(f)
@@ -61,6 +84,12 @@ def main():  # noqa: PLR0912
     for pyproject_path in PYPROJECTS:
         with Path(pyproject_path).open("rb") as f:
             pyproject = tomllib.load(f)
+
+        # Check the build backend version used by this project.
+        build_deps = [parse_dep_str(dep) for dep in pyproject["build-system"]["requires"]]
+        uv_build_deps = [dep for dep in build_deps if dep["pkg"] == "uv_build"]
+        if len(uv_build_deps) != 1 or uv_build_deps[0]["version"] != expected_uv_build_version:
+            troubles.append(f"{pyproject_path}: build-system requires {EXPECTED_UV_BUILD_REQUIREMENT}")
 
         # Parse dependencies
         core_deps = [parse_dep_str(dep) for dep in pyproject["project"]["dependencies"]]
@@ -77,17 +106,11 @@ def main():  # noqa: PLR0912
                 deps_dict[dep].append({"file": pyproject_path, "version": quality_deps[dep]["version"]})
 
     # Parse github/workflows/...
-    for workflow_file in Path(".github/workflows").glob("*.yml"):
-        with workflow_file.open("r") as f:
-            workflow = yaml.safe_load(f)
-            if "env" in workflow and "UV_VERSION" in workflow["env"]:
-                deps_dict["uv"].append({
-                    "file": str(workflow_file),
-                    "version": f"=={workflow['env']['UV_VERSION'].lstrip('v')}",
-                })
+    setup_uv_dependencies, setup_troubles = parse_setup_uv_version(minimum_uv_version)
+    deps_dict["uv"].extend(setup_uv_dependencies)
+    troubles.extend(setup_troubles)
 
     # Assert all deps are in sync
-    troubles = []
     for dep, versions in deps_dict.items():
         versions_ = {v["version"] for v in versions}
         if len(versions_) > 1:

@@ -14,7 +14,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from .core import _CAM, OutputTarget, _target_scores
+from .core import _CAM, OutputTarget, _resolve_fusion_shape, _target_scores
 
 __all__ = ["FinerCAM", "GradCAM", "GradCAMpp", "LayerCAM", "LeGrad", "RefineCAM", "SmoothGradCAMpp", "XGradCAM"]
 
@@ -124,9 +124,9 @@ class GradCAM(_GradCAM):
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
-        self.hook_g: list[Tensor]  # type: ignore[assignment]
+        hook_g = cast(list[Tensor], self.hook_g)
         # Global average pool the gradients over spatial dimensions
-        return [grad.flatten(2).mean(-1) for grad in self.hook_g]
+        return [grad.flatten(2).mean(-1) for grad in hook_g]
 
 
 class GradCAMpp(_GradCAM):
@@ -187,18 +187,18 @@ class GradCAMpp(_GradCAM):
         """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
-        self.hook_a: list[Tensor]  # type: ignore[assignment]
-        self.hook_g: list[Tensor]  # type: ignore[assignment]
+        hook_a = cast(list[Tensor], self.hook_a)
+        hook_g = cast(list[Tensor], self.hook_g)
         # Keep powers, spatial sums, and epsilon representable for reduced-precision inputs.
-        gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in self.hook_g]
+        gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in hook_g]
         # Alpha coefficient for each pixel
         grad_2 = [grad.pow(2) for grad in gradients]
         grad_3 = [g2 * grad for g2, grad in zip(grad_2, gradients, strict=True)]
         # Watch out for NaNs produced by underflow
-        spatial_dims = self.hook_a[0].ndim - 2
+        spatial_dims = hook_a[0].ndim - 2
         denom = [
             2 * g2 + g3 * act.flatten(2).sum(-1, dtype=g2.dtype)[(...,) + (None,) * spatial_dims]
-            for g2, g3, act in zip(grad_2, grad_3, self.hook_a, strict=True)
+            for g2, g3, act in zip(grad_2, grad_3, hook_a, strict=True)
         ]
         nan_mask = [g2 > 0 for g2 in grad_2]
         alpha = grad_2
@@ -323,12 +323,11 @@ class SmoothGradCAMpp(_GradCAM):
         **kwargs: Any,
     ) -> list[Tensor]:
         # Keep initial activation
-        self.hook_a: list[Tensor]  # type: ignore[assignment]
-        self.hook_g: list[Tensor]  # type: ignore[assignment]
-        init_fmap = [act.clone() for act in self.hook_a]
+        hook_a = cast(list[Tensor], self.hook_a)
+        init_fmap = [act.clone() for act in hook_a]
         # Initialize our gradient estimates
         # Accumulate all moments in at least float32; half-precision epsilon rounds to zero.
-        grad_1 = [torch.zeros_like(act, dtype=torch.promote_types(act.dtype, torch.float32)) for act in self.hook_a]
+        grad_1 = [torch.zeros_like(act, dtype=torch.promote_types(act.dtype, torch.float32)) for act in hook_a]
         grad_2 = [torch.zeros_like(grad) for grad in grad_1]
         grad_3 = [torch.zeros_like(grad) for grad in grad_1]
         # Perform the operations N times
@@ -341,7 +340,10 @@ class SmoothGradCAMpp(_GradCAM):
             self._backprop(out, class_idx, **kwargs)
 
             # Sum partial derivatives
-            gradients = [grad.to(dtype=torch.promote_types(grad.dtype, torch.float32)) for grad in self.hook_g]
+            gradients = [
+                grad.to(dtype=torch.promote_types(grad.dtype, torch.float32))
+                for grad in cast(list[Tensor], self.hook_g)
+            ]
             grad_1 = [g1.add_(grad) for g1, grad in zip(grad_1, gradients, strict=True)]
             grad_2 = [g2.add_(grad.pow(2)) for g2, grad in zip(grad_2, gradients, strict=True)]
             grad_3 = [g3.add_(grad.pow(3)) for g3, grad in zip(grad_3, gradients, strict=True)]
@@ -352,7 +354,7 @@ class SmoothGradCAMpp(_GradCAM):
         grad_3 = [g3.div_(self.num_samples) for g3 in grad_3]
 
         # Alpha coefficient for each pixel
-        spatial_dims = self.hook_a[0].ndim - 2
+        spatial_dims = hook_a[0].ndim - 2
         alpha = [
             g2 / (2 * g2 + g3 * act.flatten(2).sum(-1, dtype=g2.dtype)[(...,) + (None,) * spatial_dims] + eps)
             for g2, g3, act in zip(grad_2, grad_3, init_fmap, strict=True)
@@ -414,11 +416,11 @@ class XGradCAM(_GradCAM):
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
-        self.hook_a: list[Tensor]  # type: ignore[assignment]
-        self.hook_g: list[Tensor]  # type: ignore[assignment]
+        hook_a = cast(list[Tensor], self.hook_a)
+        hook_g = cast(list[Tensor], self.hook_g)
         return [
             (grad * act).flatten(2).sum(-1) / act.flatten(2).sum(-1).add(eps)
-            for act, grad in zip(self.hook_a, self.hook_g, strict=True)
+            for act, grad in zip(hook_a, hook_g, strict=True)
         ]
 
 
@@ -464,9 +466,9 @@ class LayerCAM(_GradCAM):
         # Backpropagate
         self._backprop(scores, class_idx, **kwargs)
 
-        self.hook_g: list[Tensor]  # type: ignore[assignment]
+        hook_g = cast(list[Tensor], self.hook_g)
         # List of (N, C, H, W)
-        return [torch.relu(grad) for grad in self.hook_g]
+        return [torch.relu(grad) for grad in hook_g]
 
     @staticmethod
     def _scale_cams(cams: list[Tensor], gamma: float = 2.0) -> list[Tensor]:
@@ -920,16 +922,22 @@ class RefineCAM(_CAMWrapper):
     ) -> Tensor:
         """Normalize, resize, and multiply maps from multiple layers.
 
+        The input map with the most spatial locations sets the output shape when ``target_shape`` is omitted. For 2D
+        maps, interpolation is bilinear; for 3D maps, it is trilinear. Both use ``align_corners=False``. A target shape
+        outside the input shapes interpolates every map and emits a warning; downsampling also emits a warning because
+        it can remove spatial detail. A single map cannot be resized here. Resize maps explicitly before fusion to
+        choose a different interpolation mode.
+
         Raises:
             TypeError: if ``cams`` is not a list of tensors
-            ValueError: if ``cams`` is empty
+            ValueError: if ``cams`` is empty or a single map is paired with a different target shape
         """  # noqa: DOC201
         if not isinstance(cams, list) or any(not isinstance(cam, Tensor) for cam in cams):
             raise TypeError("invalid argument type for `cams`")
         if not cams:
             raise ValueError("argument `cams` cannot be an empty list")
 
-        shape = target_shape or tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams], strict=True)))
+        shape = _resolve_fusion_shape(cams, target_shape)
         interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
         resize_kwargs = {} if interpolation_mode == "nearest" else {"align_corners": False}
         resized_cams = [
@@ -1131,7 +1139,7 @@ class FinerCAM(_CAMWrapper):
         contrastive_scores = self._contrastive_scores(class_idx, scores, comparison_idx)
         return self.base_cam.compute_cams([0] * contrastive_scores.shape[0], contrastive_scores, normalized, **kwargs)
 
-    def fuse_cams(self, cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor:
+    def fuse_cams(self, cams: list[Tensor], target_shape: tuple[int, ...] | None = None) -> Tensor:
         """Fuse maps using the selected base extractor."""  # noqa: DOC201
         return self.base_cam.fuse_cams(cams, target_shape)
 

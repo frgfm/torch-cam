@@ -304,7 +304,12 @@ class ScoreCAM(_CAM):
     def _upsample(self, activation: Tensor) -> Tensor:
         spatial_dims = self._input.ndim - 2
         interpolation_mode = "bilinear" if spatial_dims == 2 else "trilinear" if spatial_dims == 3 else "nearest"
-        return F.interpolate(activation, self._input.shape[2:], mode=interpolation_mode, align_corners=False)
+        return F.interpolate(
+            activation,
+            self._input.shape[2:],
+            mode=interpolation_mode,
+            align_corners=None if interpolation_mode == "nearest" else False,
+        )
 
     @staticmethod
     def _select_scores(
@@ -380,11 +385,11 @@ class ScoreCAM(_CAM):
         targets: OutputTarget | list[OutputTarget] | None = None,
     ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
-        self.hook_a: list[Tensor]  # type: ignore[assignment]
+        hook_a = cast(list[Tensor], self.hook_a)
 
         # Normalize the activation
         # (N, C, H', W')
-        activations = [self._normalize(act.clone(), act.ndim - 2) for act in self.hook_a]
+        activations = [self._normalize(act.clone(), act.ndim - 2) for act in hook_a]
 
         with self._hooks_off(), self._eval_mode():
             return self._get_score_weights(activations, class_idx, targets)

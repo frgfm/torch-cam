@@ -5,15 +5,23 @@ on:
     branches: main
     paths:
       - '.github/workflows/demo.yml'
+      - '.github/actions/setup/**'
       - 'demo/**'
       - 'pyproject.toml'
+      - 'Makefile'
   pull_request:
-    branches: main
     paths:
       - '.github/workflows/demo.yml'
+      - '.github/actions/setup/**'
       - 'demo/**'
       - 'pyproject.toml'
+      - 'Makefile'
   workflow_dispatch:  # Allow trusted manual runs from the Actions tab
+    inputs:
+      pretrained:
+        description: Run model downloads with the separate read-only model token
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,44 +30,52 @@ concurrency:
   group: demo-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'trusted' }}
   cancel-in-progress: true
 
-env:
-  PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.12.5"  # pinned for reproducible installs across all jobs
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          architecture: x64
-      - uses: astral-sh/setup-uv@v10.3.0
+          persist-credentials: false
+      - uses: $/.github/actions/setup
         with:
-          version: ${{ env.UV_VERSION }}
-          activate-environment: true
+          python-version: '3.13'
       - name: Install dependencies
         env:
           UV_TORCH_BACKEND: cpu
-        run: make install-demo
+        run: |
+          uv build --wheel
+          for wheel in dist/*.whl; do uv pip install "${wheel}[demo]"; done
+          uv pip check
       - name: Run demo smoke check
-        run: uv run --no-sync python demo/smoke.py
-      - name: Check pretrained models before deployment
-        if: github.event_name != 'pull_request'
         env:
           OMP_NUM_THREADS: '2'
           MKL_NUM_THREADS: '2'
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: uv run --no-sync python demo/smoke.py --pretrained
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+        run: uv run --no-sync python demo/smoke.py
+      - name: Check pretrained models with read-only access
+        if: >-
+          github.event_name == 'workflow_dispatch' && inputs.pretrained &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          HF_TOKEN: ${{ secrets.HF_MODEL_READ_TOKEN }}
+          OMP_NUM_THREADS: '2'
+          MKL_NUM_THREADS: '2'
+        run: |
+          if test -z "$HF_TOKEN"; then
+            echo '::error::Configure HF_MODEL_READ_TOKEN with model-read access only; see .github/SECURITY.md.'
+            exit 1
+          fi
+          uv run --no-sync python demo/smoke.py --pretrained
       - name: Start demo and wait for health
         shell: bash
         run: |
           set -euo pipefail
           log_file="${RUNNER_TEMP}/torchcam-demo.log"
-          uv run --no-sync streamlit run demo/app.py \
-            --server.headless true \
-            --server.port 8080 \
+          HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+            STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10 \
+            uv run --no-sync streamlit run demo/app.py --server.headless true --server.port 8080 \
             >"${log_file}" 2>&1 &
           server_pid=$!
 
@@ -92,11 +108,15 @@ jobs:
           fi
 
   sync-to-hub:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Sync demo to existing Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -111,18 +131,29 @@ jobs:
           cp demo/app.py "${space_dir}/src/streamlit_app.py"
           cp demo/inference.py "${space_dir}/src/inference.py"
           printf 'torchcam[demo] @ git+https://github.com/%s.git@%s\n' \
-            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" \
-            >"${space_dir}/requirements.txt"
+            "${GITHUB_REPOSITORY}" "${GITHUB_SHA}" >"${space_dir}/requirements.txt"
+          # Keep the Space-owned image and apply transport limits before Streamlit starts.
+          sed '/^ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=/d' "${space_dir}/Dockerfile" >"${space_dir}/Dockerfile.new"
+          printf 'ENV STREAMLIT_SERVER_MAX_UPLOAD_SIZE=8 STREAMLIT_SERVER_MAX_MESSAGE_SIZE=10\n' >>"${space_dir}/Dockerfile.new"
+          mv "${space_dir}/Dockerfile.new" "${space_dir}/Dockerfile"
 
           git -C "${space_dir}" config user.name "github-actions[bot]"
           git -C "${space_dir}" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C "${space_dir}" add requirements.txt src
+          git -C "${space_dir}" add Dockerfile requirements.txt src
           if git -C "${space_dir}" diff --cached --quiet; then
             echo "Space already matches ${GITHUB_SHA}."
             exit 0
           fi
 
           git -C "${space_dir}" commit -m "sync(demo): ${GITHUB_SHA::7}"
-          git -C "${space_dir}" push \
-            "https://frgfm:${HF_TOKEN}@huggingface.co/spaces/frgfm/torch-cam" \
-            HEAD:main
+          askpass="${space_dir}/askpass.sh"
+          cat >"${askpass}" <<'SH'
+          #!/bin/sh
+          case "$1" in
+            *Username*) printf '%s\n' frgfm ;;
+            *Password*) printf '%s\n' "$HF_TOKEN" ;;
+          esac
+          SH
+          chmod 700 "${askpass}"
+          GIT_ASKPASS="${askpass}" GIT_TERMINAL_PROMPT=0 \
+            git -C "${space_dir}" -c credential.helper= push origin HEAD:main

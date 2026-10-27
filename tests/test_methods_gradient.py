@@ -213,7 +213,8 @@ def test_layercam_fuse_cams():
     assert cam.shape == (1, 32, 32)
 
     # Specify target shape
-    cam = gradient.LayerCAM.fuse_cams(cams, (16, 16))
+    with pytest.warns(UserWarning, match="downsample"):
+        cam = gradient.LayerCAM.fuse_cams(cams, (16, 16))
     assert isinstance(cam, torch.Tensor)
     assert cam.ndim == cams[0].ndim
     assert cam.shape == (1, 16, 16)
@@ -238,8 +239,11 @@ def test_refinecam_fuse_cams():
 
     larger_cam = torch.arange(16, dtype=torch.float32).reshape(1, 4, 4)
     assert gradient.RefineCAM.fuse_cams([cams[0], larger_cam]).shape == (1, 4, 4)
-    assert gradient.RefineCAM.fuse_cams([cams[0], larger_cam], (2, 2)).shape == (1, 2, 2)
+    with pytest.warns(UserWarning, match="downsample"):
+        assert gradient.RefineCAM.fuse_cams([cams[0], larger_cam], (2, 2)).shape == (1, 2, 2)
     assert gradient.RefineCAM.fuse_cams(cams[:1]).shape == cams[0].shape
+    with pytest.raises(ValueError, match="single CAM"):
+        gradient.RefineCAM.fuse_cams(cams[:1], (4, 4))
 
     volume = torch.arange(8, dtype=torch.float32).reshape(1, 2, 2, 2)
     assert gradient.RefineCAM.fuse_cams([volume, volume.flip(-1)]).shape == volume.shape

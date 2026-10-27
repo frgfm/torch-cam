@@ -327,3 +327,23 @@ def test_eigencam_propagates_unsupported_svd(monkeypatch):
     monkeypatch.setattr(torch.linalg, "svd", unsupported_svd)
     with pytest.raises(NotImplementedError, match="unsupported SVD"):
         _extract_eigencam(torch.rand(2, 4, 3, 5))
+
+
+def test_scorecam_one_dimensional_upsampling():
+    model = nn.Sequential(
+        nn.Conv1d(1, 1, 1, stride=2, bias=False),
+        nn.AdaptiveAvgPool1d(1),
+        nn.Flatten(1),
+    ).eval()
+    with torch.no_grad():
+        model[0].weight.fill_(1)
+
+    inputs = torch.arange(4, dtype=torch.float32).reshape(1, 1, 4)
+    with activation.ScoreCAM(model, "0", batch_size=1) as extractor:
+        scores = model(inputs)
+        (cam,) = extractor(0, scores)
+        upsampled = extractor._upsample(torch.tensor([[[0.0, 1.0]]]))
+
+    torch.testing.assert_close(upsampled, torch.tensor([[[0.0, 0.0, 1.0, 1.0]]]))
+    expected = inputs[:, 0, ::2] / inputs[:, 0, ::2].amax(-1, keepdim=True)
+    torch.testing.assert_close(cam, expected)

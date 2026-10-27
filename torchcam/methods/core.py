@@ -4,6 +4,8 @@
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
 import logging
+import math
+import warnings
 from abc import abstractmethod
 from collections.abc import Callable, Generator, Mapping
 from contextlib import AbstractContextManager, contextmanager
@@ -55,6 +57,35 @@ def _target_scores(output: Any, targets: OutputTarget | list[OutputTarget]) -> T
     if any(value.numel() != 1 for value in values):
         raise ValueError("each target must return a scalar tensor")
     return torch.stack([value.reshape(()) for value in values])
+
+
+def _resolve_fusion_shape(cams: list[Tensor], target_shape: tuple[int, ...] | None) -> tuple[int, ...]:
+    spatial_shapes = [tuple(cam.shape[1:]) for cam in cams]
+    if len(cams) == 1:
+        if target_shape is not None and target_shape != spatial_shapes[0]:
+            raise ValueError("cannot resize a single CAM during fusion; use torch.nn.functional.interpolate instead")
+        return spatial_shapes[0]
+
+    shape = target_shape if target_shape is not None else max(spatial_shapes, key=math.prod)
+    downsamples = any(
+        any(source_dim > target_dim for source_dim, target_dim in zip(source, shape, strict=True))
+        for source in spatial_shapes
+    )
+    if target_shape is not None and shape not in spatial_shapes:
+        detail = " Downsampling can also remove spatial detail." if downsamples else ""
+        warnings.warn(
+            f"target_shape {shape} does not match any input CAM; all {len(cams)} CAMs will be interpolated. "
+            f"Use an input CAM shape to keep at least one map at its native resolution.{detail}",
+            UserWarning,
+            stacklevel=3,
+        )
+    elif downsamples:
+        warnings.warn(
+            f"target_shape {shape} will downsample one or more CAMs, which can remove spatial detail.",
+            UserWarning,
+            stacklevel=3,
+        )
+    return shape
 
 
 class _CAM:
@@ -202,7 +233,8 @@ class _CAM:
         dims = tuple(range(cams.ndim - spatial_dims, cams.ndim))
         cams.sub_(cams.amin(dim=dims, keepdim=True))
         # Avoid division by zero
-        cams.div_(cams.amax(dim=dims, keepdim=True) + eps)
+        denominator = cams.amax(dim=dims, keepdim=True) + eps
+        cams.div_(denominator.masked_fill(denominator == 0, 1))
 
         return cams
 
@@ -319,33 +351,36 @@ class _CAM:
         return f"{self.__class__.__name__}({self._extra_repr()})"
 
     @classmethod
-    def fuse_cams(cls, cams: list[Tensor], target_shape: tuple[int, int] | None = None) -> Tensor:
+    def fuse_cams(cls, cams: list[Tensor], target_shape: tuple[int, ...] | None = None) -> Tensor:
         """Fuse class activation maps from different layers.
+
+        When no target shape is supplied, the input map with the most spatial locations sets the output shape. Other
+        maps are interpolated to match it. For 2D maps, interpolation is bilinear; for 3D maps, it is trilinear. Both
+        use ``align_corners=False``. A target shape outside the input shapes interpolates every map and emits a
+        warning; downsampling also emits a warning because it can remove spatial detail. A single map cannot be resized
+        here; use ``torch.nn.functional.interpolate`` for that. Resize maps explicitly before fusion to choose a
+        different interpolation mode.
 
         Args:
             cams: the list of activation maps (for the same input)
-            target_shape: expected spatial shape of the fused activation map (default to the biggest spatial shape
-                among input maps)
+            target_shape: expected spatial shape of the fused activation map (defaults to the shape of the input map
+                with the most spatial locations; ties use the first map)
 
         Returns:
             fused class activation map
 
         Raises:
             TypeError: if the argument type is invalid
-            ValueError: if the argument is an empty list
+            ValueError: if the argument is an empty list or a single map is paired with a different target shape
         """
         if not isinstance(cams, list) or any(not isinstance(elt, Tensor) for elt in cams):
             raise TypeError("invalid argument type for `cams`")
 
         if len(cams) == 0:
             raise ValueError("argument `cams` cannot be an empty list")
+        shape = _resolve_fusion_shape(cams, target_shape if isinstance(target_shape, tuple) else None)
         if len(cams) == 1:
             return cams[0]
-        # Resize to the biggest CAM if no value was provided for `target_shape`
-        if isinstance(target_shape, tuple):
-            shape = target_shape
-        else:
-            shape = tuple(map(max, zip(*[tuple(cam.shape[1:]) for cam in cams], strict=True)))
         # Scale cams
         scaled_cams = cls._scale_cams(cams)
         return cls._fuse_cams(scaled_cams, shape)
@@ -355,7 +390,7 @@ class _CAM:
         return cams
 
     @staticmethod
-    def _fuse_cams(cams: list[Tensor], target_shape: tuple[int, int]) -> Tensor:
+    def _fuse_cams(cams: list[Tensor], target_shape: tuple[int, ...]) -> Tensor:
         # Interpolate one CAM at a time to bound peak memory.
         interpolation_mode = "bilinear" if cams[0].ndim == 3 else "trilinear" if cams[0].ndim == 4 else "nearest"
         scaled_cams = (

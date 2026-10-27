@@ -1,0 +1,5 @@
+# Minimum stack; NumPy is selected separately.
+torch==2.13.0
+torchvision==0.28.0
+matplotlib==3.8.4
+Pillow==13.0.0
