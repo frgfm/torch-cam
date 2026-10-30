@@ -80,6 +80,7 @@ plugins:
         - getting-started/installation.md
         - getting-started/notebooks.md
         - getting-started/debug-prediction.md
+        - getting-started/validation-evidence.md
         - getting-started/text-decisions.md
         - getting-started/advanced-usage.md
         - getting-started/troubleshooting.md
@@ -182,6 +183,7 @@ nav:
     - getting-started/installation.md
     - getting-started/notebooks.md
     - Debug one prediction: getting-started/debug-prediction.md
+    - Inspect validation examples: getting-started/validation-evidence.md
     - Text decision models: getting-started/text-decisions.md
     - getting-started/advanced-usage.md
     - getting-started/troubleshooting.md
