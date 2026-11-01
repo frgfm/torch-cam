@@ -11,8 +11,9 @@ from torch.utils.data import DataLoader, TensorDataset
 from torchvision.datasets import ImageFolder
 from torchvision.models import ResNet18_Weights
 from torchvision.transforms import Compose, Resize, ToTensor
+from torchvision.transforms.functional import to_pil_image
 
-from scripts import validation_cam
+from scripts import flip_reliance_example, validation_cam
 from torchcam.methods import GradCAM
 
 
@@ -185,12 +186,13 @@ def test_artifact_failure_removes_all_partial_bundles(evidence_inputs, tmp_path,
 
     def fail_contact_sheet(directory, _records):
         assert list(directory.glob("sample-*/manifest.json"))
+        assert list(directory.glob("sample-*/flip-data.npz"))
         raise OSError("render failed")
 
     monkeypatch.setattr(validation_cam, "_contact_sheet", fail_contact_sheet)
     output = tmp_path / "failed-render"
     with pytest.raises(OSError, match="render failed"):
-        _save(model, dataset, cases, output)
+        _save(model, dataset, cases, output, compare_flip=True)
     assert not output.exists()
     assert not model.features._forward_hooks
 
@@ -210,10 +212,99 @@ def test_cli_uses_numeric_class_indices_and_writes_one_complete_report(evidence_
         "features",
         "--batch-size",
         "2",
+        "--compare-flip",
     ])
     validation_cam.main(args)
     report = json.loads((output / "report.json").read_text())
     assert {row["label"] for row in report["samples"]} == {0, 2}
     assert report["context"]["checkpoint_id"] == "test-checkpoint"
     assert report["validation"]["samples"] == 6
+    assert report["flip_comparison"]["pairs"] > 0
     assert "including selection" in capsys.readouterr().out
+
+
+def test_flip_alignment_preserves_an_equivariant_map_and_training_state(evidence_inputs, tmp_path):
+    model, dataset, cases, _ = evidence_inputs
+    for parameter in model.parameters():
+        parameter.grad = torch.ones_like(parameter)
+    model.batch_sizes.clear()
+    output = tmp_path / "paired"
+    with torch.no_grad():
+        report = _save(model, dataset, cases, output, compare_flip=True)
+    expected_batches = []
+    for start in range(0, len(cases), 2):
+        chunk = cases[start : start + 2]
+        expected_batches.append(len(chunk))
+        correct = sum(case["prediction"] == case["label"] for case in chunk)
+        if correct:
+            expected_batches.append(2 * correct)
+    assert model.batch_sizes == expected_batches
+    assert not model.features._forward_hooks
+    for parameter in model.parameters():
+        torch.testing.assert_close(parameter.grad, torch.ones_like(parameter))
+    pairs = [record for record in report["samples"] if "flip" in record]
+    assert report["flip_comparison"]["pairs"] == len(pairs)
+    assert len(pairs) == sum(case["prediction"] == case["label"] for case in cases)
+    for record in pairs:
+        flip = record["flip"]
+        assert not flip["top1_changed"]
+        assert flip["probability_tv"] == pytest.approx(0, abs=1e-7)
+        with np.load(output / record["bundle"] / flip["data"], allow_pickle=False) as arrays:
+            np.testing.assert_allclose(arrays["original"], arrays["aligned"], atol=1e-7)
+        if 0 in flip["cam_l1_norms"]:
+            assert flip["aligned_cam_distance"] is None
+        else:
+            assert flip["aligned_cam_distance"] == pytest.approx(0, abs=1e-7)
+    assert any(record["flip"]["aligned_cam_distance"] is None for record in pairs)
+    with Image.open(output / report["flip_comparison"]["contact_sheet"]) as image:
+        assert image.size == (1120, 330 * len(pairs))
+
+
+def test_controlled_example_finds_changed_reliance_with_identical_probabilities(tmp_path):
+    output = tmp_path / "controlled"
+    check = flip_reliance_example.main(output)
+    assert check["predictions"] == [0, 0, 0, 1]
+    assert check["probabilities"][0] == check["probabilities"][1] == check["probabilities"][2]
+    assert check["margins"] == [3, 3, 3, -1]
+    report = json.loads((output / "report.json").read_text())
+    record = report["samples"][0]
+    flip = record["flip"]
+    assert not flip["top1_changed"]
+    assert flip["probability_tv"] == pytest.approx(0)
+    assert flip["aligned_cam_distance"] == pytest.approx(1)
+    with np.load(output / record["bundle"] / flip["data"], allow_pickle=False) as arrays:
+        np.testing.assert_array_equal(arrays["logits"][0], arrays["logits"][1])
+        assert arrays["original"][:, :112].sum() > 0
+        assert arrays["original"][:, 112:].sum() == pytest.approx(0)
+        assert arrays["aligned"][:, :112].sum() == pytest.approx(0)
+        assert arrays["aligned"][:, 112:].sum() > 0
+
+
+def test_flip_metadata_records_an_actual_prediction_change(tmp_path):
+    model = flip_reliance_example.LeftCueClassifier().eval().requires_grad_(False)
+    with torch.no_grad():
+        model.features.weight[1].zero_()
+    inputs = torch.zeros(1, 3, 8, 8)
+    inputs[:, 0, :, 2] = 1
+    inputs[:, 1, :, 5] = 1
+    logits = model(inputs).detach()
+    with GradCAM(model, "features") as extractor:
+        scores, original, aligned, references = validation_cam._flip_cams(extractor, inputs, [0], logits)
+    assert references == [1]
+    flip = validation_cam._save_flip(
+        tmp_path, to_pil_image(inputs[0]), scores[:, 0], original[0], aligned[0], 0, 1, ["red present", "red absent"]
+    )
+    assert flip["top1_changed"]
+    assert flip["prediction"] == 1
+    assert flip["margins"] == pytest.approx([3, -1])
+    assert flip["probability_tv"] > 0
+
+
+def test_compare_flip_handles_no_correct_cases(evidence_inputs, tmp_path):
+    model, dataset, cases, _ = evidence_inputs
+    cases = [case for case in cases if case["label"] != case["prediction"]]
+    output = tmp_path / "only-errors"
+    report = _save(model, dataset, cases, output, compare_flip=True)
+    assert report["flip_comparison"]["pairs"] == 0
+    assert report["flip_comparison"]["contact_sheet"] is None
+    assert not (output / "flip-contact-sheet.png").exists()

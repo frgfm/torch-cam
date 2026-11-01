@@ -15,8 +15,10 @@ from operator import itemgetter
 from pathlib import Path
 from time import perf_counter
 
+import numpy as np
 import torch
 import torchvision
+from matplotlib import colormaps
 from PIL import Image, ImageDraw, ImageFont
 from torch.utils.data import DataLoader, SequentialSampler
 from torchvision.datasets import ImageFolder
@@ -118,9 +120,87 @@ def validate(model, loader, *, per_bucket=4, seed=0):  # noqa: PLR0912
     }
 
 
-def _contact_sheet(directory, records):
-    width, height = 224, 290
-    sheet = Image.new("RGB", (3 * width, len(records) * height), "white")
+def _flip_cams(extractor, inputs, labels, original_logits):
+    """Compare a fixed class contrast on original/flipped views using public targets.
+
+    Returns:
+        paired logits, original and aligned signed CAMs, and fixed comparison indices
+
+    Raises:
+        ValueError: if paired outputs, repeated inference or CAMs are invalid
+    """
+    count = len(inputs)
+    paired = torch.cat((inputs.detach(), inputs.detach().flip(-1))).requires_grad_(True)
+    scores = extractor.model(paired)
+    if scores.shape != (2 * count, original_logits.shape[1]) or not torch.isfinite(scores).all():
+        raise ValueError("invalid paired classifier output")
+    if scores[:count].argmax(1).tolist() != labels or not torch.allclose(
+        scores[:count].detach().softmax(1).cpu(), original_logits.softmax(1), rtol=1e-4, atol=1e-5
+    ):
+        raise ValueError("paired inference changed; use independent, deterministic batch samples")
+    alternatives = scores[count:].detach().clone()
+    alternatives.scatter_(1, torch.tensor(labels, device=scores.device)[:, None], -torch.inf)
+    references = alternatives.argmax(1).tolist()
+    targets = [
+        lambda output, label=label, reference=reference: output[label] - output[reference]
+        for label, reference in zip(labels * 2, references * 2, strict=True)
+    ]
+    positive = extractor(scores=scores, targets=targets, normalized=False, retain_graph=True)[0]
+    negative = extractor(scores=-scores, targets=targets, normalized=False)[0]
+    signed = (positive - negative).detach().float().cpu()
+    if not torch.isfinite(signed).all():
+        raise ValueError("nonfinite paired CAM")
+    return scores.detach().cpu().reshape(2, count, -1), signed[:count], signed[count:].flip(-1), references
+
+
+def _signed_overlay(image, cam, limit):
+    if not limit:
+        return image.copy()
+    values = np.asarray(Image.fromarray(cam.numpy()).resize(image.size, Image.Resampling.BILINEAR))
+    values = np.clip(values / limit, -1, 1)
+    colors = colormaps["RdBu_r"]((values + 1) / 2, bytes=True)[..., :3]
+    opacity = np.abs(values)[..., None] * 0.7
+    pixels = np.asarray(image.convert("L").convert("RGB")) * (1 - opacity) + colors * opacity
+    return Image.fromarray(pixels.round().astype(np.uint8))
+
+
+def _save_flip(directory, image, scores, original, aligned, label, reference, class_names):
+    scores = scores.float()
+    probabilities = scores.softmax(1)
+    prediction = int(scores[1].argmax())
+    norms = torch.stack((original.abs().sum(), aligned.abs().sum()))
+    distance = None if (norms == 0).any() else float((original / norms[0] - aligned / norms[1]).abs().sum() / 2)
+    change = aligned - original
+    limit = float(torch.stack((original.abs().max(), aligned.abs().max(), change.abs().max())).max())
+    image.transpose(Image.Transpose.FLIP_LEFT_RIGHT).save(directory / "flip-input.png")
+    for name, cam in (("original", original), ("aligned", aligned), ("change", change)):
+        _signed_overlay(image, cam, limit).save(directory / f"flip-{name}.png")
+    np.savez(directory / "flip-data.npz", logits=scores.numpy(), original=original.numpy(), aligned=aligned.numpy())
+    return {
+        "comparison": reference,
+        "comparison_name": class_names[reference],
+        "prediction": prediction,
+        "prediction_name": class_names[prediction],
+        "confidence": float(probabilities[1, prediction]),
+        "top1_changed": prediction != label,
+        "label_probabilities": probabilities[:, label].tolist(),
+        "margins": (scores[:, label] - scores[:, reference]).tolist(),
+        "probability_tv": float((probabilities[0] - probabilities[1]).abs().sum() / 2),
+        "aligned_cam_distance": distance,
+        "cam_l1_norms": norms.tolist(),
+        "color_limit": limit,
+        "data": "flip-data.npz",
+    }
+
+
+def _contact_sheet(directory, records, *, paired=False):
+    if paired:
+        records = sorted(
+            (record for record in records if "flip" in record),
+            key=lambda record: (not record["flip"]["top1_changed"], -(record["flip"]["aligned_cam_distance"] or 0)),
+        )
+    width, height = 224, 330 if paired else 290
+    sheet = Image.new("RGB", ((5 if paired else 3) * width, len(records) * height), "white")
     draw = ImageDraw.Draw(sheet)
     font = ImageFont.load_default(size=14)
     for row, record in enumerate(records):
@@ -135,23 +215,46 @@ def _contact_sheet(directory, records):
             ),
             (
                 predicted["artifacts"][0]["overlay"],
-                f"predicted: {predicted['class_name']}\np={predicted['probability']:.3f}",
+                f"predicted: {predicted['class_name']}\np={predicted['probability']:.3g}",
             ),
             (
                 compared["artifacts"][0]["overlay"],
-                f"{record['comparison_role']}: {compared['class_name']}\np={compared['probability']:.3f}",
+                f"{record['comparison_role']}: {compared['class_name']}\np={compared['probability']:.3g}",
             ),
         ]
+        if paired:
+            flip = record["flip"]
+            distance = flip["aligned_cam_distance"]
+            drift = "unavailable" if distance is None else f"{distance:.3f}"
+            cells = [
+                (
+                    manifest["input_image"],
+                    f"#{record['index']} | raw\nlabel: {record['class_name']}\np={flip['label_probabilities'][0]:.3g}",
+                ),
+                (
+                    "flip-input.png",
+                    f"flip: {flip['prediction_name']}\np={flip['confidence']:.3g}\nTV={flip['probability_tv']:.3f}",
+                ),
+                (
+                    "flip-original.png",
+                    f"raw signed class contrast\nvs {flip['comparison_name']}\nmargin={flip['margins'][0]:+.3f}\nred=label, blue=comparison",
+                ),
+                (
+                    "flip-aligned.png",
+                    f"flip CAM, aligned to raw\nmargin={flip['margins'][1]:+.3f}\nCAM distance={drift}",
+                ),
+                ("flip-change.png", "aligned flip minus raw CAM\nred: increased support\nblue: decreased support"),
+            ]
         for col, (filename, caption) in enumerate(cells):
             with Image.open(bundle / filename) as image:
                 image.thumbnail((width, width))
                 sheet.paste(image, (col * width, row * height))
             caption = "\n".join(line if len(line) <= 28 else line[:25] + "..." for line in caption.splitlines())
             draw.multiline_text((col * width + 4, row * height + width + 4), caption, fill="black", font=font)
-    sheet.save(directory / "contact-sheet.png")
+    sheet.save(directory / ("flip-contact-sheet.png" if paired else "contact-sheet.png"))
 
 
-def save_evidence(  # noqa: PLR0915
+def save_evidence(  # noqa: PLR0912, PLR0915
     model,
     dataset,
     cases,
@@ -163,6 +266,7 @@ def save_evidence(  # noqa: PLR0915
     batch_size=32,
     context=None,
     validation=None,
+    compare_flip=False,
 ):
     """Explain selected ImageFolder cases, retaining the owner's model and preprocessing.
 
@@ -226,6 +330,16 @@ def save_evidence(  # noqa: PLR0915
                 if not torch.isfinite(predicted_cams).all() or not torch.isfinite(compared_cams).all():
                     raise ValueError("nonfinite CAM; no complete evidence bundle was written")
                 logits = scores.detach().cpu()
+                eligible = [idx for idx, case in enumerate(chunk) if case["prediction"] == case["label"]]
+                paired = {}
+                if compare_flip and eligible:
+                    paired_scores, original, aligned, references = _flip_cams(
+                        extractor, inputs[eligible], [chunk[idx]["label"] for idx in eligible], logits[eligible]
+                    )
+                    paired = {
+                        idx: (paired_scores[:, pos], original[pos], aligned[pos], references[pos])
+                        for pos, idx in enumerate(eligible)
+                    }
                 _synchronize(device)
                 cam_seconds += perf_counter() - started
                 started = perf_counter()
@@ -261,9 +375,24 @@ def save_evidence(  # noqa: PLR0915
                         "blank_classes": [key for key, maps_ in maps.items() if maps_[0].max() == maps_[0].min()],
                         "bundle": bundle,
                     })
+                    if idx in paired:
+                        pair_scores, original, aligned, reference = paired[idx]
+                        records[-1]["flip"] = _save_flip(
+                            directory / bundle,
+                            image,
+                            pair_scores,
+                            original,
+                            aligned,
+                            case["label"],
+                            reference,
+                            class_names,
+                        )
                 artifact_seconds += perf_counter() - started
         started = perf_counter()
         _contact_sheet(directory, records)
+        flip_pairs = sum("flip" in record for record in records)
+        if flip_pairs:
+            _contact_sheet(directory, records, paired=True)
         artifact_seconds += perf_counter() - started
         report = {
             "schema_version": 1,
@@ -280,6 +409,13 @@ def save_evidence(  # noqa: PLR0915
             "validation": validation,
             "samples": records,
         }
+        if compare_flip:
+            report["flip_comparison"] = {
+                "pairs": flip_pairs,
+                "contact_sheet": "flip-contact-sheet.png" if flip_pairs else None,
+                "objective": "label logit - strongest incorrect flipped-class logit, fixed across each pair",
+                "alignment": "horizontal unflip",
+            }
         (directory / "report.json").write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
         cleanup.pop_all()
     return report
@@ -320,6 +456,7 @@ def main(args):
         target_layer=args.target,
         batch_size=args.batch_size,
         validation=validation,
+        compare_flip=args.compare_flip,
         context={
             "checkpoint_id": weights.url,
             "preprocessing": repr(preprocess),
@@ -333,6 +470,8 @@ def main(args):
         f"selected CAMs {report['cam_seconds']:.3f}s; artifacts {report['artifact_seconds']:.3f}s"
     )
     print(f"Contact sheet and per-example evidence: {args.output}")
+    if args.compare_flip:
+        print(f"Flip comparison: {report['flip_comparison']['pairs']} initially correct cases")
 
 
 def _build_parser():
@@ -345,6 +484,11 @@ def _build_parser():
     parser.add_argument("--per-bucket", type=positive_int, default=4, help="maximum cases per selection bucket")
     parser.add_argument("--seed", type=nonnegative_int, default=0, help="fixed control-sampling seed")
     parser.add_argument("--device", default="cpu", help="cpu, cuda or mps")
+    parser.add_argument(
+        "--compare-flip",
+        action="store_true",
+        help="compare aligned CAMs on initially correct cases; only use for flip-invariant labels",
+    )
     return parser
 
 

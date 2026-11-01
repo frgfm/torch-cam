@@ -63,6 +63,58 @@ as an absolute contribution across classes or epochs. Confirm labels before prop
 training changes. Add analogous counterexamples from a separate training/acquisition pool;
 keep validation examples out of training and reserve a final untouched test set.
 
+## Compare a horizontal flip
+
+Add `--compare-flip` to compare the selected **initially correct** cases with horizontally
+flipped model inputs. Only use it when flipping preserves the label. No augmentation
+registry or automatic bias verdict is introduced.
+
+`flip-contact-sheet.png` shows the original and flipped inputs, signed original CAM,
+signed flipped CAM aligned back to original coordinates, and their difference. Rows with
+a changed top-1 class come first; stable-top-1 rows follow in descending CAM distance.
+Full probability drift is shown alongside CAM drift, so stable top-1 is not mistaken for
+stable probabilities. The panel covers the bounded selection, not every validation case.
+
+For each pair, the objective is `label logit - strongest incorrect flipped-class logit`.
+The same comparison class is used for both views. Two opposite `targets` calls with
+`normalized=False` recover signed attribution before the base GradCAM ReLU: positive
+direction minus negative direction. The flipped map is unflipped before comparison.
+Red/blue means positive/negative attribution to that score difference, not semantic
+correctness. Signed overlays use a grayscale background and a shared symmetric scale
+within each pair; the difference image uses that same scale. Scales differ between pairs.
+
+Each sample's `flip` metadata records the class pair, margins, flipped prediction,
+probabilities, and two separate measurements:
+
+- `probability_tv`: half the sum of absolute changes across **all** class probabilities;
+- `aligned_cam_distance`: half the L1 distance between the two signed maps after dividing
+  each by its own absolute L1 mass. It ranges from 0 (identical normalized maps) to 1.
+  If either map has zero L1 mass, the distance is `null`; raw masses remain available in
+  `cam_l1_norms`. Small masses and method instability can make drift uninformative.
+
+The distance measures normalized spatial patterns; the change image uses raw signed
+values. A pure scale change can therefore alter that image while leaving distance zero.
+
+`flip-data.npz` stores float32 logits (original, flipped) and both raw signed maps in
+original coordinates (`original`, `aligned`). Load it with `np.load(..., allow_pickle=False)`.
+Per-pair images and scores permit inspection without treating CAM drift as a model defect.
+
+### Controlled example: identical probabilities, different reliance
+
+```bash
+python scripts/flip_reliance_example.py evidence/controlled-flip
+```
+
+The declared label is "red object present"; a green patch is irrelevant. A hand-built
+neural control reads whichever red/green cue occupies a left-hand position. Both original
+and flipped inputs return exactly the same logits and probabilities (95.26% for the label),
+but aligned CAMs switch from the red object to the green cue: probability TV is 0 and CAM
+distance is 1. Removing green leaves the original prediction unchanged, but flips the
+augmented prediction to "red absent". `controlled-check.json` records all four conditions.
+The script asserts these results. The existing scripts workflow runs it and uploads
+`flip-reliance-results`, including the panel and the numerical checks. This is a controlled diagnostic, not a trained-model
+or generalization benchmark; its explicitly known label rule establishes the nuisance cue.
+
 ## Use your own training loop
 
 The two helpers live in the **example script**, not the supported package API or installed
@@ -83,7 +135,7 @@ save_evidence(
     model, dataset, cases, "evidence/epoch-001",
     class_names=class_names, model_view=model_view,
     target_layer="backbone.layer4", batch_size=16,
-    context={"checkpoint_id": "epoch-001"}, validation=validation,
+    context={"checkpoint_id": "epoch-001"}, validation=validation, compare_flip=True,
 )
 # Your training loop decides when to call model.train() again.
 ```
@@ -91,6 +143,9 @@ save_evidence(
 Normal validation runs without gradients. Selected inputs are reloaded and forwarded once
 per CAM batch, with two class-target gradient passes through that forward. Parameter
 gradients and training/evaluation flags are preserved, and hooks are removed on failure.
+Flip comparison adds one forward on both original and flipped initially correct samples
+(at most twice the CAM batch size), followed by two target-gradient passes. It reuses the
+loaded inputs. Extra signed overlays, pair data and the paired sheet add rendering/I/O work.
 CAM extraction can run under `torch.no_grad()` but must be outside `torch.inference_mode()`.
 The model must have independent batch samples and finite `(batch, classes)` logits with at
 least two classes. This example uses one target layer. Inference must stay unchanged
@@ -104,8 +159,8 @@ The console and `report.json` separate:
 - `validation_seconds`: validation, data loading and selection together;
 - `selection_seconds`: the confidence calculation, CPU transfer and online shortlist work
   inside validation (a subset of `validation_seconds`, not a separate baseline run);
-- `cam_seconds`: target-layer setup, selected-input loading, forwards, two class-target
-  gradient passes and CPU map transfer;
+- `cam_seconds`: target-layer setup, selected-input loading, forwards, class-target
+  gradient passes and CPU map transfer, including optional flip comparison;
 - `artifact_seconds`: model-view loading, per-example artifacts and contact-sheet rendering.
 
 CUDA/MPS work is synchronized at timing boundaries. Final report serialization is excluded.
@@ -122,14 +177,17 @@ thread, `layer4`, seed 0, two cases per bucket (six distinct selected cases). Th
 timing fixture repeats each of the two torchvision gallery dog photos 12 times in each
 of four forms: original, mirrored, Gaussian blur (radius 8), and downsampled to 16px then
 resized back with Pillow defaults. It is an integration/timing fixture, not an accuracy benchmark.
-Five warmed paired trials alternate baseline/diagnostic order; GPU work is synchronized.
+Five warmed trials rotate baseline/raw-evidence/flip-evidence order; GPU work is synchronized.
+Six cases are selected, with three initially correct cases receiving flip comparisons.
 
-| Device | Normal validation | Validation + selection + all evidence | Selected CAM work | Artifact work |
-| --- | ---: | ---: | ---: | ---: |
-| CPU | 4.706 s | 5.029 s | 0.139 s | 0.149 s |
-| Apple GPU (MPS) | 0.537 s | 0.732 s | 0.041 s | 0.148 s |
+| Device | Normal validation | With raw evidence | With raw + flip evidence |
+| --- | ---: | ---: | ---: |
+| CPU | 7.513 s | 7.973 s | 8.318 s |
+| Apple GPU (MPS) | 0.805 s | 1.112 s | 1.250 s |
 
-Columns are independent medians. Paired additional wall time ranges were 0.142–0.450 s
-(CPU) and 0.190–0.198 s (MPS). These include disk output and are not universal overhead
-estimates. Rendering dominated CAM work on MPS; reduce the selected set or save evidence
-less often when integrating it into a training loop.
+Columns are independent medians and include all disk output. The median paired flip-only
+increment was 0.377 s on CPU (range 0.285–0.701 s) and 0.148 s on MPS
+(0.120–0.202 s). CAM work changed from 0.241 to 0.447 s on CPU and from 0.060 to
+0.072 s on MPS. Artifact work changed from 0.227 to 0.368 s on CPU and from 0.223 to
+0.373 s on MPS. Rendering dominates the extra MPS cost. These are fixture-specific
+measurements; select fewer cases or save less often when integrating into a training loop.
