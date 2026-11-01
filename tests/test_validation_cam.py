@@ -280,6 +280,28 @@ def test_controlled_example_finds_changed_reliance_with_identical_probabilities(
         assert arrays["aligned"][:, 112:].sum() > 0
 
 
+def test_flip_maps_retain_negative_contributions():
+    model = _ColorClassifier().eval()
+    inputs = torch.zeros(1, 3, 8, 8)
+    inputs[:, 0, :, :6] = 1
+    inputs[:, 1, :, 6:] = 1
+    logits = model(inputs).detach()
+    with GradCAM(model, "features") as extractor:
+        _, original, aligned, references = validation_cam._flip_cams(extractor, inputs, [0], logits)
+    assert references == [2]
+    expected = (inputs[:, 0] - inputs[:, 1]) / 64
+    torch.testing.assert_close(original, expected)
+    torch.testing.assert_close(aligned, expected)
+
+
+def test_blank_signed_overlay_has_no_color_tint():
+    image = Image.new("RGB", (8, 8), "red")
+    expected = np.asarray(image.convert("L").convert("RGB"))
+    for limit in (0, 1):
+        overlay = validation_cam._signed_overlay(image, torch.zeros(8, 8), limit)
+        np.testing.assert_array_equal(np.asarray(overlay), expected)
+
+
 def test_flip_metadata_records_an_actual_prediction_change(tmp_path):
     model = flip_reliance_example.LeftCueClassifier().eval().requires_grad_(False)
     with torch.no_grad():

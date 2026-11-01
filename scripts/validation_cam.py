@@ -147,6 +147,7 @@ def _flip_cams(extractor, inputs, labels, original_logits):
     ]
     positive = extractor(scores=scores, targets=targets, normalized=False, retain_graph=True)[0]
     negative = extractor(scores=-scores, targets=targets, normalized=False)[0]
+    # ReLU(S) - ReLU(-S) recovers the signed map S.
     signed = (positive - negative).detach().float().cpu()
     if not torch.isfinite(signed).all():
         raise ValueError("nonfinite paired CAM")
@@ -154,13 +155,14 @@ def _flip_cams(extractor, inputs, labels, original_logits):
 
 
 def _signed_overlay(image, cam, limit):
+    background = image.convert("L").convert("RGB")
     if not limit:
-        return image.copy()
+        return background
     values = np.asarray(Image.fromarray(cam.numpy()).resize(image.size, Image.Resampling.BILINEAR))
     values = np.clip(values / limit, -1, 1)
     colors = colormaps["RdBu_r"]((values + 1) / 2, bytes=True)[..., :3]
     opacity = np.abs(values)[..., None] * 0.7
-    pixels = np.asarray(image.convert("L").convert("RGB")) * (1 - opacity) + colors * opacity
+    pixels = np.asarray(background) * (1 - opacity) + colors * opacity
     return Image.fromarray(pixels.round().astype(np.uint8))
 
 
@@ -197,7 +199,11 @@ def _contact_sheet(directory, records, *, paired=False):
     if paired:
         records = sorted(
             (record for record in records if "flip" in record),
-            key=lambda record: (not record["flip"]["top1_changed"], -(record["flip"]["aligned_cam_distance"] or 0)),
+            key=lambda record: (
+                not record["flip"]["top1_changed"],
+                record["flip"]["aligned_cam_distance"] is None,
+                -(record["flip"]["aligned_cam_distance"] or 0),
+            ),
         )
     width, height = 224, 330 if paired else 290
     sheet = Image.new("RGB", ((5 if paired else 3) * width, len(records) * height), "white")

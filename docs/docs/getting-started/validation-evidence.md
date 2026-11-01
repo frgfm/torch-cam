@@ -72,6 +72,7 @@ registry or automatic bias verdict is introduced.
 `flip-contact-sheet.png` shows the original and flipped inputs, signed original CAM,
 signed flipped CAM aligned back to original coordinates, and their difference. Rows with
 a changed top-1 class come first; stable-top-1 rows follow in descending CAM distance.
+Unavailable distances come last within each group.
 Full probability drift is shown alongside CAM drift, so stable top-1 is not mistaken for
 stable probabilities. The panel covers the bounded selection, not every validation case.
 
@@ -111,7 +112,8 @@ and flipped inputs return exactly the same logits and probabilities (95.26% for 
 but aligned CAMs switch from the red object to the green cue: probability TV is 0 and CAM
 distance is 1. Removing green leaves the original prediction unchanged, but flips the
 augmented prediction to "red absent". `controlled-check.json` records all four conditions.
-The script asserts these results. The existing scripts workflow runs it and uploads
+The script checks the probability identity and nuisance-removal class change. Tests also
+check the map displacement and distance. The existing scripts workflow runs it and uploads
 `flip-reliance-results`, including the panel and the numerical checks. This is a controlled diagnostic, not a trained-model
 or generalization benchmark; its explicitly known label rule establishes the nuisance cue.
 
@@ -171,7 +173,7 @@ repeat, and report all trials. Keep generated images and raw timing reports outs
 
 ### Measured example overhead
 
-On an Apple M3 Pro, macOS 15.8.1, Python 3.11.13, torch 2.15.0 and torchvision 0.29.2:
+Measured on 2026-11-01 with an Apple M3 Pro, macOS 15.8.1, Python 3.11.13, torch 2.15.0 and torchvision 0.29.2:
 ResNet18 `IMAGENET1K_V1`, 224px crops, batch 16, one CPU/intra-op thread and one inter-op
 thread, `layer4`, seed 0, two cases per bucket (six distinct selected cases). The 96-input
 timing fixture repeats each of the two torchvision gallery dog photos 12 times in each
@@ -182,12 +184,12 @@ Six cases are selected, with three initially correct cases receiving flip compar
 
 | Device | Normal validation | With raw evidence | With raw + flip evidence |
 | --- | ---: | ---: | ---: |
-| CPU | 7.513 s | 7.973 s | 8.318 s |
-| Apple GPU (MPS) | 0.805 s | 1.112 s | 1.250 s |
+| CPU | 5.186 s | 5.363 s | 5.772 s |
+| Apple GPU (MPS) | 0.561 s | 0.768 s | 0.893 s |
 
 Columns are independent medians and include all disk output. The median paired flip-only
-increment was 0.377 s on CPU (range 0.285–0.701 s) and 0.148 s on MPS
-(0.120–0.202 s). CAM work changed from 0.241 to 0.447 s on CPU and from 0.060 to
-0.072 s on MPS. Artifact work changed from 0.227 to 0.368 s on CPU and from 0.223 to
-0.373 s on MPS. Rendering dominates the extra MPS cost. These are fixture-specific
+increment was 0.366 s on CPU (range 0.219–0.609 s) and 0.114 s on MPS
+(0.103–0.143 s). CAM work changed from 0.148 to 0.262 s on CPU and from 0.042 to
+0.056 s on MPS. Artifact work changed from 0.167 to 0.273 s on CPU and from 0.153 to
+0.260 s on MPS. Rendering dominates the extra MPS cost. These are fixture-specific
 measurements; select fewer cases or save less often when integrating into a training loop.
