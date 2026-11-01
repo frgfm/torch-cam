@@ -28,6 +28,8 @@ jobs:
             command: |
               python scripts/eval_latency.py LayerCAM --weights none --size 64 --it 3 --warmup 1 --repeat 2 --scope end-to-end --output latency.json
               python scripts/eval_latency.py ScoreCAM --arch mobilenet_v3_small --weights none --size 64 --it 1 --warmup 0 --repeat 1 --output score.json
+          - name: flip-reliance
+            command: python scripts/flip_reliance_example.py controlled-flip
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -53,4 +55,5 @@ jobs:
             *.json
             cnn.png
             vit.png
+            controlled-flip/
           if-no-files-found: error
