@@ -67,6 +67,7 @@ Laya integration. Install the development version from source until the next rel
    * Grad-CAM from ["Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization"](https://arxiv.org/pdf/1610.02391.pdf)
    * Grad-CAM++ from ["Grad-CAM++: Improved Visual Explanations for Deep Convolutional Networks"](https://arxiv.org/pdf/1710.11063.pdf)
    * Smooth Grad-CAM++ from ["Smooth Grad-CAM++: An Enhanced Inference Level Visualization Technique for Deep Convolutional Neural Network Models"](https://arxiv.org/pdf/1908.01224.pdf)
+   * Eigen-CAM from ["Eigen-CAM: Class Activation Map using Principal Components"](https://arxiv.org/abs/2008.00299) (class-independent)
    * X-Grad-CAM from ["Axiom-based Grad-CAM: Towards Accurate Visualization and Explanation of CNNs"](https://arxiv.org/pdf/2008.02312.pdf)
    * Layer-CAM from ["LayerCAM: Exploring Hierarchical Class Activation Maps for Localization"](http://mmcheng.net/mftp/Papers/21TIP_LayerCAM.pdf)
    * Finer-CAM from ["Finer-CAM: Spotting the Difference Reveals Finer Details for Visual Explanation"](https://arxiv.org/abs/2501.11309)

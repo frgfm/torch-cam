@@ -416,6 +416,7 @@ extra spatial dimension). Note that `overlay_mask` works on 2D PIL images, so ov
 | Method                      | Needs gradients | Relative cost            | Notes |
 | --------------------------- | --------------- | ------------------------ | ----- |
 | `CAM`                       | no              | cheapest                 | needs global pooling + a **single** `nn.Linear` head (e.g. ResNet); fails on multi-FC heads like VGG |
+| `EigenCAM`                  | no              | one SVD per sample and layer | class-independent principal-component map; no classifier head required |
 | `GradCAM`                   | yes             | one backward pass        | robust default for most CNNs |
 | `LayerCAM`                  | yes             | one backward pass        | best localization in our benchmark; ideal when fusing layers |
 | `FinerCAM`                  | yes             | one backward pass        | contrastive fine-grained cues with `GradCAM`, `GradCAMpp`, or `LayerCAM` |
