@@ -303,9 +303,12 @@ def test_eigencam_rejects_invalid_features(features):
 
 
 def test_eigencam_falls_back_to_cpu_svd(monkeypatch):
-    """Devices without an SVD kernel should decompose on CPU and move the vectors back."""
-    matrix = torch.randn(2, 4, 3, 5, generator=torch.Generator().manual_seed(4)).flatten(2).transpose(1, 2)
+    """Exercise the device round trip on MPS when available, and CPU retry otherwise."""
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    features = torch.randn(2, 4, 3, 5, generator=torch.Generator().manual_seed(4))
+    matrix = features.flatten(2).transpose(1, 2)
     expected = activation._svd_right_vectors(matrix, cpu_fallback=False)
+    expected_map = _extract_eigencam(features)
     svd, devices = torch.linalg.svd, []
 
     def no_svd_once(sample, **kwargs):
@@ -315,9 +318,18 @@ def test_eigencam_falls_back_to_cpu_svd(monkeypatch):
         return svd(sample, **kwargs)
 
     monkeypatch.setattr(torch.linalg, "svd", no_svd_once)
-    actual = activation._svd_right_vectors(matrix, cpu_fallback=True)
-    assert devices == ["cpu", "cpu"]
-    torch.testing.assert_close(actual, expected)
+    actual = activation._svd_right_vectors(matrix.to(device), cpu_fallback=True)
+    assert devices == [device.type, "cpu"]
+    assert actual.device.type == device.type
+    torch.testing.assert_close(actual.cpu(), expected)
+
+    if device.type == "mps":
+        devices.clear()
+        actual_map = _extract_eigencam(features.to(device))
+        assert devices == ["mps", "cpu"]
+        assert actual_map.device.type == device.type
+        assert torch.isfinite(actual_map).all()
+        torch.testing.assert_close(actual_map.cpu(), expected_map, atol=2e-5, rtol=2e-5)
 
 
 def test_eigencam_propagates_unsupported_svd(monkeypatch):
