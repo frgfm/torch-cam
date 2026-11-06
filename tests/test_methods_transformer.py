@@ -539,3 +539,6 @@ def test_legrad_remove_hooks_restores_attention():
     assert len(attention._forward_pre_hooks) == pre_hooks
     assert len(attention._forward_hooks) == forward_hooks
     assert extractor.hook_handles == []
+    assert extractor.closed
+    with pytest.raises(RuntimeError, match="closed"):
+        extractor.compute_cams(0)

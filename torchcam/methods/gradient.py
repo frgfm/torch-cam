@@ -41,9 +41,12 @@ class _GradCAM(_CAM):
         # Model output is used by the extractor
         self._score_used = True
         self._targets_supported = True
-        for idx, name in enumerate(self.target_names):
-            # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
-            self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx)))
+        with self._cleanup_on_error():
+            for idx, name in enumerate(self.target_names):
+                # Trick to avoid issues with inplace operations cf. https://github.com/pytorch/pytorch/issues/61519
+                self.hook_handles.append(
+                    self.submodule_dict[name].register_forward_hook(partial(self._hook_g, idx=idx))
+                )
 
     def reset_hooks(self) -> None:
         super().reset_hooks()
@@ -280,17 +283,23 @@ class SmoothGradCAMpp(_GradCAM):
         **kwargs: Any,
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
-        # Model scores is not used by the extractor
-        self._score_used = False
+        with self._cleanup_on_error():
+            # Model scores is not used by the extractor
+            self._score_used = False
 
-        # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
-        # Noise distribution
-        self.num_samples = num_samples
-        self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)
-        # Specific input hook updater
-        self._ihook_enabled = True
+            # Input hook
+            self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
+            # Noise distribution
+            self.num_samples = num_samples
+            self.std = std
+            self._distrib = torch.distributions.normal.Normal(0, self.std)
+            # Specific input hook updater
+            self._ihook_enabled = True
+
+    def reset_hooks(self) -> None:
+        """Clear captured features, graph references, and the input retained for noisy forwards."""
+        super().reset_hooks()
+        self.__dict__.pop("_input", None)
 
     def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
@@ -483,6 +492,11 @@ class _CAMWrapper:
         self.base_cam = base_cam
 
     @property
+    def closed(self) -> bool:
+        """Whether the base extractor is closed."""
+        return self.base_cam.closed
+
+    @property
     def model(self) -> nn.Module:
         """The model wrapped by the base extractor."""
         return self.base_cam.model
@@ -501,11 +515,11 @@ class _CAMWrapper:
         self.base_cam.disable_hooks()
 
     def reset_hooks(self) -> None:
-        """Clear the activations and gradients stored by the base extractor."""
+        """Clear captures while preserving the base extractor's hook ownership."""
         self.base_cam.reset_hooks()
 
     def remove_hooks(self) -> None:
-        """Remove the base extractor hooks from the model."""
+        """Permanently close the base extractor and release captured tensors."""
         self.base_cam.remove_hooks()
 
     def _hooks_off(self) -> AbstractContextManager[None]:
@@ -593,11 +607,8 @@ class LeGrad(_CAM):
         self.grid_shape = grid_shape
         super().__init__(model, target_layer, enable_hooks=enable_hooks)
 
-        try:
+        with self._cleanup_on_error():
             self._register_attention_hooks()
-        except Exception:
-            self.remove_hooks()
-            raise
 
     @staticmethod
     def _validate_init_args(
@@ -827,6 +838,7 @@ class LeGrad(_CAM):
         Raises:
             ValueError: if attention and token shapes are incompatible
         """  # noqa: DOC201
+        self._ensure_open()
         if targets is not None:
             raise ValueError("LeGrad does not support arbitrary output targets")
         relevances = self._get_weights(cast(int | list[int], class_idx), scores, retain_graph=retain_graph, **kwargs)
