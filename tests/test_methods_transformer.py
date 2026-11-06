@@ -500,6 +500,8 @@ def test_legrad_rejects_missing_captured_state():
         extractor.hook_attn[0] = None
         with pytest.raises(AssertionError, match="every LeGrad target block"):
             extractor(0, scores)
+        with pytest.raises(AssertionError, match="every LeGrad target block"):
+            extractor.compute_cams(0, scores)
 
     with LeGrad(model, model.blocks[0], score_projection=model.project) as extractor:
         scores = model(input_tensor)
