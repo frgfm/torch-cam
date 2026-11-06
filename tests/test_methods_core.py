@@ -73,7 +73,7 @@ def test_cam_context_manager(mock_img_model):
     model = mock_img_model.eval()
     with core._CAM(model):
         # Model is hooked
-        assert sum(len(mod._forward_hooks) for mod in model.modules()) == 1
+        assert sum(len(mod._forward_hooks) for mod in model.modules()) == 2
     # Exit should remove hooks
     assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
 
@@ -227,8 +227,8 @@ def test_cam_normalize(input_shape, spatial_dims, noncontiguous):
 def test_cam_remove_hooks(mock_img_model):
     model = mock_img_model.eval()
     with core._CAM(model, "0.3") as extractor:
-        assert len(extractor.hook_handles) == 1
-        # Check that there is only one hook on the model
+        assert len(extractor.hook_handles) == 3
+        # Captures start empty even though the hooks are attached.
         assert all(act is None for act in extractor.hook_a)
         with torch.no_grad():
             _ = model(torch.rand((1, 3, 32, 32)))

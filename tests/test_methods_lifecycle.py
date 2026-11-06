@@ -19,6 +19,7 @@ def test_failed_initialization_preserves_caller_hooks(method, kwargs):
             method(model, "0", **kwargs)
         assert model[0]._forward_hooks == original_hooks
         assert not model._forward_pre_hooks
+        assert not model._forward_hooks
 
 
 @pytest.mark.parametrize("error_type", [RuntimeError, KeyboardInterrupt])
@@ -31,7 +32,7 @@ def test_partial_registration_is_rolled_back(error_type, monkeypatch):
     monkeypatch.setattr(model[1], "register_forward_hook", fail)
     with pytest.raises(error_type, match="registration interrupted"):
         methods.GradCAM(model, ["0", "1"])
-    assert not model[0]._forward_hooks
+    assert not any(module._forward_hooks or module._forward_pre_hooks for module in model.modules())
 
 
 @pytest.mark.parametrize("method", [methods.GradCAM, methods.EigenCAM, methods.ScoreCAM, methods.SmoothGradCAMpp])

@@ -504,8 +504,30 @@ def test_legrad_rejects_missing_captured_state():
     with LeGrad(model, model.blocks[0], score_projection=model.project) as extractor:
         scores = model(input_tensor)
         extractor.hook_a[0] = None
-        with pytest.raises(AssertionError, match="every LeGrad target block"):
+        with pytest.raises(AssertionError, match="Target layers not captured"):
             extractor.compute_cams(0, scores)
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_legrad_rejects_incomplete_forward(fail, monkeypatch):
+    model = _TinyViT()
+    input_tensor = torch.randn(1, 3, 2, 2)
+    with LeGrad(model, list(model.blocks), score_projection=model.project) as extractor:
+        scores = model(input_tensor)
+        if fail:
+
+            def fail_projection(_tokens):
+                raise RuntimeError("forward failed")
+
+            monkeypatch.setattr(model, "project", fail_projection)
+            with pytest.raises(RuntimeError, match="forward failed"):
+                model(input_tensor)
+        else:
+            model.blocks = nn.ModuleList([model.blocks[0]])
+            model(input_tensor)
+        for extract in (extractor, extractor.compute_cams):
+            with pytest.raises(AssertionError, match="forward"):
+                extract(0, scores)
 
 
 def test_legrad_rejects_missing_attention_return_options():

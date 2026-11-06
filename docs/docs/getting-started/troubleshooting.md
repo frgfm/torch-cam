@@ -127,6 +127,10 @@ the CAM forward. Disabling capture preserves existing captures and does not clos
 Use `reset_hooks()` to clear captured inputs, activations, and gradients while keeping hooks registered;
 run a fresh model forward before extracting another CAM.
 
+Each enabled model forward discards previous captures. CAM extraction requires a successful forward through
+every target layer; a failed forward or a skipped conditional branch raises `AssertionError` instead of reusing
+features from an earlier input. Run the full model again through the selected layers to recover.
+
 `remove_hooks()` permanently closes the extractor and releases its captured tensors, just like leaving its
 `with` block. Calling it repeatedly is safe. The `closed` property reports this state, including on FinerCAM
 and RefineCAM wrappers. A closed extractor raises `RuntimeError` if you try to enable capture, enter it again,

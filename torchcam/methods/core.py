@@ -155,10 +155,12 @@ class _CAM:
         self._closed = False
         # Forward hook
         with self._cleanup_on_error():
+            self.hook_handles.append(model.register_forward_pre_hook(self._start_capture, prepend=True))
             for idx, name in enumerate(self.target_names):
                 self.hook_handles.append(
                     self.submodule_dict[name].register_forward_hook(partial(self._hook_a, idx=idx))
                 )
+            self.hook_handles.append(model.register_forward_hook(self._finish_capture))
         # Enable hooks
         self._hooks_enabled = enable_hooks
         # Should ReLU be used before normalization
@@ -231,14 +233,34 @@ class _CAM:
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""  # noqa: DOC501
         if self._hooks_enabled:
+            self._forward_completed = False
             if self._reshape_transform is not None:
                 output = self._reshape_transform(output)
             if not isinstance(output, Tensor):
                 raise TypeError(f"layer '{self.target_names[idx]}' returned {type(output).__name__}, not a tensor")
             self.hook_a[idx] = output.detach()
 
+    def _start_capture(self, _: nn.Module, _input: tuple[Any, ...]) -> None:
+        """Discard previous captures before a new enabled model forward."""
+        if self._hooks_enabled:
+            self.reset_hooks()
+
+    def _finish_capture(self, _: nn.Module, _input: tuple[Any, ...], _output: Any) -> None:
+        """Mark captures usable only after the model forward returns successfully."""
+        if self._hooks_enabled:
+            self._forward_completed = True
+
+    def _check_capture(self) -> None:
+        """Reject failed forwards and target layers skipped by the latest forward."""  # noqa: DOC501
+        if not self._forward_completed:
+            raise AssertionError("Run a successful model forward before computing CAMs")
+        missing = [name for name, activation in zip(self.target_names, self.hook_a, strict=True) if activation is None]
+        if missing:
+            raise AssertionError(f"Target layers not captured in the latest model forward: {missing}")
+
     def reset_hooks(self) -> None:
         """Clear stored activations and gradients while preserving hook ownership."""
+        self._forward_completed = False
         self.hook_a: list[Tensor | None] = [None] * len(self.target_names)
         self.hook_g: list[Tensor | None] = [None] * len(self.target_names)
 
@@ -282,10 +304,8 @@ class _CAM:
         if targets is not None and not self._targets_supported:
             raise ValueError(f"{self.__class__.__name__} does not support arbitrary output targets")
 
-        for fmap in self.hook_a:
-            # Check that forward has already occurred
-            if not isinstance(fmap, Tensor):
-                raise AssertionError("Inputs need to be forwarded in the model for the conv features to be hooked")  # noqa: TRY004
+        self._check_capture()
+        for fmap in cast(list[Tensor], self.hook_a):
             # Check batch size
             if isinstance(class_idx, list) and fmap.shape[0] != len(class_idx):
                 raise ValueError("expected batch size and length of `class_idx` to be the same.")
@@ -347,6 +367,7 @@ class _CAM:
                 the k-th element of the input batch for class index equal to the k-th element of `class_idx`.
         """
         self._ensure_open()
+        self._check_capture()
         # Get map weight & unsqueeze it
         if targets is not None:
             kwargs["targets"] = targets

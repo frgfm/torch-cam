@@ -69,6 +69,7 @@ class _GradCAM(_CAM):
         Raises:
             RuntimeError: if the target score is disconnected from a target layer
         """
+        self._check_capture()
         if targets is not None:
             loss = _target_scores(scores, targets).sum()
         elif isinstance(class_idx, int):
@@ -315,12 +316,14 @@ class SmoothGradCAMpp(_GradCAM):
     ) -> list[Tensor]:
         """Computes the weight coefficients of the hooked activation maps."""  # noqa: DOC201
         previous_ihook_enabled = self._ihook_enabled
+        initial_input, forward_completed = self._input, self._forward_completed
         initial_activations = self.hook_a.copy()
         initial_outputs = self._hook_outputs.copy()
         self._ihook_enabled = False
         try:
             return self._compute_smoothgrad_weights(class_idx, eps, **kwargs)
         finally:
+            self._input, self._forward_completed = initial_input, forward_completed
             self.hook_a = initial_activations
             self._hook_outputs = initial_outputs
             self._ihook_enabled = previous_ihook_enabled
@@ -333,6 +336,7 @@ class SmoothGradCAMpp(_GradCAM):
     ) -> list[Tensor]:
         # Keep initial activation
         hook_a = cast(list[Tensor], self.hook_a)
+        initial_input = self._input
         init_fmap = [act.clone() for act in hook_a]
         # Initialize our gradient estimates
         # Accumulate all moments in at least float32; half-precision epsilon rounds to zero.
@@ -342,7 +346,7 @@ class SmoothGradCAMpp(_GradCAM):
         # Perform the operations N times
         for _idx in range(self.num_samples):
             # Add noise
-            noisy_input = self._input + self._distrib.sample(self._input.size()).to(device=self._input.device)
+            noisy_input = initial_input + self._distrib.sample(initial_input.size()).to(device=initial_input.device)
             noisy_input.requires_grad_(True)
             # Forward & Backward
             out = self.model(noisy_input)
@@ -763,6 +767,7 @@ class LeGrad(_CAM):
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         if not self._hooks_enabled:
             return
+        self._forward_completed = False
         if not isinstance(output, Tensor) or output.ndim != 3:
             raise ValueError("LeGrad target blocks must return tokens shaped (batch, tokens, embedding)")
         # Reuse inherited activation slots for layer-specific logits.
@@ -839,6 +844,7 @@ class LeGrad(_CAM):
             ValueError: if attention and token shapes are incompatible
         """  # noqa: DOC201
         self._ensure_open()
+        self._check_capture()
         if targets is not None:
             raise ValueError("LeGrad does not support arbitrary output targets")
         relevances = self._get_weights(cast(int | list[int], class_idx), scores, retain_graph=retain_graph, **kwargs)

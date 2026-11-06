@@ -4,6 +4,9 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 
 ## Unreleased
 
+CAM captures now belong to the latest enabled model forward. Failed forwards and skipped target layers are
+rejected instead of silently reusing features from a previous input; paused forwards preserve existing captures.
+
 CAM extractors now expose `closed`. `remove_hooks()` permanently closes an extractor and clears captured tensors;
 reuse raises `RuntimeError`. Constructor failures clean up partially registered hooks. `disable_hooks()` remains
 reversible, and `reset_hooks()` clears captures while keeping an open extractor reusable after a fresh forward.
