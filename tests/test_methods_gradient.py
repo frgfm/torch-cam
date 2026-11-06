@@ -596,3 +596,39 @@ def test_smoothgradcampp_restores_input_hook_on_error(mock_img_tensor, monkeypat
             extractor(scores[0].argmax().item(), scores)
 
         assert extractor._ihook_enabled
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.float64])
+@pytest.mark.parametrize(
+    ("activation_value", "coefficients", "expected_weights"),
+    [
+        (0.0, [1.0, 1.0], [0.0, 0.0]),
+        (256.0, [1024.0, -1024.0], [256.0, -256.0]),
+        (16384.0, [1.0, -1.0], [0.25, -0.25]),
+    ],
+)
+def test_xgradcam_reduced_precision_weights(dtype, activation_value, coefficients, expected_weights):
+    model = (
+        nn
+        .Sequential(
+            nn.Identity(),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(2, 1, bias=False),
+        )
+        .to(dtype=dtype)
+        .eval()
+    )
+    with torch.no_grad():
+        model[3].weight.copy_(torch.tensor([coefficients]))
+    input_tensor = torch.full((1, 2, 2, 2), activation_value, dtype=dtype, requires_grad=True)
+    with gradient.XGradCAM(model, "0") as extractor:
+        scores = model(input_tensor)
+        assert torch.isfinite(scores).all()
+        weights = extractor._get_weights(0, scores)[0]
+        # Each spatial derivative is the linear coefficient divided by four.
+        # Constant nonzero activations cancel out of the XGradCAM ratio.
+        expected = torch.tensor([expected_weights], dtype=weights.dtype)
+        torch.testing.assert_close(weights, expected)
+        cam = extractor(0, model(input_tensor))[0]
+        torch.testing.assert_close(cam, torch.zeros_like(cam))
