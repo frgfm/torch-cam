@@ -134,6 +134,10 @@ features from an earlier input. Run the full model again through the selected la
 These checks track the model's `forward` computation, not recursive calls into the same model or exceptions
 in caller hooks outside that boundary. After a caller hook fails, use `reset_hooks()` and run a fresh forward.
 
+Checkpointed target layers can be recomputed during backward without invalidating a completed capture.
+If you checkpoint the entire hooked model, call `disable_hooks()` before backward and `enable_hooks()` afterward
+to preserve the original captures. Otherwise, checkpoint's early stop is treated as an incomplete model forward.
+
 `remove_hooks()` permanently closes the extractor and releases its captured tensors, just like leaving its
 `with` block. Calling it repeatedly is safe. The `closed` property reports this state, including on FinerCAM
 and RefineCAM wrappers. A closed extractor raises `RuntimeError` if you try to enable capture, enter it again,
