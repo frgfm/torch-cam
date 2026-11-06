@@ -115,6 +115,7 @@ class EigenCAM(_CAM):
         Returns:
             detached maps of shape (N, ...), one per target layer, in float32 or float64
         """
+        self._ensure_open()
         self._precheck(class_idx, scores, targets)
         weights = self._get_weights(cast(int | list[int], class_idx), scores, **kwargs)
         cams = []
@@ -176,28 +177,29 @@ class CAM(_CAM):
 
         super().__init__(model, target_layer, input_shape, **kwargs)
 
-        if isinstance(fc_layer, str):
-            fc_name = fc_layer
-        # Find the location of the module
-        elif isinstance(fc_layer, nn.Module):
-            fc_name = self._resolve_layer_name(fc_layer)
-        # If the layer is not specified, try automatic resolution
-        elif fc_layer is None:
-            lin_layers = [layer_name for layer_name, m in model.named_modules() if isinstance(m, nn.Linear)]
-            # Warn the user of the choice
-            if len(lin_layers) == 0:
-                raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
-            if len(lin_layers) > 1:
-                raise ValueError("This CAM method does not support multiple fully connected layers.")
-            fc_name = lin_layers[0]
-            logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
-        else:
-            raise TypeError("invalid argument type for `fc_layer`")
-        # Softmax weight
-        self._fc_weights = self.submodule_dict[fc_name].weight.data
-        # squeeze to accomodate replacement by Conv1x1
-        if self._fc_weights.ndim > 2:
-            self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
+        with self._cleanup_on_error():
+            if isinstance(fc_layer, str):
+                fc_name = fc_layer
+            # Find the location of the module
+            elif isinstance(fc_layer, nn.Module):
+                fc_name = self._resolve_layer_name(fc_layer)
+            # If the layer is not specified, try automatic resolution
+            elif fc_layer is None:
+                lin_layers = [layer_name for layer_name, m in model.named_modules() if isinstance(m, nn.Linear)]
+                # Warn the user of the choice
+                if len(lin_layers) == 0:
+                    raise ValueError("unable to resolve `fc_layer` automatically, please specify its value.")
+                if len(lin_layers) > 1:
+                    raise ValueError("This CAM method does not support multiple fully connected layers.")
+                fc_name = lin_layers[0]
+                logger.warning(f"no value was provided for `fc_layer`, thus set to '{fc_name}'.")
+            else:
+                raise TypeError("invalid argument type for `fc_layer`")
+            # Softmax weight
+            self._fc_weights = self.submodule_dict[fc_name].weight.data
+            # squeeze to accomodate replacement by Conv1x1
+            if self._fc_weights.ndim > 2:
+                self._fc_weights = self._fc_weights.view(*self._fc_weights.shape[:2])
 
     @torch.no_grad()
     def _get_weights(
@@ -267,12 +269,18 @@ class ScoreCAM(_CAM):
     ) -> None:
         super().__init__(model, target_layer, input_shape, **kwargs)
 
-        # Input hook
-        self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
-        self.bs = batch_size
-        # Ensure ReLU is applied to CAM before normalization
-        self._relu = True
-        self._targets_supported = True
+        with self._cleanup_on_error():
+            # Input hook
+            self.hook_handles.append(model.register_forward_pre_hook(self._store_input))
+            self.bs = batch_size
+            # Ensure ReLU is applied to CAM before normalization
+            self._relu = True
+            self._targets_supported = True
+
+    def reset_hooks(self) -> None:
+        """Clear captured features and the input retained for masked forwards."""
+        super().reset_hooks()
+        self.__dict__.pop("_input", None)
 
     def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
@@ -460,9 +468,10 @@ class SSCAM(ScoreCAM):
     ) -> None:
         super().__init__(model, target_layer, batch_size, input_shape, **kwargs)
 
-        self.num_samples = num_samples
-        self.std = std
-        self._distrib = torch.distributions.normal.Normal(0, self.std)
+        with self._cleanup_on_error():
+            self.num_samples = num_samples
+            self.std = std
+            self._distrib = torch.distributions.normal.Normal(0, self.std)
 
     @torch.no_grad()
     def _get_score_weights(

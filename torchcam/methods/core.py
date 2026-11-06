@@ -152,9 +152,13 @@ class _CAM:
         # Init hooks
         self.reset_hooks()
         self.hook_handles: list[torch.utils.hooks.RemovableHandle] = []
+        self._closed = False
         # Forward hook
-        for idx, name in enumerate(self.target_names):
-            self.hook_handles.append(self.submodule_dict[name].register_forward_hook(partial(self._hook_a, idx=idx)))
+        with self._cleanup_on_error():
+            for idx, name in enumerate(self.target_names):
+                self.hook_handles.append(
+                    self.submodule_dict[name].register_forward_hook(partial(self._hook_a, idx=idx))
+                )
         # Enable hooks
         self._hooks_enabled = enable_hooks
         # Should ReLU be used before normalization
@@ -164,8 +168,27 @@ class _CAM:
         # Arbitrary scalar output targets are supported by the extractor
         self._targets_supported = False
 
+    @property
+    def closed(self) -> bool:
+        """Whether the extractor's hooks have been permanently removed."""
+        return self._closed
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RuntimeError("CAM extractor is closed; create a new extractor")
+
+    @contextmanager
+    def _cleanup_on_error(self) -> Generator[None, None, None]:
+        """Roll back owned hooks if extractor initialization fails."""
+        try:
+            yield
+        except BaseException:
+            self.remove_hooks()
+            raise
+
     def enable_hooks(self) -> None:
-        """Enable hooks."""
+        """Enable capture on an open extractor."""
+        self._ensure_open()
         self._hooks_enabled = True
 
     def disable_hooks(self) -> None:
@@ -174,17 +197,20 @@ class _CAM:
 
     @contextmanager
     def _hooks_off(self) -> Generator[None, None, None]:
+        self._ensure_open()
         previous = self._hooks_enabled
         self._hooks_enabled = False
         try:
             yield
         finally:
-            self._hooks_enabled = previous
+            if not self._closed:
+                self._hooks_enabled = previous
 
     def _eval_mode(self) -> AbstractContextManager[None]:
         return _model_eval(self.model)
 
     def __enter__(self) -> Self:
+        self._ensure_open()
         return self
 
     def __exit__(
@@ -193,10 +219,7 @@ class _CAM:
         exce_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        try:
-            self.remove_hooks()
-        finally:
-            self.reset_hooks()
+        self.remove_hooks()
 
     def _resolve_layer_name(self, target_layer: nn.Module) -> str:
         """Resolves the name of a given layer inside the hooked model."""  # noqa: DOC201, DOC501
@@ -215,15 +238,20 @@ class _CAM:
             self.hook_a[idx] = output.detach()
 
     def reset_hooks(self) -> None:
-        """Clear stored activation and gradients."""
+        """Clear stored activations and gradients while preserving hook ownership."""
         self.hook_a: list[Tensor | None] = [None] * len(self.target_names)
         self.hook_g: list[Tensor | None] = [None] * len(self.target_names)
 
     def remove_hooks(self) -> None:
-        """Clear model hooks."""
-        for handle in self.hook_handles:
-            handle.remove()
-        self.hook_handles.clear()
+        """Permanently close the extractor and release captured tensors; safe to call repeatedly."""
+        self._closed = True
+        self._hooks_enabled = False
+        try:
+            for handle in self.hook_handles:
+                handle.remove()
+        finally:
+            self.hook_handles.clear()
+            self.reset_hooks()
 
     @staticmethod
     @torch.no_grad()
@@ -288,6 +316,7 @@ class _CAM:
         **kwargs: Any,
     ) -> list[Tensor]:
         # Integrity check
+        self._ensure_open()
         self._precheck(class_idx, scores, targets)
 
         # Compute CAM
@@ -317,6 +346,7 @@ class _CAM:
                 was passed to arg `class_idx`, the k-th element along the batch axis will be the activation map for
                 the k-th element of the input batch for class index equal to the k-th element of `class_idx`.
         """
+        self._ensure_open()
         # Get map weight & unsqueeze it
         if targets is not None:
             kwargs["targets"] = targets

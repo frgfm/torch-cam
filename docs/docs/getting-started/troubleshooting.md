@@ -123,8 +123,15 @@ with LayerCAM(model) as cam_extractor:
 ```
 
 For a long-lived extractor, call `disable_hooks()` during unrelated forward passes and `enable_hooks()` before
-the CAM forward. Use `reset_hooks()` to clear cached activations while keeping hooks registered; use
-`remove_hooks()` when the extractor is finished.
+the CAM forward. Disabling capture preserves existing captures and does not close the extractor.
+Use `reset_hooks()` to clear captured inputs, activations, and gradients while keeping hooks registered;
+run a fresh model forward before extracting another CAM.
+
+`remove_hooks()` permanently closes the extractor and releases its captured tensors, just like leaving its
+`with` block. Calling it repeatedly is safe. The `closed` property reports this state, including on FinerCAM
+and RefineCAM wrappers. A closed extractor raises `RuntimeError` if you try to enable capture, enter it again,
+or compute another CAM; create a new extractor instead. Failed built-in extractor initialization also removes
+any hooks it already registered, without removing hooks owned by the caller.
 
 ## `AttributeError: '...' object has no attribute 'enable_hooks'` / errors when clearing hooks
 

@@ -4,6 +4,10 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 
 ## Unreleased
 
+CAM extractors now expose `closed`. `remove_hooks()` permanently closes an extractor and clears captured tensors;
+reuse raises `RuntimeError`. Constructor failures clean up partially registered hooks. `disable_hooks()` remains
+reversible, and `reset_hooks()` clears captures while keeping an open extractor reusable after a fresh forward.
+
 Dependency floors rise to PyTorch 2.13, optional torchvision 0.28, and Pillow 13. PyTorch macOS wheels require macOS 14+ on Apple Silicon.
 
 `PredictionExplanation.save()` requires the resized/cropped model view at input dimensions. Bundles add lossless `input_image` and optional string `context` to schema 1. Unsupported image modes fail before writing.
