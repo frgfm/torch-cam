@@ -160,7 +160,7 @@ class _CAM:
                 self.hook_handles.append(
                     self.submodule_dict[name].register_forward_hook(partial(self._hook_a, idx=idx))
                 )
-            self.hook_handles.append(model.register_forward_hook(self._finish_capture))
+            self.hook_handles.append(model.register_forward_hook(self._finish_capture, prepend=True))
         # Enable hooks
         self._hooks_enabled = enable_hooks
         # Should ReLU be used before normalization
@@ -233,7 +233,6 @@ class _CAM:
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Activation hook."""  # noqa: DOC501
         if self._hooks_enabled:
-            self._forward_completed = False
             if self._reshape_transform is not None:
                 output = self._reshape_transform(output)
             if not isinstance(output, Tensor):
@@ -246,7 +245,7 @@ class _CAM:
             self.reset_hooks()
 
     def _finish_capture(self, _: nn.Module, _input: tuple[Any, ...], _output: Any) -> None:
-        """Mark captures usable only after the model forward returns successfully."""
+        """Record forward completion before caller hooks that may compute CAMs."""
         if self._hooks_enabled:
             self._forward_completed = True
 

@@ -131,6 +131,9 @@ Each enabled model forward discards previous captures. CAM extraction requires a
 every target layer; a failed forward or a skipped conditional branch raises `AssertionError` instead of reusing
 features from an earlier input. Run the full model again through the selected layers to recover.
 
+These checks track the model's `forward` computation, not recursive calls into the same model or exceptions
+in caller hooks outside that boundary. After a caller hook fails, use `reset_hooks()` and run a fresh forward.
+
 `remove_hooks()` permanently closes the extractor and releases its captured tensors, just like leaving its
 `with` block. Calling it repeatedly is safe. The `closed` property reports this state, including on FinerCAM
 and RefineCAM wrappers. A closed extractor raises `RuntimeError` if you try to enable capture, enter it again,

@@ -767,7 +767,6 @@ class LeGrad(_CAM):
     def _hook_a(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         if not self._hooks_enabled:
             return
-        self._forward_completed = False
         if not isinstance(output, Tensor) or output.ndim != 3:
             raise ValueError("LeGrad target blocks must return tokens shaped (batch, tokens, embedding)")
         # Reuse inherited activation slots for layer-specific logits.
