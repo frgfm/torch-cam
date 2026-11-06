@@ -565,6 +565,7 @@ def test_refinecam_shared_wrapper_regression():
         assert repr(extractor) == "RefineCAM(base_method=GradCAMpp, target_layer=['0', '2'])"
 
     assert extractor.base_cam.hook_handles == []
+    assert extractor.closed
 
 
 def test_gradcam_does_not_accumulate_hook_handles(mock_img_tensor):
