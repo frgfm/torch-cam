@@ -291,23 +291,57 @@ def test_fuse_cams_uses_an_input_shape_and_warns_for_custom_shape():
     assert fused.shape == (1, 24, 24)
 
 
+def test_gradcam_one_dimensional_fusion():
+    model = torch.nn.Sequential(
+        torch.nn.Conv1d(1, 1, 1, bias=False),
+        torch.nn.Conv1d(1, 1, 1, stride=2, bias=False),
+        torch.nn.AdaptiveAvgPool1d(1),
+        torch.nn.Flatten(1),
+    ).eval()
+    with torch.no_grad():
+        model[0].weight.fill_(1)
+        model[1].weight.fill_(1)
+
+    inputs = torch.arange(4, dtype=torch.float32).reshape(1, 1, 4)
+    original_input = inputs.clone()
+    with GradCAM(model, ["0", "1"]) as extractor:
+        cams = extractor(0, model(inputs))
+        torch.testing.assert_close(cams[0], torch.tensor([[0.0, 1 / 3, 2 / 3, 1.0]]))
+        torch.testing.assert_close(cams[1], torch.tensor([[0.0, 1.0]]))
+        original_cams = [cam.clone() for cam in cams]
+        fused = extractor.fuse_cams(cams)
+
+    torch.testing.assert_close(fused, torch.tensor([[0.0, 1 / 3, 1.0, 1.0]]))
+    torch.testing.assert_close(inputs, original_input, rtol=0, atol=0)
+    for cam, original_cam in zip(cams, original_cams, strict=True):
+        torch.testing.assert_close(cam, original_cam, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("spatial_dims", [1, 2, 3])
 @pytest.mark.parametrize("requires_grad", [False, True])
 @pytest.mark.parametrize("nonfinite", [False, True])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-def test_fuse_cams_preserves_first_max(requires_grad, nonfinite, dtype):
+def test_fuse_cams_preserves_first_max(requires_grad, nonfinite, dtype, spatial_dims):
+    source_shape = {1: (4,), 2: (2, 2), 3: (1, 2, 2)}[spatial_dims]
+    target_shape = (8,) if spatial_dims == 1 else (4,) * spatial_dims
+    mode = {1: "nearest", 2: "bilinear", 3: "trilinear"}[spatial_dims]
+    resize_kwargs = {} if spatial_dims == 1 else {"align_corners": False}
     value = torch.nan if nonfinite else 2.0
     cams = [
-        torch.tensor(values).view(1, 2, 2).requires_grad_(requires_grad)
+        torch.tensor(values).view(1, *source_shape).requires_grad_(requires_grad)
         for values in ([1.0, value, 3.0, 0.0], [1.0, value, 4.0, value], [0.0, 2.0, 4.0, value])
     ]
     cams[1] = cams[1].to(dtype).detach().requires_grad_(requires_grad)
+    original_cams = [cam.detach().clone() for cam in cams]
     resized = [
-        torch.nn.functional.interpolate(cam.unsqueeze(1), (4, 4), mode="bilinear", align_corners=False) for cam in cams
+        torch.nn.functional.interpolate(cam.unsqueeze(1), target_shape, mode=mode, **resize_kwargs) for cam in cams
     ]
     expected = torch.stack(resized).max(0).values.squeeze(1)
     with pytest.warns(UserWarning, match="all 3 CAMs will be interpolated"):
-        fused = core._CAM.fuse_cams(cams, (4, 4))
+        fused = core._CAM.fuse_cams(cams, target_shape)
     torch.testing.assert_close(fused, expected, equal_nan=True)
+    for cam, original_cam in zip(cams, original_cams, strict=True):
+        torch.testing.assert_close(cam, original_cam, rtol=0, atol=0, equal_nan=True)
     if requires_grad:
         actual_grads = torch.autograd.grad(fused.sum(), cams)
         expected_grads = torch.autograd.grad(expected.sum(), cams)
