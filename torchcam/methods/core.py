@@ -405,11 +405,11 @@ class _CAM:
         """Fuse class activation maps from different layers.
 
         When no target shape is supplied, the input map with the most spatial locations sets the output shape. Other
-        maps are interpolated to match it. For 2D maps, interpolation is bilinear; for 3D maps, it is trilinear. Both
-        use ``align_corners=False``. A target shape outside the input shapes interpolates every map and emits a
-        warning; downsampling also emits a warning because it can remove spatial detail. A single map cannot be resized
-        here; use ``torch.nn.functional.interpolate`` for that. Resize maps explicitly before fusion to choose a
-        different interpolation mode.
+        maps are interpolated to match it. For 1D maps, interpolation is nearest-neighbor. For 2D maps, it is bilinear;
+        for 3D maps, it is trilinear. The latter two use ``align_corners=False``. A target shape outside the input shapes
+        interpolates every map and emits a warning; downsampling also emits a warning because it can remove spatial
+        detail. A single map cannot be resized here; use ``torch.nn.functional.interpolate`` for that. Resize maps
+        explicitly before fusion to choose a different interpolation mode.
 
         Args:
             cams: the list of activation maps (for the same input)
@@ -448,7 +448,7 @@ class _CAM:
                 cam.unsqueeze(1),
                 target_shape,
                 mode=interpolation_mode,
-                align_corners=False,
+                align_corners=None if interpolation_mode == "nearest" else False,
             )
             for cam in cams
         )
