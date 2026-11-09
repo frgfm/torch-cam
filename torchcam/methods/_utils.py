@@ -3,14 +3,72 @@
 # This program is licensed under the Apache License 2.0.
 # See LICENSE or go to <https://www.apache.org/licenses/LICENSE-2.0> for full license details.
 
-from collections.abc import Generator, Mapping
+from collections import UserDict
+from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from functools import partial
+from typing import Any
 
 import torch
 from torch import Tensor, nn
+from torch.utils.hooks import RemovableHandle
 
 __all__ = ["locate_candidate_layer"]
+
+_CallCallbacks = tuple[Callable[[], None], Callable[[], None], Callable[[], None]]
+
+
+class _ModelCallHooks(UserDict[int, _CallCallbacks]):
+    """Share an exception boundary around a model's complete PyTorch call."""
+
+    def __init__(self, model: nn.Module) -> None:
+        super().__init__()
+        self.model = model
+        self.attribute = "_compiled_call_impl" if model._compiled_call_impl is not None else "_call_impl"  # noqa: SLF001
+        self.had_override = self.attribute in model.__dict__
+        self.previous = getattr(model, self.attribute)
+        self.wrapper = self.__call__
+        setattr(model, self.attribute, self.wrapper)
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        entered = []
+        try:
+            for callbacks in tuple(self.values()):
+                entered.append(callbacks)
+                callbacks[0]()
+            return self.previous(*args, **kwargs)
+        except BaseException:
+            for _, abort, _ in entered:
+                abort()
+            raise
+        finally:
+            for _, _, finish in reversed(entered):
+                finish()
+
+    def __delitem__(self, key: int) -> None:
+        super().__delitem__(key)
+        if not self:
+            if self.model.__dict__.get(self.attribute) is self.wrapper:
+                if self.had_override:
+                    setattr(self.model, self.attribute, self.previous)
+                else:
+                    delattr(self.model, self.attribute)
+            del self.model.__dict__["_torchcam_call_hooks"]
+
+
+def _register_model_call_hook(model: nn.Module, callbacks: _CallCallbacks) -> RemovableHandle:
+    """Observe calls before prehooks and clean up even when caller hooks raise.
+
+    Returns:
+        a handle that restores the original dispatch when the last observer closes
+    """
+    hooks = model.__dict__.get("_torchcam_call_hooks")
+    if hooks is None:
+        hooks = _ModelCallHooks(model)
+        model.__dict__["_torchcam_call_hooks"] = hooks
+    handle = RemovableHandle(hooks)
+    hooks[handle.id] = callbacks
+    return handle
 
 
 @contextmanager
