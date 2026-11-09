@@ -1,9 +1,11 @@
+from contextlib import suppress
+
 import pytest
 import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
-from torchcam.methods import EigenCAM, GradCAM
+from torchcam.methods import EigenCAM, GradCAM, ScoreCAM, SmoothGradCAMpp
 
 
 def test_skipped_target_rejects_previous_capture(monkeypatch):
@@ -107,3 +109,21 @@ def test_closing_one_extractor_preserves_other_observers():
     assert second()[0].shape == (1, 3, 3)
     second.remove_hooks()
     assert model._compiled_call_impl == original
+
+
+@pytest.mark.parametrize("method", [ScoreCAM, SmoothGradCAMpp])
+def test_caught_recursive_failure_preserves_input(method, mock_img_model, monkeypatch):
+    model = mock_img_model.eval()
+    forward = model.forward
+
+    def recover(image, *, nested=False):
+        if nested:
+            raise RuntimeError("inner failed")
+        with suppress(RuntimeError):
+            model(image, nested=True)
+        return forward(image)
+
+    monkeypatch.setattr(model, "forward", recover)
+    with method(model, "0.3") as extractor:
+        scores = model(torch.rand(1, 3, 4, 4, requires_grad=True))
+        assert torch.isfinite(extractor(0, scores)[0]).all()

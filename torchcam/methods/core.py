@@ -258,7 +258,10 @@ class _CAM:
     def _abort_capture(self) -> None:
         """Invalidate captures when the model or any caller hook raises."""
         if self._capture_enabled:
+            outer_input = self.__dict__.get("_input") if self._capture_depth > 1 else None
             self.reset_hooks()
+            if outer_input is not None:
+                self._input = outer_input
 
     def _end_capture(self) -> None:
         self._capture_depth -= 1
