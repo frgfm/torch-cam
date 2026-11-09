@@ -8,6 +8,7 @@ from collections.abc import Callable, Generator, Mapping
 from contextlib import contextmanager
 from functools import partial
 from typing import Any
+from weakref import WeakValueDictionary
 
 import torch
 from torch import Tensor, nn
@@ -24,11 +25,14 @@ class _ModelCallHooks(UserDict[int, _CallCallbacks]):
     def __init__(self, model: nn.Module) -> None:
         super().__init__()
         self.model = model
-        self.attribute = "_compiled_call_impl" if model._compiled_call_impl is not None else "_call_impl"  # noqa: SLF001
-        self.had_override = self.attribute in model.__dict__
-        self.previous = getattr(model, self.attribute)
-        self.wrapper = self.__call__
-        setattr(model, self.attribute, self.wrapper)
+        attribute = "_compiled_call_impl" if model._compiled_call_impl is not None else "_call_impl"  # noqa: SLF001
+        self.previous = getattr(model, attribute)
+        self.previous_replication = model._replicate_for_data_parallel  # noqa: SLF001
+        self.wrappers = {attribute: self.__call__, "_replicate_for_data_parallel": self._replicate}
+        self.originals = {name: model.__dict__[name] for name in self.wrappers if name in model.__dict__}
+        self.replicas: WeakValueDictionary[int, _ModelCallHooks] = WeakValueDictionary()
+        for name, wrapper in self.wrappers.items():
+            setattr(model, name, wrapper)
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         entered = []
@@ -47,13 +51,28 @@ class _ModelCallHooks(UserDict[int, _CallCallbacks]):
 
     def __delitem__(self, key: int) -> None:
         super().__delitem__(key)
+        for replica in tuple(self.replicas.values()):
+            replica.pop(key, None)
         if not self:
-            if self.model.__dict__.get(self.attribute) is self.wrapper:
-                if self.had_override:
-                    setattr(self.model, self.attribute, self.previous)
-                else:
-                    delattr(self.model, self.attribute)
+            self._restore(self.model)
             del self.model.__dict__["_torchcam_call_hooks"]
+
+    def _restore(self, model: nn.Module) -> None:
+        """Remove only overrides still owned by this observer."""
+        for name, wrapper in self.wrappers.items():
+            if model.__dict__.get(name) is wrapper:
+                delattr(model, name)
+                model.__dict__.update({key: value for key, value in self.originals.items() if key == name})
+
+    def _replicate(self) -> nn.Module:
+        """Bind copied observers to the replica instead of the original model."""  # noqa: DOC201
+        replica = self.previous_replication()
+        self._restore(replica)
+        hooks = _ModelCallHooks(replica)
+        hooks.update(self)
+        replica.__dict__["_torchcam_call_hooks"] = hooks
+        self.replicas[id(hooks)] = hooks
+        return replica
 
 
 def _register_model_call_hook(model: nn.Module, callbacks: _CallCallbacks) -> RemovableHandle:
