@@ -71,11 +71,14 @@ def test_cam_constructor(mock_img_model):
 
 def test_cam_context_manager(mock_img_model):
     model = mock_img_model.eval()
-    with core._CAM(model):
-        # Model is hooked
-        assert sum(len(mod._forward_hooks) for mod in model.modules()) == 2
+    original = model._call_impl
+    with core._CAM(model) as first, GradCAM(model, "0.3") as second:
+        first.remove_hooks()
+        scores = model(torch.rand(1, 3, 4, 4, requires_grad=True))
+        assert second(0, scores)[0].shape == (1, 4, 4)
     # Exit should remove hooks
     assert all(len(mod._forward_hooks) == 0 for mod in model.modules())
+    assert model._call_impl == original
 
 
 def test_cam_context_manager_cleans_up_on_exception(mock_img_model):
