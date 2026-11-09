@@ -134,9 +134,9 @@ features from an earlier input. Run the full model again through the selected la
 These checks track the model's `forward` computation, not recursive calls into the same model or exceptions
 in caller hooks outside that boundary. After a caller hook fails, use `reset_hooks()` and run a fresh forward.
 
-Checkpointed target layers can be recomputed during backward without invalidating a completed capture.
-If you checkpoint the entire hooked model, call `disable_hooks()` before backward and `enable_hooks()` afterward
-to preserve the original captures. Otherwise, checkpoint's early stop is treated as an incomplete model forward.
+Backward-time model calls, including whole-model checkpoint recomputation, preserve the original captures;
+manual hook toggles are unnecessary. Use non-reentrant checkpointing (`use_reentrant=False`) for gradient CAMs.
+To extract gradient CAMs after an earlier backward call, retain its graph with `backward(retain_graph=True)`.
 
 `remove_hooks()` permanently closes the extractor and releases its captured tensors, just like leaving its
 `with` block. Calling it repeatedly is safe. The `closed` property reports this state, including on FinerCAM
