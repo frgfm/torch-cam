@@ -1,9 +1,11 @@
+from contextlib import suppress
+
 import pytest
 import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 
-from torchcam.methods import EigenCAM, GradCAM
+from torchcam.methods import EigenCAM, GradCAM, ScoreCAM
 
 
 def test_skipped_target_rejects_previous_capture(monkeypatch):
@@ -17,15 +19,19 @@ def test_skipped_target_rejects_previous_capture(monkeypatch):
             extractor()
 
 
-def test_failed_forward_rejects_partial_capture():
+@pytest.mark.parametrize("prehook", [True, False])
+def test_failed_forward_rejects_partial_capture(prehook):
     model = nn.Sequential(nn.Identity())
 
     def fail(*_args):
         raise RuntimeError("forward failed")
 
-    with EigenCAM(model, "0") as extractor, model[0].register_forward_hook(fail):
-        with pytest.raises(RuntimeError, match="forward failed"):
-            model(torch.rand(1, 2, 3, 3))
+    image = torch.rand(1, 2, 3, 3)
+    with EigenCAM(model, "0") as extractor:
+        model(image)
+        register = model.register_forward_pre_hook if prehook else model.register_forward_hook
+        with register(fail, prepend=prehook), pytest.raises(RuntimeError, match="forward failed"):
+            model(image * 2)
         with pytest.raises(AssertionError, match="successful model forward"):
             extractor()
 
@@ -59,3 +65,42 @@ def test_whole_model_checkpoint_preserves_capture(mock_img_model):
         expected = extractor(0, scores, retain_graph=True)[0]
         scores.sum().backward(retain_graph=True)
         assert torch.equal(extractor(0, scores)[0], expected)
+
+
+def test_recursive_failure_is_not_completed_by_inner_call(monkeypatch):
+    model = nn.Sequential(nn.Identity())
+
+    def forward(image, *, nested=False, fail=False):
+        if nested:
+            return model[0](image)
+        result = model(image, nested=True)
+        if fail:
+            raise RuntimeError("outer failed")
+        return result
+
+    monkeypatch.setattr(model, "forward", forward)
+    image = torch.rand(1, 2, 3, 3)
+    with EigenCAM(model, "0") as extractor:
+        with pytest.raises(RuntimeError, match="outer failed"):
+            model(image, fail=True)
+        with pytest.raises(AssertionError, match="successful model forward"):
+            extractor()
+        model(image)
+        assert extractor()[0].shape == (1, 3, 3)
+
+
+def test_caught_recursive_failure_preserves_input(mock_img_model, monkeypatch):
+    model = mock_img_model.eval()
+    forward = model.forward
+
+    def recover(image, *, nested=False):
+        if nested:
+            raise RuntimeError("inner failed")
+        with suppress(RuntimeError):
+            model(image, nested=True)
+        return forward(image)
+
+    monkeypatch.setattr(model, "forward", recover)
+    with ScoreCAM(model, "0.3") as extractor:
+        scores = model(torch.rand(1, 3, 4, 4, requires_grad=True))
+        assert torch.isfinite(extractor(0, scores)[0]).all()

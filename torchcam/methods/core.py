@@ -18,7 +18,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from ._utils import _model_eval, locate_candidate_layer
+from ._utils import _model_eval, _register_model_call_hook, locate_candidate_layer
 
 __all__ = ["_CAM", "OutputTarget"]
 
@@ -153,9 +153,12 @@ class _CAM:
         self.reset_hooks()
         self.hook_handles: list[torch.utils.hooks.RemovableHandle] = []
         self._closed = False
+        self._capture_depth = 0
         # Forward hook
         with self._cleanup_on_error():
-            self.hook_handles.append(model.register_forward_pre_hook(self._start_capture, prepend=True))
+            self.hook_handles.append(
+                _register_model_call_hook(model, (self._start_capture, self._abort_capture, self._end_capture))
+            )
             for idx, name in enumerate(self.target_names):
                 self.hook_handles.append(
                     self.submodule_dict[name].register_forward_hook(partial(self._hook_a, idx=idx))
@@ -246,14 +249,26 @@ class _CAM:
             if self._capture_enabled:
                 self.hook_a[idx] = output.detach()
 
-    def _start_capture(self, _: nn.Module, _input: tuple[Any, ...]) -> None:
+    def _start_capture(self) -> None:
         """Discard previous captures before a new enabled model forward."""
-        if self._capture_enabled:
+        self._capture_depth += 1
+        if self._capture_depth == 1 and self._capture_enabled:
             self.reset_hooks()
+
+    def _abort_capture(self) -> None:
+        """Invalidate captures when the model or any caller hook raises."""
+        if self._capture_enabled:
+            outer_input = self.__dict__.get("_input") if self._capture_depth > 1 else None
+            self.reset_hooks()
+            if outer_input is not None:
+                self._input = outer_input
+
+    def _end_capture(self) -> None:
+        self._capture_depth -= 1
 
     def _finish_capture(self, _: nn.Module, _input: tuple[Any, ...], _output: Any) -> None:
         """Record forward completion before caller hooks that may compute CAMs."""
-        if self._capture_enabled:
+        if self._capture_enabled and self._capture_depth == 1:
             self._forward_completed = True
 
     def _check_capture(self) -> None:

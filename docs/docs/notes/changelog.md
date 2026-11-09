@@ -4,6 +4,8 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 
 ## Unreleased
 
+Caller-hook failures invalidate CAM captures, and recursive model calls are tracked as one outer invocation.
+
 CAM captures survive whole-model activation checkpoint recomputation without manual hook toggles.
 
 CAM captures now belong to the latest enabled model forward. Failed forwards and skipped target layers are
