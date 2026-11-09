@@ -212,7 +212,7 @@ python-version = "3.11"
 python-platform = "linux"
 
 [tool.ty.rules]
-unresolved-import = "warn"
+import-not-found = "warn"
 
 [tool.ty.src]
 include = ["torchcam/"]
