@@ -401,6 +401,223 @@ def test_deletion_insertion_accepts_output_targets():
     assert metric.summary() == pytest.approx({"deletion_auc": 0.4, "insertion_auc": 0.6})
 
 
+def test_deletion_insertion_evaluate_skips_extraction(monkeypatch):
+    metric = _fixed_metric()
+    metric.update(_exact_input(), class_idx=0)
+    previous_state = vars(metric).copy()
+
+    def unexpected_extraction(*_args, **_kwargs):
+        pytest.fail("evaluation must not extract or fuse CAMs")
+
+    monkeypatch.setattr(_FixedExtractor, "__call__", unexpected_extraction)
+    monkeypatch.setattr(_FixedExtractor, "fuse_cams", unexpected_extraction)
+    input_tensor = _exact_input().requires_grad_()
+    cam = input_tensor.squeeze(1).detach().requires_grad_()
+    original_cam = cam.clone()
+    result = metric.evaluate(input_tensor, cam, class_idx=0)
+
+    torch.testing.assert_close(result["fractions"], torch.tensor([0.0, 0.5, 1.0]))
+    torch.testing.assert_close(result["deletion"], torch.tensor([[1.0, 0.3, 0.0]]))
+    torch.testing.assert_close(result["insertion"], torch.tensor([[0.0, 0.7, 1.0]]))
+    torch.testing.assert_close(result["deletion_auc"], torch.tensor([0.4]))
+    torch.testing.assert_close(result["insertion_auc"], torch.tensor([0.6]))
+    assert result["valid"].tolist() == [True]
+    assert all(not value.requires_grad and value.grad_fn is None for value in result.values())
+    assert vars(metric) == previous_state
+    assert input_tensor.grad is cam.grad is None
+    torch.testing.assert_close(input_tensor, _exact_input())
+    torch.testing.assert_close(cam, original_cam)
+
+
+def test_deletion_insertion_evaluate_preserves_signed_ranking():
+    metric = _fixed_metric(steps=4)
+    cam = torch.tensor([[[-0.2, -0.1], [0.1, -0.3]]])
+
+    result = metric.evaluate(_exact_input(), cam, class_idx=0)
+
+    torch.testing.assert_close(result["deletion"], torch.tensor([[1.0, 0.8, 0.5, 0.1, 0.0]]))
+    torch.testing.assert_close(result["insertion"], torch.tensor([[0.0, 0.2, 0.5, 0.9, 1.0]]))
+
+
+@pytest.mark.parametrize("selection", ["indices", "targets", "automatic"])
+def test_deletion_insertion_evaluate_keeps_sample_identity_and_baselines(selection):
+    inputs = torch.cat((_exact_input(), _exact_input() / 2, _exact_input() / 5))
+    cam = inputs.squeeze(1).clone()
+    cam[1, 0, 0] = float("nan")
+    baseline = torch.tensor([0.05, 0.1, 0.15]).reshape(3, 1, 1, 1)
+    baseline_inputs = []
+
+    def baseline_fn(batch):
+        baseline_inputs.append(batch.clone())
+        return baseline
+
+    metric = _fixed_metric(baseline=baseline_fn)
+    kwargs = {}
+    if selection == "indices":
+        kwargs = {"class_idx": [0, 0, 1]}
+    elif selection == "targets":
+        kwargs = {"targets": [itemgetter(index) for index in [0, 0, 1]]}
+
+    result = metric.evaluate(inputs, cam, **kwargs)
+
+    assert result["valid"].tolist() == [True, False, True]
+    torch.testing.assert_close(result["deletion"][[0, 2]], torch.tensor([[1.0, 0.4, 0.2], [0.8, 0.64, 0.4]]))
+    torch.testing.assert_close(result["insertion"][[0, 2]], torch.tensor([[0.2, 0.8, 1.0], [0.4, 0.56, 0.8]]))
+    torch.testing.assert_close(result["deletion_auc"][[0, 2]], torch.tensor([0.5, 0.62]))
+    torch.testing.assert_close(result["insertion_auc"][[0, 2]], torch.tensor([0.7, 0.58]))
+    assert all(result[key][1].isnan().all() for key in ("deletion", "insertion", "deletion_auc", "insertion_auc"))
+    assert len(baseline_inputs) == 1
+    torch.testing.assert_close(baseline_inputs[0], inputs)
+    assert metric.total == metric.nan_count == 0
+
+
+@pytest.mark.parametrize("output_kind", ["tensor", "dict", "list"])
+def test_deletion_insertion_evaluate_chunked_structured_targets(output_kind):
+    first = torch.tensor([[[[1.0, 0.9, 0.5]], [[0.0, 1.0, 0.0]]]])
+    inputs = torch.cat((first, first, first.flip(1)))
+    cam = torch.tensor([[[1.0, 0.0, 0.5]], [[float("nan"), 0.0, 0.0]], [[0.0, 1.0, 0.5]]])
+    results = []
+    for batch_size in (1, 2, 100):
+        logits_fn = partial(torch.softmax, dim=-1)
+        targets = [itemgetter(index) for index in [0, 0, 1]]
+        if output_kind == "list":
+            logits_fn = lambda output: [{"logits": sample["logits"].softmax(-1)} for sample in output]
+            targets = [lambda sample, index=index: sample["logits"][index] for index in [0, 0, 1]]
+        metric = metrics.DeletionInsertionMetric(
+            _FixedExtractor(_TwoChannelClassifier(output_kind), cam),
+            logits_fn,
+            output_fn=itemgetter("logits") if output_kind == "dict" else None,
+            steps=3,
+            batch_size=batch_size,
+        )
+        results.append(metric.evaluate(inputs, cam, targets=targets))
+
+    for result in results[1:]:
+        for key in result:
+            torch.testing.assert_close(result[key], results[0][key], equal_nan=True)
+    expected = _reference_probability_metrics(metrics.DeletionInsertionMetric, inputs[[0, 2]], cam[[0, 2]], [0, 1])
+    assert {key: results[0][key][[0, 2]].mean().item() for key in expected} == pytest.approx(expected)
+
+
+def test_deletion_insertion_evaluate_all_nan():
+    def unexpected_baseline(_batch):
+        pytest.fail("an all-skipped batch must not evaluate a baseline")
+
+    metric = _fixed_metric(baseline=unexpected_baseline)
+    result = metric.evaluate(_exact_input(), torch.full((1, 2, 2), float("nan")))
+
+    assert result["valid"].tolist() == [False]
+    torch.testing.assert_close(result["fractions"], torch.tensor([0.0, 0.5, 1.0]))
+    assert result["deletion"].shape == result["insertion"].shape == (1, 3)
+    assert all(result[key].isnan().all() for key in ("deletion", "insertion", "deletion_auc", "insertion_auc"))
+    assert metric.cam_extractor.model.calls == 1
+    assert metric.total == metric.nan_count == 0
+
+
+@pytest.mark.parametrize("spatial_dims", [1, 2, 3])
+def test_deletion_insertion_evaluate_resizes_maps_with_stable_ties(spatial_dims):
+    shape = (1, 1, *([2] * spatial_dims))
+    inputs = torch.arange(1, 2**spatial_dims + 1, dtype=torch.float32).reshape(shape)
+    metric = _fixed_metric(steps=2)
+
+    result = metric.evaluate(inputs, torch.ones((1, *([1] * spatial_dims))), class_idx=0)
+
+    total = inputs.sum().item()
+    first_half = inputs.flatten()[: 2 ** (spatial_dims - 1)].sum().item()
+    torch.testing.assert_close(result["deletion"], torch.tensor([[total, total - first_half, 0.0]]))
+    torch.testing.assert_close(result["insertion"], torch.tensor([[0.0, first_half, total]]))
+
+
+@pytest.mark.parametrize(
+    ("cam", "error"),
+    [
+        ([], TypeError),
+        (torch.ones((1, 2, 2), dtype=torch.int64), TypeError),
+        (torch.ones((1, 2, 2), dtype=torch.complex64), TypeError),
+        (torch.ones((1, 1, 2, 2)), ValueError),
+        (torch.ones((2, 2, 2)), ValueError),
+        (torch.ones((1, 0, 2)), ValueError),
+        (torch.full((1, 2, 2), float("inf")), ValueError),
+        (torch.full((1, 2, 2), -float("inf")), ValueError),
+    ],
+)
+def test_deletion_insertion_evaluate_rejects_invalid_maps(cam, error):
+    metric = _fixed_metric()
+
+    with pytest.raises(error, match="cam"):
+        metric.evaluate(_exact_input(), cam, class_idx=0)
+
+    assert metric.total == metric.nan_count == 0
+    assert metric.cam_extractor.model.training
+    assert metric.cam_extractor._hooks_enabled
+
+
+def test_deletion_insertion_evaluate_identifies_infinite_maps():
+    cam = torch.cat((_exact_input().squeeze(1), torch.full((1, 2, 2), float("inf"))))
+    cam[1, 0, 0] = float("nan")
+
+    with pytest.raises(ValueError, match=r"infinities in samples \[1\]"):
+        _fixed_metric().evaluate(_exact_input().expand(2, -1, -1, -1), cam)
+
+
+@pytest.mark.parametrize("failure", [None, "original", "perturbed", "adapter", "baseline", "target"])
+def test_deletion_insertion_evaluate_preserves_model_and_captures(failure, monkeypatch):
+    model = _ConvClassifier()
+    model.conv1.eval()
+    inputs = _exact_input().requires_grad_()
+    calls = 0
+
+    def output_fn(output):
+        assert not torch.is_grad_enabled()
+        if failure == "adapter":
+            raise RuntimeError("evaluation failed")
+        return output
+
+    def baseline_fn(batch):
+        if failure == "baseline":
+            raise RuntimeError("evaluation failed")
+        return torch.zeros_like(batch)
+
+    def target(sample):
+        if failure == "target":
+            raise RuntimeError("evaluation failed")
+        return sample[0]
+
+    with GradCAM(model, "conv2") as extractor:
+        cam = extractor(0, model(inputs))[0]
+        original_forward = model.forward
+
+        def scoring_forward(batch):
+            nonlocal calls
+            calls += 1
+            if (failure == "original" and calls == 1) or (failure == "perturbed" and calls == 2):
+                raise RuntimeError("evaluation failed")
+            return original_forward(batch)
+
+        monkeypatch.setattr(model, "forward", scoring_forward)
+        activations, gradients = extractor.hook_a.copy(), extractor.hook_g.copy()
+        modes = [module.training for module in model.modules()]
+        hooks = [len(module._forward_hooks) for module in model.modules()]
+        for param in model.parameters():
+            param.grad = torch.full_like(param, 2.0)
+        parameter_grads = [param.grad.clone() for param in model.parameters()]
+        metric = metrics.DeletionInsertionMetric(extractor, output_fn=output_fn, baseline=baseline_fn, steps=2)
+        if failure is None:
+            metric.evaluate(inputs, cam, targets=target)
+        else:
+            with pytest.raises(RuntimeError, match="evaluation failed"):
+                metric.evaluate(inputs, cam, targets=target)
+
+        assert all(before is after for before, after in zip(activations, extractor.hook_a, strict=True))
+        assert all(before is after for before, after in zip(gradients, extractor.hook_g, strict=True))
+        assert [module.training for module in model.modules()] == modes
+        assert [len(module._forward_hooks) for module in model.modules()] == hooks
+        assert extractor._hooks_enabled
+        for param, grad in zip(model.parameters(), parameter_grads, strict=True):
+            torch.testing.assert_close(param.grad, grad)
+        assert metric.total == metric.nan_count == 0
+
+
 def test_deletion_insertion_non_divisible_steps():
     metric = _fixed_metric(steps=3)
     input_tensor = torch.tensor([[[[0.3, 0.25, 0.2, 0.15, 0.1]]]])
@@ -603,8 +820,13 @@ def test_deletion_insertion_preserves_dtype_and_device(device, dtype):
     input_tensor = _exact_input().to(device=device, dtype=dtype)
 
     metric.update(input_tensor, class_idx=0)
+    result = metric.evaluate(input_tensor, extractor.cam, class_idx=0)
 
     assert all(tensor.device.type == device.type and tensor.dtype == dtype for tensor in model.seen)
+    assert all(tensor.device.type == device.type for tensor in result.values())
+    assert result["deletion"].dtype == result["insertion"].dtype == dtype
+    assert result["deletion_auc"].item() == pytest.approx(metric.summary()["deletion_auc"])
+    assert result["insertion_auc"].item() == pytest.approx(metric.summary()["insertion_auc"])
 
 
 @pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
