@@ -4,7 +4,7 @@ Apart from qualitative visual comparison, it is important to have a refined eval
 
 Run the [performance benchmark notebook](https://github.com/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb) ([Colab](https://colab.research.google.com/github/frgfm/notebooks/blob/main/torch-cam/performance_benchmark.ipynb)) to evaluate confidence scores and deletion/insertion AUCs, compare explicit baselines, and record runtime metadata.
 
-Both metrics compute CAMs from the model's raw output. A `logits_fn` such as softmax changes only the scores used to measure the explanation. It does not change the score differentiated by a gradient-based CAM. Class indices and callable `targets` select the same outputs before and after this score transform, so `logits_fn` must preserve that output layout.
+Both metrics' `update()` methods compute CAMs from the model's raw output. A `logits_fn` such as softmax changes only the scores used to measure the explanation. It does not change the score differentiated by a gradient-based CAM. Class indices and callable `targets` select the same outputs before and after this score transform, so `logits_fn` must preserve that output layout.
 
 The score transform receives separate tensor copies with no autograd graph. This also applies to tensor leaves in dictionaries, lists, and tuples, including named tuples. Thus, an in-place score transform does not change the raw outputs used to build the CAM. Use `output_fn` to convert custom output objects into these supported containers before score transformation.
 
@@ -111,9 +111,35 @@ with GradCAM(model, "layer4") as cam_extractor:
 
     Deletion and insertion test perturbation faithfulness to the model's score. They do not establish localization quality, human interpretability, or causal correctness outside the chosen perturbation and baseline protocol.
 
+### Evaluate an existing CAM
+
+Use `evaluate()` to score an already-computed map without calling the extractor or fusing maps again. Keep the extractor open, as with `update()`; calling either method after its context closes raises `RuntimeError`. Evaluation reuses the metric's score transforms, baseline, steps, and scoring batch size. Supply the same class index or callable target used to compute the map. If you omit both, evaluation selects each input's original top prediction once and keeps that target throughout both curves. TorchCAM cannot infer the target from the map.
+
+```python
+# cam is the exact map to evaluate, shaped (N, H, W) for 2D inputs.
+with GradCAM(model, "layer4") as cam_extractor:
+    metric = DeletionInsertionMetric(cam_extractor, partial(torch.softmax, dim=-1))
+    result = metric.evaluate(input_tensor, cam, class_idx=class_indices)
+fractions = result["fractions"]       # (K,), includes 0 and 1
+deletion = result["deletion"]         # (N, K), selected scores
+insertion = result["insertion"]       # (N, K), selected scores
+deletion_auc = result["deletion_auc"] # (N,)
+insertion_auc = result["insertion_auc"] # (N,)
+valid = result["valid"]               # (N,), boolean
+```
+
+The map must be a floating-point tensor shaped `(N, *map_spatial_dims)`, without a channel dimension. Its batch size and spatial rank must match the nonempty input shaped `(N, C, *spatial_dims)`. One, two, and three spatial dimensions are supported. Maps are detached, moved to the input device, and resized with linear, bilinear, or trilinear interpolation as needed. Half-precision and bfloat16 maps are promoted to float32 before resizing to avoid low-precision overflow. Nonfinite resized values raise an error. Values do not need to lie in `[0, 1]`. Ties retain flattened spatial order.
+
+**Signed maps retain their signs.** Ranking uses the supplied values from highest to lowest after resizing. No normalization, absolute value, or clamping is applied. Positive values precede zero and negative values; the most negative values are perturbed last. This evaluates a descending signed ranking, not the strength of negative evidence. For a signed flip-difference map, neither negation nor conversion to a magnitude map happens implicitly. If you choose such a conversion, apply it explicitly before evaluation and record it as a different evaluation protocol.
+
+Each row in the result keeps its original input index. A map containing any NaN is skipped: `valid` is false and its curves and AUCs are filled with NaNs. An all-skipped batch returns the same shapes and fraction grid. `evaluate()` rejects infinite CAM values with an error naming the affected sample indices, even if those maps also contain NaNs. Invalid map shapes or types also raise an error. `update()` keeps its existing NaN-only filtering for extracted maps. Selected original and perturbed scores must remain finite, including original scores for skipped rows.
+
+Keep score transforms and callable target scores on the input device. All returned tensors are detached and stay on that device. Evaluation does not retain results or change the accumulated `summary()`, `total`, or `nan_count`; use `update()` to accumulate extracted-CAM metrics as before. A baseline callable receives the full original batch once before valid samples are selected, and is not called for an all-skipped batch. Evaluation temporarily uses model evaluation mode and disables extractor hooks for every forward, including the original score. Module training modes, hook state, and the output adapter are restored on success and on errors. This path requires one original scoring forward plus the perturbation scoring samples described above, with no CAM extraction or backward pass.
+
 ::: torchcam.metrics.DeletionInsertionMetric
     options:
         members:
             - reset
+            - evaluate
             - update
             - summary

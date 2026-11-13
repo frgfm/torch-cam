@@ -4,6 +4,9 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 
 ## Unreleased
 
+`DeletionInsertionMetric.evaluate()` scores existing CAMs and returns detached per-sample curves and AUCs without
+accumulating results. It validates supplied maps and preserves their signed ranking.
+
 CAM captures now belong to the latest enabled model forward. Failed forwards and skipped target layers are
 rejected instead of silently reusing features from a previous input; paused forwards preserve existing captures.
 
