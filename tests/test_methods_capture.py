@@ -50,3 +50,12 @@ def test_existing_forward_callback_can_extract(mock_img_model):
     with mock_img_model.register_forward_hook(capture), GradCAM(mock_img_model, "0.3") as extractor:
         mock_img_model(torch.rand(1, 3, 4, 4, requires_grad=True))
         assert captures[0].shape == (1, 4, 4)
+
+
+def test_whole_model_checkpoint_preserves_capture(mock_img_model):
+    model = mock_img_model.eval()
+    with GradCAM(model, "0.3") as extractor:
+        scores = checkpoint(model, torch.rand(1, 3, 4, 4, requires_grad=True), use_reentrant=False)
+        expected = extractor(0, scores, retain_graph=True)[0]
+        scores.sum().backward(retain_graph=True)
+        assert torch.equal(extractor(0, scores)[0], expected)

@@ -6,6 +6,7 @@ import pytest
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
 from torchvision.models.vision_transformer import VisionTransformer
 
 from torchcam.methods import LayerCAM, LeGrad, ScoreCAM
@@ -489,6 +490,15 @@ def test_legrad_rejects_incompatible_block_outputs(block_type, error, during_for
             scores = model(input_tensor)
             with pytest.raises(ValueError, match=error):
                 extractor(0, scores)
+
+
+def test_legrad_whole_model_checkpoint_preserves_attention():
+    model = _TinyViT().eval()
+    with LeGrad(model, list(model.blocks), score_projection=model.project) as extractor:
+        scores = checkpoint(model, torch.rand(1, 3, 2, 2), use_reentrant=False)
+        expected = extractor(0, scores, retain_graph=True)[0]
+        scores.sum().backward(retain_graph=True)
+        assert torch.equal(extractor(0, scores)[0], expected)
 
 
 def test_legrad_rejects_missing_captured_state():

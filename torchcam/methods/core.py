@@ -179,6 +179,12 @@ class _CAM:
         if self._closed:
             raise RuntimeError("CAM extractor is closed; create a new extractor")
 
+    @property
+    def _capture_enabled(self) -> bool:
+        """Capture predictions, preserving their tensors during autograd recomputation."""
+        # PyTorch uses the same task ID to identify checkpoint recomputation.
+        return self._hooks_enabled and torch._C._current_graph_task_id() == -1  # noqa: SLF001
+
     @contextmanager
     def _cleanup_on_error(self) -> Generator[None, None, None]:
         """Roll back owned hooks if extractor initialization fails."""
@@ -237,16 +243,17 @@ class _CAM:
                 output = self._reshape_transform(output)
             if not isinstance(output, Tensor):
                 raise TypeError(f"layer '{self.target_names[idx]}' returned {type(output).__name__}, not a tensor")
-            self.hook_a[idx] = output.detach()
+            if self._capture_enabled:
+                self.hook_a[idx] = output.detach()
 
     def _start_capture(self, _: nn.Module, _input: tuple[Any, ...]) -> None:
         """Discard previous captures before a new enabled model forward."""
-        if self._hooks_enabled:
+        if self._capture_enabled:
             self.reset_hooks()
 
     def _finish_capture(self, _: nn.Module, _input: tuple[Any, ...], _output: Any) -> None:
         """Record forward completion before caller hooks that may compute CAMs."""
-        if self._hooks_enabled:
+        if self._capture_enabled:
             self._forward_completed = True
 
     def _check_capture(self) -> None:
