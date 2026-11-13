@@ -439,6 +439,54 @@ def test_deletion_insertion_evaluate_preserves_signed_ranking():
     torch.testing.assert_close(result["insertion"], torch.tensor([[0.0, 0.2, 0.5, 0.9, 1.0]]))
 
 
+def test_deletion_insertion_integer_scores():
+    metric = _fixed_metric()
+    metric.logits_fn = lambda scores: scores.to(torch.int64)
+    inputs = torch.cat((_exact_input() * 10, _exact_input() * 10))
+    cam = inputs.squeeze(1).clone()
+    cam[1, 0, 0] = float("nan")
+
+    result = metric.evaluate(inputs, cam, class_idx=0)
+    metric.cam_extractor.cam = cam
+    metric.update(inputs, class_idx=0)
+
+    torch.testing.assert_close(result["deletion"][0], torch.tensor([10.0, 3.0, 0.0]))
+    torch.testing.assert_close(result["insertion"][0], torch.tensor([0.0, 7.0, 10.0]))
+    assert result["valid"].tolist() == [True, False]
+    assert result["deletion"][1].isnan().all()
+    assert result["insertion"][1].isnan().all()
+    assert result["deletion_auc"][0].item() == pytest.approx(4.0)
+    assert result["insertion_auc"][0].item() == pytest.approx(6.0)
+    assert metric.summary() == pytest.approx({"deletion_auc": 4.0, "insertion_auc": 6.0})
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_deletion_insertion_evaluate_resizes_low_precision_maps(dtype):
+    inputs = torch.arange(1, 28, dtype=torch.float32).reshape(1, 1, 3, 3, 3)
+    cam = torch.full((1, 2, 2, 2), torch.finfo(dtype).max, dtype=dtype)
+    metric = _fixed_metric(steps=27)
+
+    result = metric.evaluate(inputs, cam, class_idx=0)
+
+    assert result["valid"].tolist() == [True]
+    cumulative = torch.cat((torch.zeros(1), inputs.flatten().cumsum(0)))
+    torch.testing.assert_close(result["insertion"][0], cumulative)
+    torch.testing.assert_close(result["deletion"][0], inputs.sum() - cumulative)
+
+
+def test_deletion_insertion_evaluate_rejects_overflow_during_resize(monkeypatch):
+    # Simulate backend overflow without relying on a particular PyTorch interpolation kernel.
+    monkeypatch.setattr(metrics, "_resize_cam", lambda cam, _shape: torch.full_like(cam, float("inf")))
+    metric = _fixed_metric()
+
+    with pytest.raises(ValueError, match="resizing cam produced nonfinite values"):
+        metric.evaluate(_exact_input(), _exact_input().squeeze(1))
+
+    assert metric.total == metric.nan_count == 0
+    assert metric.cam_extractor.model.training
+    assert metric.cam_extractor._hooks_enabled
+
+
 @pytest.mark.parametrize("selection", ["indices", "targets", "automatic"])
 def test_deletion_insertion_evaluate_keeps_sample_identity_and_baselines(selection):
     inputs = torch.cat((_exact_input(), _exact_input() / 2, _exact_input() / 5))
@@ -548,6 +596,7 @@ def test_deletion_insertion_evaluate_rejects_invalid_maps(cam, error):
         metric.evaluate(_exact_input(), cam, class_idx=0)
 
     assert metric.total == metric.nan_count == 0
+    assert metric.cam_extractor.model.calls == 0
     assert metric.cam_extractor.model.training
     assert metric.cam_extractor._hooks_enabled
 
@@ -558,6 +607,59 @@ def test_deletion_insertion_evaluate_identifies_infinite_maps():
 
     with pytest.raises(ValueError, match=r"infinities in samples \[1\]"):
         _fixed_metric().evaluate(_exact_input().expand(2, -1, -1, -1), cam)
+
+
+@pytest.mark.parametrize("with_nan", [False, True])
+def test_deletion_insertion_update_preserves_infinite_map_handling(with_nan):
+    metric = _fixed_metric()
+    cam = torch.cat((_exact_input().squeeze(1), _exact_input().squeeze(1)))
+    cam[1, 0, 0] = float("inf")
+    if with_nan:
+        cam[1, 1, 1] = float("nan")
+    metric.cam_extractor.cam = cam
+
+    metric.update(_exact_input().expand(2, -1, -1, -1), class_idx=0)
+
+    assert metric.total == 2 - int(with_nan)
+    assert metric.nan_count == int(with_nan)
+    assert all(torch.isfinite(torch.tensor(value)) for value in metric.summary().values())
+    if with_nan:
+        assert metric.summary() == pytest.approx({"deletion_auc": 0.4, "insertion_auc": 0.6})
+
+
+def test_deletion_insertion_evaluate_requires_open_extractor():
+    inputs = _exact_input().requires_grad_()
+    with GradCAM(_ConvClassifier(), "conv2") as extractor:
+        cam = extractor(0, extractor.model(inputs))[0]
+        metric = metrics.DeletionInsertionMetric(extractor)
+
+    with pytest.raises(RuntimeError, match="extractor is closed"):
+        metric.evaluate(inputs, cam, class_idx=0)
+
+    assert metric.total == metric.nan_count == 0
+
+
+@pytest.mark.parametrize("shape", [(1, 1), (1, 1, 1, 1, 1, 1), (0, 1, 2, 2), (1, 1, 0, 2)])
+def test_deletion_insertion_evaluate_rejects_invalid_input_shapes(shape):
+    metric = _fixed_metric()
+
+    with pytest.raises(ValueError, match="input_tensor"):
+        metric.evaluate(torch.ones(shape), torch.ones((1, 2, 2)), class_idx=0)
+
+    assert metric.total == metric.nan_count == 0
+    assert metric.cam_extractor.model.calls == 0
+    assert metric.cam_extractor.model.training
+    assert metric.cam_extractor._hooks_enabled
+
+
+def test_deletion_insertion_evaluate_rejects_conflicting_targets():
+    metric = _fixed_metric()
+
+    with pytest.raises(ValueError, match="either class_idx or targets"):
+        metric.evaluate(_exact_input(), _exact_input().squeeze(1), class_idx=0, targets=itemgetter(0))
+
+    assert metric.cam_extractor.model.calls == 0
+    assert metric.total == metric.nan_count == 0
 
 
 @pytest.mark.parametrize("failure", [None, "original", "perturbed", "adapter", "baseline", "target"])

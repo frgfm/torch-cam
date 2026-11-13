@@ -151,6 +151,22 @@ def _resize_cam(cam: torch.Tensor, spatial_shape: tuple[int, ...]) -> torch.Tens
     ).squeeze(1)
 
 
+def _validate_cam(input_tensor: torch.Tensor, cam: torch.Tensor) -> None:
+    if input_tensor.ndim not in {3, 4, 5} or any(size == 0 for size in input_tensor.shape):
+        raise ValueError("input_tensor must be a nonempty batch of 1D, 2D, or 3D spatial inputs")
+    if not isinstance(cam, torch.Tensor) or not cam.is_floating_point():
+        raise TypeError("cam must be a floating-point tensor")
+    if (
+        cam.ndim != input_tensor.ndim - 1
+        or cam.shape[0] != input_tensor.shape[0]
+        or any(size == 0 for size in cam.shape)
+    ):
+        raise ValueError("cam must have shape (N, *spatial_dims) with the input batch size and spatial rank")
+    infinite = torch.isinf(cam).flatten(1).any(dim=1)
+    if infinite.any():
+        raise ValueError(f"cam contains infinities in samples {infinite.nonzero().flatten().tolist()}")
+
+
 class ClassificationMetric:
     r"""Implements Average Drop and Increase in Confidence from ["Grad-CAM++: Improved Visual Explanations for Deep
     Convolutional Networks."](https://arxiv.org/pdf/1710.11063.pdf).
@@ -436,30 +452,24 @@ class DeletionInsertionMetric:
         target_indices: torch.Tensor | None,
         original_scores: torch.Tensor,
         targets: list[OutputTarget] | None,
+        *,
+        check_finite: bool,
     ) -> dict[str, torch.Tensor]:
-        if input_tensor.ndim not in {3, 4, 5} or any(size == 0 for size in input_tensor.shape):
-            raise ValueError("input_tensor must be a nonempty batch of 1D, 2D, or 3D spatial inputs")
-        if not isinstance(cam, torch.Tensor) or not cam.is_floating_point():
-            raise TypeError("cam must be a floating-point tensor")
-        if (
-            cam.ndim != input_tensor.ndim - 1
-            or cam.shape[0] != input_tensor.shape[0]
-            or any(size == 0 for size in cam.shape)
-        ):
-            raise ValueError("cam must have shape (N, *spatial_dims) with the input batch size and spatial rank")
-        infinite = torch.isinf(cam).flatten(1).any(dim=1)
-        if infinite.any():
-            raise ValueError(f"cam contains infinities in samples {infinite.nonzero().flatten().tolist()}")
-
         cam = cam.detach().to(device=input_tensor.device)
+        if cam.dtype in {torch.float16, torch.bfloat16}:
+            cam = cam.float()
         valid = ~torch.isnan(cam).flatten(1).any(dim=1)
         valid_input = input_tensor[valid]
         with torch.no_grad():
             baseline = self._get_baseline(input_tensor)[valid] if valid.any() else valid_input
         resized_cam = _resize_cam(cam, tuple(input_tensor.shape[2:]))[valid]
+        if check_finite and not torch.isfinite(resized_cam).all():
+            raise ValueError("resizing cam produced nonfinite values")
         order = torch.argsort(resized_cam.flatten(1), dim=1, descending=True, stable=True)
         ranks = torch.argsort(order, dim=1)
         valid_indices, valid_targets = _filter_selection(target_indices, targets, valid)
+        if not original_scores.is_floating_point():
+            original_scores = original_scores.float()
         fractions, deletion, insertion = self._compute_curves(
             valid_input, baseline, ranks, valid_indices, original_scores[valid], valid_targets
         )
@@ -488,6 +498,7 @@ class DeletionInsertionMetric:
 
         Maps are resized to the input spatial shape and ranked by descending signed value, with ties in spatial
         order. No normalization, absolute value, or clamping is applied. Negative evidence is perturbed last.
+        The extractor must remain open. Score transforms and targets must keep scores on the input device.
 
         Args:
             input_tensor: preprocessed model input, shaped ``(N, C, *spatial_dims)``
@@ -505,9 +516,11 @@ class DeletionInsertionMetric:
         Raises:
             TypeError: if the map is not a floating-point tensor or the target selection has an invalid type
             ValueError: if shapes or targets are invalid, maps contain infinities, or selected scores are nonfinite
+            RuntimeError: if the extractor has been closed
         """  # noqa: DOC502
         if targets is not None and class_idx is not None:
             raise ValueError("provide either class_idx or targets, not both")
+        _validate_cam(input_tensor, cam)
         with (
             _model_eval(self.cam_extractor.model),
             self.cam_extractor._hooks_off(),  # noqa: SLF001
@@ -518,7 +531,7 @@ class DeletionInsertionMetric:
             target_fns = _resolve_targets(targets, input_tensor.shape[0]) if targets is not None else None
             _, target_indices = _resolve_class_idx(scores, class_idx) if target_fns is None else (None, None)
             original_scores = _validate_scores(_select_scores(scores, target_indices, target_fns))
-            return self._evaluate_cam(input_tensor, cam, target_indices, original_scores, target_fns)
+            return self._evaluate_cam(input_tensor, cam, target_indices, original_scores, target_fns, check_finite=True)
 
     def update(
         self,
@@ -545,7 +558,10 @@ class DeletionInsertionMetric:
             cam, target_indices, original_scores = _get_cam_and_scores(
                 self.cam_extractor, output, scores, class_idx, target_fns
             )
-            result = self._evaluate_cam(input_tensor, cam, target_indices, original_scores, target_fns)
+            # Preserve update's legacy NaN-only filtering for extracted maps.
+            result = self._evaluate_cam(
+                input_tensor, cam, target_indices, original_scores, target_fns, check_finite=False
+            )
 
         valid = result["valid"]
         self.deletion += result["deletion_auc"][valid].sum().item()
