@@ -304,7 +304,7 @@ class SmoothGradCAMpp(_GradCAM):
 
     def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
-        if self._capture_enabled and self._ihook_enabled:
+        if self._capture_enabled and self._ihook_enabled and self._capture_depth == 1:
             self._input = input_[0].detach().clone()
 
     def _get_weights(
