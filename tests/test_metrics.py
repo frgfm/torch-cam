@@ -317,9 +317,16 @@ def test_metrics_adapt_internal_extractor_forwards(metric_cls, method, output_ki
     assert results[0] == pytest.approx(results[1])
 
 
-@pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
+@pytest.mark.parametrize(
+    ("metric_cls", "supplied_cam"),
+    [
+        (metrics.ClassificationMetric, False),
+        (metrics.DeletionInsertionMetric, False),
+        (metrics.DeletionInsertionMetric, True),
+    ],
+)
 @pytest.mark.parametrize("fail_on_call", [1, 2])
-def test_metrics_remove_output_adapter_on_error(metric_cls, fail_on_call):
+def test_metrics_remove_output_adapter_on_error(metric_cls, supplied_cam, fail_on_call):
     model = _TwoChannelClassifier("dict")
     model.identity.eval()
     modes = [module.training for module in model.modules()]
@@ -334,12 +341,18 @@ def test_metrics_remove_output_adapter_on_error(metric_cls, fail_on_call):
 
     inputs = torch.tensor([[[[1.0, 0.9, 0.5]], [[0.0, 1.0, 0.0]]]], requires_grad=True)
     with ScoreCAM(model, "identity") as extractor:
+        if supplied_cam:
+            model(inputs)
+        capture = extractor.hook_a[0]
         metric = metric_cls(extractor, partial(torch.softmax, dim=-1), output_fn=output_fn)
+        score = partial(metric.evaluate, cam=inputs[:, 0]) if supplied_cam else metric.update
         with pytest.raises(RuntimeError, match="adapter failed"):
-            metric.update(inputs, class_idx=0)
+            score(inputs, class_idx=0)
 
         assert metric.total == metric.nan_count == 0
         assert extractor._hooks_enabled
+        if supplied_cam:
+            assert extractor.hook_a[0] is capture
         assert isinstance(model(inputs), dict)
         assert [module.training for module in model.modules()] == modes
 
@@ -362,34 +375,41 @@ def test_metrics_align_structured_targets_after_nan_filtering(metric_cls):
     metric = metric_cls(
         extractor, lambda output: [{"logits": sample["logits"].softmax(-1)} for sample in output], **metric_kwargs
     )
-    metric.update(inputs, targets=[lambda sample, index=index: sample["logits"][index] for index in [0, 0, 1]])
+    targets = [lambda sample, index=index: sample["logits"][index] for index in [0, 0, 1]]
+    metric.update(inputs, targets=targets)
 
     assert metric.total == 2
     assert metric.nan_count == 1
     assert metric.summary() == pytest.approx(
         _reference_probability_metrics(metric_cls, inputs[[0, 2]], cam[[0, 2]], [0, 1])
     )
+    if isinstance(metric, metrics.DeletionInsertionMetric):
+        result = metric.evaluate(inputs, cam, targets=targets)
+        assert result["valid"].tolist() == [True, False, True]
+        assert {key: result[key][result["valid"]].mean().item() for key in metric.summary()} == pytest.approx(
+            metric.summary()
+        )
 
 
-def test_deletion_insertion_complete_curves_and_auc():
+def test_deletion_insertion_complete_curves_and_auc(monkeypatch):
     metric = _fixed_metric(steps=2)
-    input_tensor = _exact_input()
-    original_scores = metric.cam_extractor.model(input_tensor)[:, 0]
-    fractions, deletion, insertion = metric._compute_curves(
-        input_tensor,
-        torch.zeros_like(input_tensor),
-        torch.arange(4).unsqueeze(0),
-        torch.tensor([0]),
-        original_scores,
-    )
-
-    torch.testing.assert_close(fractions, torch.tensor([0.0, 0.5, 1.0]))
-    torch.testing.assert_close(deletion, torch.tensor([[1.0, 0.3, 0.0]]))
-    torch.testing.assert_close(insertion, torch.tensor([[0.0, 0.7, 1.0]]))
-    assert torch.trapezoid(deletion, fractions).item() == pytest.approx(0.4)
-    assert torch.trapezoid(insertion, fractions).item() == pytest.approx(0.6)
-
+    input_tensor = _exact_input().requires_grad_()
     metric.update(input_tensor, class_idx=0)
+    monkeypatch.setattr(_FixedExtractor, "__call__", None)
+    monkeypatch.setattr(_FixedExtractor, "fuse_cams", None)
+
+    cam = torch.tensor([[[-0.3, -0.9], [-0.1, -0.7]]], requires_grad=True)
+    result = metric.evaluate(input_tensor, cam, class_idx=0)
+
+    torch.testing.assert_close(result["fractions"], torch.tensor([0.0, 0.5, 1.0]))
+    torch.testing.assert_close(result["deletion"], torch.tensor([[1.0, 0.4, 0.0]]))
+    torch.testing.assert_close(result["insertion"], torch.tensor([[0.0, 0.6, 1.0]]))
+    assert result["deletion_auc"].item() == pytest.approx(0.45)
+    assert result["insertion_auc"].item() == pytest.approx(0.55)
+    assert result["valid"].tolist() == [True]
+    assert all(not value.requires_grad for value in result.values())
+    assert metric.total == 1
+    assert metric.nan_count == 0
     assert metric.summary() == pytest.approx({"deletion_auc": 0.4, "insertion_auc": 0.6})
 
 
@@ -401,34 +421,72 @@ def test_deletion_insertion_accepts_output_targets():
     assert metric.summary() == pytest.approx({"deletion_auc": 0.4, "insertion_auc": 0.6})
 
 
+@pytest.mark.parametrize(
+    ("cam", "error", "message"),
+    [
+        (torch.ones((2, 1, 2, 2)), ValueError, "cam must have shape"),
+        (torch.ones((1, 2, 2)), ValueError, "cam must have shape"),
+        (torch.ones((2, 0, 2)), ValueError, "cam must have shape"),
+        (torch.ones((2, 2, 2), dtype=torch.int64), TypeError, "floating-point tensor"),
+        (torch.tensor([[[1.0]], [[float("inf")]]]), ValueError, r"infinities in samples \[1\]"),
+    ],
+)
+def test_deletion_insertion_evaluate_rejects_invalid_maps(cam, error, message):
+    metric = _fixed_metric()
+    with pytest.raises(error, match=message):
+        metric.evaluate(_exact_input().expand(2, -1, -1, -1), cam)
+    assert metric.cam_extractor.model.calls == 0
+
+
+def test_deletion_insertion_evaluate_rejects_conflicting_targets():
+    inputs = _exact_input()
+    with pytest.raises(ValueError, match="either class_idx or targets"):
+        _fixed_metric().evaluate(inputs, inputs[:, 0], class_idx=0, targets=itemgetter(0))
+
+
+def test_deletion_insertion_evaluate_resizes_half_precision_maps():
+    inputs = torch.arange(1, 28, dtype=torch.float32).reshape(1, 1, 3, 3, 3)
+    cam = torch.full((1, 2, 2, 2), torch.finfo(torch.float16).max, dtype=torch.float16)
+
+    result = _fixed_metric(steps=27).evaluate(inputs, cam, class_idx=0)
+
+    torch.testing.assert_close(result["insertion"][0, 1:], inputs.flatten().cumsum(0))
+
+
+def test_deletion_insertion_evaluate_rejects_nonfinite_resized_map(monkeypatch):
+    monkeypatch.setattr(metrics, "_resize_cam", lambda cam, _shape: torch.full_like(cam, float("inf")))
+    inputs = _exact_input()
+    with pytest.raises(ValueError, match="resizing cam produced nonfinite values"):
+        _fixed_metric().evaluate(inputs, inputs[:, 0])
+
+
 def test_deletion_insertion_non_divisible_steps():
     metric = _fixed_metric(steps=3)
     input_tensor = torch.tensor([[[[0.3, 0.25, 0.2, 0.15, 0.1]]]])
-    original_scores = metric.cam_extractor.model(input_tensor)[:, 0]
-    fractions, deletion, insertion = metric._compute_curves(
-        input_tensor,
-        torch.zeros_like(input_tensor),
-        torch.arange(5).unsqueeze(0),
-        torch.tensor([0]),
-        original_scores,
-    )
+    result = metric.evaluate(input_tensor, input_tensor[:, 0], class_idx=0)
 
-    torch.testing.assert_close(fractions, torch.tensor([0.0, 0.4, 0.8, 1.0]))
-    torch.testing.assert_close(deletion, torch.tensor([[1.0, 0.45, 0.1, 0.0]]))
-    torch.testing.assert_close(insertion, torch.tensor([[0.0, 0.55, 0.9, 1.0]]))
-    assert torch.trapezoid(deletion, fractions).item() == pytest.approx(0.41)
-    assert torch.trapezoid(insertion, fractions).item() == pytest.approx(0.59)
+    torch.testing.assert_close(result["fractions"], torch.tensor([0.0, 0.4, 0.8, 1.0]))
+    assert result["deletion_auc"].item() == pytest.approx(0.41)
+    assert result["insertion_auc"].item() == pytest.approx(0.59)
 
 
 def test_deletion_insertion_chunked_parity():
-    input_tensor = _exact_input().expand(2, -1, -1, -1).clone()
-    chunked = _fixed_metric(steps=4, batch_size=1)
-    unchunked = _fixed_metric(steps=4, batch_size=100)
+    inputs = torch.cat((_exact_input(), _exact_input(), _exact_input() / 5))
+    cam = inputs[:, 0].clone()
+    cam[1, 0, 0] = float("nan")
+    baseline = torch.tensor([0.05, 0.1, 0.15]).reshape(3, 1, 1, 1)
+    chunked = _fixed_metric(batch_size=1, baseline=baseline)
+    unchunked = _fixed_metric(baseline=baseline)
 
-    chunked.update(input_tensor, class_idx=[0, 0])
-    unchunked.update(input_tensor, class_idx=[0, 0])
+    result = chunked.evaluate(inputs, cam, class_idx=[0, 0, 1])
+    expected = unchunked.evaluate(inputs, cam, class_idx=[0, 0, 1])
 
-    assert chunked.summary() == pytest.approx(unchunked.summary())
+    torch.testing.assert_close(result, expected, equal_nan=True)
+    assert result["valid"].tolist() == [True, False, True]
+    torch.testing.assert_close(result["deletion_auc"], torch.tensor([0.5, float("nan"), 0.62]), equal_nan=True)
+    torch.testing.assert_close(result["insertion_auc"], torch.tensor([0.7, float("nan"), 0.58]), equal_nan=True)
+    assert result["deletion"][1].isnan().all()
+    assert result["insertion"][1].isnan().all()
 
 
 def test_deletion_insertion_custom_baselines_and_non_mutation():
@@ -500,6 +558,8 @@ def test_metrics_reject_unsupported_spatial_rank():
 
     with pytest.raises(ValueError, match="1D"):
         metrics.ClassificationMetric(extractor).update(torch.ones((1, 1)), class_idx=0)
+    with pytest.raises(ValueError, match="input_tensor"):
+        metrics.DeletionInsertionMetric(extractor).evaluate(torch.ones((1, 1)), extractor.cam)
 
 
 @pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
@@ -513,6 +573,8 @@ def test_metrics_skip_nan_cams(metric_cls):
         if metric_cls is metrics.ClassificationMetric
         else metric_cls(extractor, steps=2, baseline=torch.zeros_like(input_tensor))
     )
+    if isinstance(metric, metrics.DeletionInsertionMetric):
+        cam[1, 0, 0] = float("inf")
 
     metric.update(input_tensor, class_idx=[0, 0])
 
@@ -531,6 +593,11 @@ def test_metrics_all_nan_cams(metric_cls):
     assert metric.nan_count == 1
     with pytest.raises(AssertionError, match="update"):
         metric.summary()
+    if isinstance(metric, metrics.DeletionInsertionMetric):
+        result = metric.evaluate(_exact_input(), extractor.cam)
+        assert result["valid"].tolist() == [False]
+        assert result["deletion"].shape == (1, 3)
+        assert result["deletion_auc"].isnan().all()
 
 
 @pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
@@ -603,8 +670,11 @@ def test_deletion_insertion_preserves_dtype_and_device(device, dtype):
     input_tensor = _exact_input().to(device=device, dtype=dtype)
 
     metric.update(input_tensor, class_idx=0)
+    result = metric.evaluate(input_tensor, extractor.cam, class_idx=0)
 
     assert all(tensor.device.type == device.type and tensor.dtype == dtype for tensor in model.seen)
+    assert all(tensor.device.type == device.type for tensor in result.values())
+    assert result["deletion"].dtype == result["insertion"].dtype == dtype
 
 
 @pytest.mark.parametrize("metric_cls", [metrics.ClassificationMetric, metrics.DeletionInsertionMetric])
@@ -666,13 +736,21 @@ def test_classification_metric_rejects_negative_confidence(bad_forward):
     assert extractor._hooks_enabled
 
 
-def test_deletion_insertion_accepts_signed_scores():
-    extractor = _FixedExtractor(_SumClassifier(), _exact_input().squeeze(1))
-    metric = metrics.DeletionInsertionMetric(extractor, neg, steps=2)
+@pytest.mark.parametrize(
+    ("logits_fn", "aucs"),
+    [(neg, (-0.4, -0.6)), (lambda scores: (10 * scores).round().long(), (4.0, 6.0))],
+)
+def test_deletion_insertion_score_transforms(logits_fn, aucs):
+    inputs = _exact_input()
+    metric = _fixed_metric()
+    metric.logits_fn = logits_fn
 
-    metric.update(_exact_input(), targets=itemgetter(0))
+    metric.update(inputs, targets=itemgetter(0))
+    result = metric.evaluate(inputs, inputs[:, 0], targets=itemgetter(0))
 
-    assert metric.summary() == pytest.approx({"deletion_auc": -0.4, "insertion_auc": -0.6})
+    expected = dict(zip(("deletion_auc", "insertion_auc"), aucs, strict=True))
+    assert metric.summary() == pytest.approx(expected)
+    assert {key: result[key].item() for key in expected} == pytest.approx(expected)
 
 
 def test_deletion_insertion_half_precision_integration():

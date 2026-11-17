@@ -151,6 +151,22 @@ def _resize_cam(cam: torch.Tensor, spatial_shape: tuple[int, ...]) -> torch.Tens
     ).squeeze(1)
 
 
+def _validate_cam(input_tensor: torch.Tensor, cam: torch.Tensor) -> None:
+    if input_tensor.ndim not in {3, 4, 5} or any(size == 0 for size in input_tensor.shape):
+        raise ValueError("input_tensor must be a nonempty batch of 1D, 2D, or 3D spatial inputs")
+    if not isinstance(cam, torch.Tensor) or not cam.is_floating_point():
+        raise TypeError("cam must be a floating-point tensor")
+    if (
+        cam.ndim != input_tensor.ndim - 1
+        or cam.shape[0] != input_tensor.shape[0]
+        or any(size == 0 for size in cam.shape)
+    ):
+        raise ValueError("cam must have shape (N, *spatial_dims) with the input batch size and spatial rank")
+    infinite = torch.isinf(cam).flatten(1).any(dim=1)
+    if infinite.any():
+        raise ValueError(f"cam contains infinities in samples {infinite.nonzero().flatten().tolist()}")
+
+
 class ClassificationMetric:
     r"""Implements Average Drop and Increase in Confidence from ["Grad-CAM++: Improved Visual Explanations for Deep
     Convolutional Networks."](https://arxiv.org/pdf/1710.11063.pdf).
@@ -429,7 +445,95 @@ class DeletionInsertionMetric:
 
         return fractions, deletion, insertion
 
-    def update(  # noqa: PLR0914
+    def _evaluate_cam(
+        self,
+        input_tensor: torch.Tensor,
+        cam: torch.Tensor,
+        target_indices: torch.Tensor | None,
+        original_scores: torch.Tensor,
+        targets: list[OutputTarget] | None,
+        *,
+        check_finite: bool,
+    ) -> dict[str, torch.Tensor]:
+        cam = cam.detach().to(device=input_tensor.device)
+        if cam.dtype in {torch.float16, torch.bfloat16}:
+            cam = cam.float()
+        valid = ~torch.isnan(cam).flatten(1).any(dim=1)
+        valid_input = input_tensor[valid]
+        with torch.no_grad():
+            baseline = self._get_baseline(input_tensor)[valid] if valid.any() else valid_input
+        resized_cam = _resize_cam(cam, tuple(input_tensor.shape[2:]))[valid]
+        if check_finite and not torch.isfinite(resized_cam).all():
+            raise ValueError("resizing cam produced nonfinite values")
+        order = torch.argsort(resized_cam.flatten(1), dim=1, descending=True, stable=True)
+        ranks = torch.argsort(order, dim=1)
+        valid_indices, valid_targets = _filter_selection(target_indices, targets, valid)
+        if not original_scores.is_floating_point():
+            original_scores = original_scores.float()
+        fractions, deletion, insertion = self._compute_curves(
+            valid_input, baseline, ranks, valid_indices, original_scores[valid], valid_targets
+        )
+        full_deletion = deletion.new_full((input_tensor.shape[0], fractions.numel()), float("nan"))
+        full_insertion = torch.full_like(full_deletion, float("nan"))
+        full_deletion[valid] = deletion
+        full_insertion[valid] = insertion
+        return {
+            "fractions": fractions,
+            "deletion": full_deletion,
+            "insertion": full_insertion,
+            "deletion_auc": torch.trapezoid(full_deletion, fractions, dim=1),
+            "insertion_auc": torch.trapezoid(full_insertion, fractions, dim=1),
+            "valid": valid,
+        }
+
+    def evaluate(
+        self,
+        input_tensor: torch.Tensor,
+        cam: torch.Tensor,
+        class_idx: int | list[int] | None = None,
+        *,
+        targets: OutputTarget | list[OutputTarget] | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """Score an already-computed CAM without extraction or updating the accumulated metrics.
+
+        Maps are resized to the input spatial shape and ranked by descending signed value, with ties in spatial
+        order. No normalization, absolute value, or clamping is applied. Negative evidence is perturbed last.
+        The extractor must remain open. Score transforms and targets must keep scores on the input device.
+
+        Args:
+            input_tensor: preprocessed model input, shaped ``(N, C, *spatial_dims)``
+            cam: floating-point maps shaped ``(N, *map_spatial_dims)``, with the input spatial rank
+            class_idx: shared class index, one per sample, or ``None`` to use original top predictions;
+                select the same target that produced the supplied CAM
+            targets: scalar output target shared by the batch, or one target per sample
+
+        Returns:
+            detached tensors on the input device: ``fractions`` shaped ``(K,)``, ``deletion`` and ``insertion``
+            shaped ``(N, K)``, ``deletion_auc`` and ``insertion_auc`` shaped ``(N,)``, and a boolean ``valid``
+            mask shaped ``(N,)``. Rows retain input order. Maps containing NaNs have false validity and NaN
+            curves and AUCs. Results are not retained and do not change ``summary()`` or ``nan_count``.
+
+        Raises:
+            TypeError: if the map is not a floating-point tensor or the target selection has an invalid type
+            ValueError: if shapes or targets are invalid, maps contain infinities, or selected scores are nonfinite
+            RuntimeError: if the extractor has been closed
+        """  # noqa: DOC502
+        if targets is not None and class_idx is not None:
+            raise ValueError("provide either class_idx or targets, not both")
+        _validate_cam(input_tensor, cam)
+        with (
+            _model_eval(self.cam_extractor.model),
+            self.cam_extractor._hooks_off(),  # noqa: SLF001
+            _adapt_model_output(self.cam_extractor.model, self.output_fn),
+            torch.no_grad(),
+        ):
+            _, scores = _get_outputs(self.cam_extractor, self.logits_fn, input_tensor)
+            target_fns = _resolve_targets(targets, input_tensor.shape[0]) if targets is not None else None
+            _, target_indices = _resolve_class_idx(scores, class_idx) if target_fns is None else (None, None)
+            original_scores = _validate_scores(_select_scores(scores, target_indices, target_fns))
+            return self._evaluate_cam(input_tensor, cam, target_indices, original_scores, target_fns, check_finite=True)
+
+    def update(
         self,
         input_tensor: torch.Tensor,
         class_idx: int | list[int] | None = None,
@@ -454,35 +558,16 @@ class DeletionInsertionMetric:
             cam, target_indices, original_scores = _get_cam_and_scores(
                 self.cam_extractor, output, scores, class_idx, target_fns
             )
-            discard = torch.isnan(cam).reshape(input_tensor.shape[0], -1).any(dim=-1)
-            nan_count = int(discard.sum().item())
-            if discard.all():
-                self.nan_count += nan_count
-                return
-
-            with torch.no_grad():
-                baseline = self._get_baseline(input_tensor)[~discard]
-            valid_input = input_tensor[~discard]
-            cam = _resize_cam(cam[~discard], tuple(input_tensor.shape[2:]))
-            original_scores = original_scores[~discard]
-            valid_indices, valid_targets = _filter_selection(target_indices, target_fns, ~discard)
-            order = torch.argsort(cam.flatten(1), dim=1, descending=True, stable=True)
-            ranks = torch.argsort(order, dim=1)
-            fractions, deletion, insertion = self._compute_curves(
-                valid_input,
-                baseline,
-                ranks,
-                valid_indices,
-                original_scores,
-                valid_targets,
+            # Preserve update's legacy NaN-only filtering for extracted maps.
+            result = self._evaluate_cam(
+                input_tensor, cam, target_indices, original_scores, target_fns, check_finite=False
             )
-            deletion_auc = torch.trapezoid(deletion, fractions, dim=1)
-            insertion_auc = torch.trapezoid(insertion, fractions, dim=1)
 
-        self.deletion += deletion_auc.sum().item()
-        self.insertion += insertion_auc.sum().item()
-        self.total += valid_input.shape[0]
-        self.nan_count += nan_count
+        valid = result["valid"]
+        self.deletion += result["deletion_auc"][valid].sum().item()
+        self.insertion += result["insertion_auc"][valid].sum().item()
+        self.total += int(valid.sum().item())
+        self.nan_count += int((~valid).sum().item())
 
     def summary(self) -> dict[str, float]:
         """Compute the mean deletion and insertion AUCs.
