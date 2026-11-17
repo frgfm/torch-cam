@@ -131,8 +131,9 @@ Each enabled model forward discards previous captures. CAM extraction requires a
 every target layer; a failed forward or a skipped conditional branch raises `AssertionError` instead of reusing
 features from an earlier input. Run the full model again through the selected layers to recover.
 
-These checks track the model's `forward` computation, not recursive calls into the same model or exceptions
-in caller hooks outside that boundary. After a caller hook fails, use `reset_hooks()` and run a fresh forward.
+Caller-hook exceptions invalidate captures too, including failures before `forward` starts or after it returns.
+Recursive calls share the outer invocation's captures; an inner return cannot mark a failed outer call complete.
+Capture bookkeeping is shared when multiple extractors observe one model and removed when the last closes.
 
 Backward-time model calls, including whole-model checkpoint recomputation, preserve the original captures;
 manual hook toggles are unnecessary. Use non-reentrant checkpointing (`use_reentrant=False`) for gradient CAMs.
