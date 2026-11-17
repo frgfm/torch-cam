@@ -284,7 +284,7 @@ class ScoreCAM(_CAM):
 
     def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
-        if self._hooks_enabled:
+        if self._capture_enabled:
             self._input = input_[0].detach().clone()
 
     def _prepare_masked_inputs(self, activation: Tensor) -> tuple[Tensor, Tensor, Tensor]:

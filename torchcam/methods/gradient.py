@@ -54,7 +54,7 @@ class _GradCAM(_CAM):
 
     def _hook_g(self, _: nn.Module, _input: tuple[Tensor, ...], output: Tensor, idx: int = 0) -> None:
         """Store the target-layer output used to compute gradients."""
-        if self._hooks_enabled:
+        if self._capture_enabled:
             self._hook_outputs[idx] = output
 
     def _backprop(
@@ -304,7 +304,7 @@ class SmoothGradCAMpp(_GradCAM):
 
     def _store_input(self, _: nn.Module, input_: tuple[Any, ...]) -> None:
         """Store model input tensor."""
-        if self._hooks_enabled and self._ihook_enabled:
+        if self._capture_enabled and self._ihook_enabled:
             self._input = input_[0].detach().clone()
 
     def _get_weights(
@@ -755,7 +755,8 @@ class LeGrad(_CAM):
         attention_output = torch.matmul(attention, value).transpose(1, 2)
         attention_output = attention_output.reshape(batch_size, attention.shape[-2], embed_dim)
         attention_output = module.out_proj(attention_output)
-        self.hook_attn[idx] = attention
+        if self._capture_enabled:
+            self.hook_attn[idx] = attention
 
         options = self._weight_options[idx]
         if options is None:
@@ -773,8 +774,9 @@ class LeGrad(_CAM):
         scores = self._score_projection(output)
         if not isinstance(scores, Tensor) or scores.ndim != 2 or scores.shape[0] != output.shape[0]:
             raise ValueError("`score_projection` must return class logits shaped (batch, classes)")
-        self.hook_a[idx] = scores
-        self._token_counts[idx] = output.shape[1]
+        if self._capture_enabled:
+            self.hook_a[idx] = scores
+            self._token_counts[idx] = output.shape[1]
 
     def _precheck(
         self,
