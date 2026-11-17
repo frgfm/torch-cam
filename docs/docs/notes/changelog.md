@@ -4,9 +4,6 @@ Release notes are published on [GitHub Releases](https://github.com/frgfm/torch-
 
 ## Unreleased
 
-`DeletionInsertionMetric.evaluate()` scores existing CAMs and returns detached per-sample curves and AUCs without
-accumulating results. It validates supplied maps and preserves their signed ranking.
-
 CAM captures now belong to the latest enabled model forward. Failed forwards and skipped target layers are
 rejected instead of silently reusing features from a previous input; paused forwards preserve existing captures.
 
@@ -22,6 +19,9 @@ Added EigenCAM for class-independent principal-component maps of spatial feature
 multi-layer extraction without gradients. Half-precision activations are computed in float32.
 
 CAM fusion now rejects resizing a single map; resize it explicitly with `torch.nn.functional.interpolate`.
+
+`DeletionInsertionMetric.evaluate()` scores existing CAMs and returns detached per-sample curves and AUCs without
+accumulating results. It validates supplied maps and preserves their signed ranking.
 
 ## v0.5.0 (2026-10-03)
 
